@@ -4,7 +4,7 @@
 
 > ⚠️ Codex log support is experimental while the Codex CLI log format continues to evolve.
 
-ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Codex uses the same unified and focused report model as Claude Code, OpenCode, Amp, pi-agent, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI.
+ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Codex uses the same unified and focused report model as Claude Code, OpenCode, Amp, Droid, pi-agent, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI.
 
 ## Focused Views
 

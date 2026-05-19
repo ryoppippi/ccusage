@@ -24,6 +24,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) opencode: Option<OpenCodeConfig>,
     /// Amp configuration.
     pub(crate) amp: Option<AmpConfig>,
+    /// Droid configuration.
+    pub(crate) droid: Option<DroidConfig>,
     /// Hermes Agent configuration.
     pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
@@ -112,6 +114,21 @@ pub(crate) struct AmpConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AmpCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DroidConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<DroidCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DroidCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -872,6 +889,10 @@ mod tests {
             Some("#/definitions/SharedOptions")
         );
         assert_eq!(
+            property_ref(&schema, "DroidConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
             property_ref(&schema, "PiConfig", "defaults"),
             Some("#/definitions/PiOptions")
         );
@@ -919,7 +940,7 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
-                "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi",
+                "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "droid",
             ],
         );
     }
@@ -978,6 +999,13 @@ mod tests {
                 "commands": {
                     "daily": {
                         "breakdown": true
+                    }
+                }
+            },
+            "droid": {
+                "commands": {
+                    "daily": {
+                        "json": true
                     }
                 }
             },

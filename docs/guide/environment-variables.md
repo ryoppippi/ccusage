@@ -12,6 +12,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `CODEX_HOME`                      | Codex        | `~/.codex`                         |
 | `OPENCODE_DATA_DIR`               | OpenCode     | `~/.local/share/opencode`          |
 | `AMP_DATA_DIR`                    | Amp          | `~/.local/share/amp`               |
+| `DROID_SESSIONS_DIR`              | Droid        | `~/.factory/sessions`              |
 | `HERMES_HOME`                     | Hermes Agent | `~/.hermes`                        |
 | `PI_AGENT_DIR`                    | pi-agent     | `~/.pi/agent/sessions`             |
 | `GOOSE_PATH_ROOT`                 | Goose        | Standard Goose data roots          |
@@ -27,6 +28,7 @@ Example:
 export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
+export DROID_SESSIONS_DIR="/path/to/factory/sessions,/archive/factory/sessions"
 export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"

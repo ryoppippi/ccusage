@@ -25,6 +25,7 @@ pub(crate) enum Command {
     Codex(AgentCommandArgs),
     OpenCode(AgentCommandArgs),
     Amp(AgentCommandArgs),
+    Droid(AgentCommandArgs),
     Hermes(AgentCommandArgs),
     Pi(AgentCommandArgs),
     Goose(AgentCommandArgs),
@@ -352,6 +353,7 @@ fn parse_command(
         "codex" => parse_codex_command(parser, shared, config),
         "opencode" => parse_opencode_command(parser, shared, config),
         "amp" => parse_amp_command(parser, shared, config),
+        "droid" => parse_droid_command(parser, shared, config),
         "hermes" => parse_hermes_command(parser, shared, config),
         "pi" => parse_pi_command(parser, shared, config),
         "goose" => parse_goose_command(parser, shared, config),
@@ -602,6 +604,41 @@ fn parse_amp_command(
         parse_shared_arg(parser, &mut shared)?;
     }
     Ok(Command::Amp(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        open_claw_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
+fn parse_droid_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown droid command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Droid(AgentCommandArgs {
         shared,
         kind,
         pi_path: None,
@@ -964,6 +1001,7 @@ fn is_command(arg: &str) -> bool {
             | "codex"
             | "opencode"
             | "amp"
+            | "droid"
             | "hermes"
             | "pi"
             | "goose"
@@ -1106,6 +1144,7 @@ fn is_agent_command(command: &str) -> bool {
             | "codex"
             | "opencode"
             | "amp"
+            | "droid"
             | "hermes"
             | "pi"
             | "goose"
@@ -1125,7 +1164,8 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         ),
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
-        "amp" | "hermes" | "pi" | "goose" | "kilo" | "copilot" | "gemini" | "kimi" | "openclaw" => {
+        "amp" | "droid" | "hermes" | "pi" | "goose" | "kilo" | "copilot" | "gemini" | "kimi"
+        | "openclaw" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -1138,6 +1178,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "codex" => "Codex",
         "opencode" => "OpenCode",
         "amp" => "Amp",
+        "droid" => "Droid",
         "hermes" => "Hermes",
         "pi" => "pi-agent",
         "goose" => "Goose",
@@ -1390,6 +1431,14 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
                     ("session", "Show Amp token usage grouped by session"),
                 ],
             ),
+            "droid" => agent_help(
+                "droid",
+                &[
+                    ("daily", "Show Droid usage grouped by date"),
+                    ("monthly", "Show Droid usage grouped by month"),
+                    ("session", "Show Droid usage grouped by session"),
+                ],
+            ),
             "hermes" => agent_help(
                 "hermes",
                 &[
@@ -1466,6 +1515,7 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             "codex" => codex_report_help(report),
             "opencode" => opencode_report_help(report),
             "amp" => amp_report_help(report),
+            "droid" => droid_report_help(report),
             "hermes" => hermes_report_help(report),
             "pi" => pi_report_help(report),
             "goose" => goose_report_help(report),
@@ -1516,6 +1566,7 @@ fn root_help_text() -> String {
         "  codex                      Show Codex token usage commands",
         "  opencode                   Show OpenCode token usage commands",
         "  amp                        Show Amp token usage commands",
+        "  droid                      Show Droid usage commands",
         "  hermes                     Show Hermes usage commands",
         "  pi                         Show pi-agent usage commands",
         "  goose                      Show Goose usage commands",
@@ -1536,6 +1587,7 @@ fn root_help_text() -> String {
         "  ccusage codex --help",
         "  ccusage opencode --help",
         "  ccusage amp --help",
+        "  ccusage droid --help",
         "  ccusage hermes --help",
         "  ccusage pi --help",
         "  ccusage goose --help",
@@ -1633,6 +1685,20 @@ fn amp_report_help(report: &str) -> String {
     command_help(
         description,
         &format!("ccusage amp {report} <OPTIONS>"),
+        agent_options(),
+    )
+}
+
+fn droid_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Droid usage grouped by date",
+        "monthly" => "Show Droid usage grouped by month",
+        "session" => "Show Droid usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage droid {report} <OPTIONS>"),
         agent_options(),
     )
 }
@@ -2002,8 +2068,8 @@ mod tests {
     fn root_help_lists_agent_namespaces_without_nested_commands() {
         let help = help_text();
         let agents = [
-            "claude", "codex", "opencode", "amp", "hermes", "pi", "goose", "kilo", "copilot",
-            "gemini", "openclaw",
+            "claude", "codex", "opencode", "amp", "droid", "hermes", "pi", "goose", "kilo",
+            "copilot", "gemini", "kimi", "openclaw",
         ];
 
         for agent in agents {
@@ -2231,6 +2297,16 @@ mod tests {
         let cli = parse(&["ccusage", "amp", "session", "--json"]);
         let Some(Command::Amp(args)) = cli.command else {
             panic!("expected amp command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_droid_session_options() {
+        let cli = parse(&["ccusage", "droid", "session", "--json"]);
+        let Some(Command::Droid(args)) = cli.command else {
+            panic!("expected droid command");
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);

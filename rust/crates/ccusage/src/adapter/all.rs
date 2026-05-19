@@ -7,7 +7,9 @@ use std::{
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, copilot, gemini, goose, hermes, kilo, kimi, openclaw, opencode, pi},
+    adapter::{
+        amp, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw, opencode, pi,
+    },
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -107,48 +109,54 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             },
             AgentLoadSpec {
                 index: 4,
+                agent: "droid",
+                progress_agent: crate::progress::UsageLoadAgent::Droid,
+                load: Box::new(|| load_droid_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 5,
                 agent: "hermes",
                 progress_agent: crate::progress::UsageLoadAgent::Hermes,
                 load: Box::new(|| load_hermes_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 5,
+                index: 6,
                 agent: "pi",
                 progress_agent: crate::progress::UsageLoadAgent::Pi,
                 load: Box::new(|| load_pi_rows(load_kind, shared)),
             },
             AgentLoadSpec {
-                index: 6,
+                index: 7,
                 agent: "goose",
                 progress_agent: crate::progress::UsageLoadAgent::Goose,
                 load: Box::new(|| load_goose_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 7,
+                index: 8,
                 agent: "openclaw",
                 progress_agent: crate::progress::UsageLoadAgent::OpenClaw,
                 load: Box::new(|| load_openclaw_rows(load_kind, shared)),
             },
             AgentLoadSpec {
-                index: 8,
+                index: 9,
                 agent: "kilo",
                 progress_agent: crate::progress::UsageLoadAgent::Kilo,
                 load: Box::new(|| load_kilo_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 9,
+                index: 10,
                 agent: "copilot",
                 progress_agent: crate::progress::UsageLoadAgent::Copilot,
                 load: Box::new(|| load_copilot_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 10,
+                index: 11,
                 agent: "gemini",
                 progress_agent: crate::progress::UsageLoadAgent::Gemini,
                 load: Box::new(|| load_gemini_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 11,
+                index: 12,
                 agent: "kimi",
                 progress_agent: crate::progress::UsageLoadAgent::Kimi,
                 load: Box::new(|| load_kimi_rows(load_kind, shared, &pricing)),
@@ -315,6 +323,21 @@ fn load_amp_rows(
     let summaries = amp::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("amp", summaries),
+        detected,
+    })
+}
+
+fn load_droid_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = droid::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = droid::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("droid", summaries),
         detected,
     })
 }
@@ -981,6 +1004,7 @@ fn agent_label(agent: &str) -> &str {
         "codex" => "Codex",
         "opencode" => "OpenCode",
         "amp" => "Amp",
+        "droid" => "Droid",
         "hermes" => "Hermes",
         "pi" => "pi-agent",
         "goose" => "Goose",
