@@ -24,7 +24,27 @@
 
 ## Supported Sources
 
-The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
+ccusage reads local usage data from coding agent CLIs and turns it into daily, weekly, monthly, and session reports.
+
+| Source             | Focused command example  |
+| ------------------ | ------------------------ |
+| Claude Code        | `ccusage claude daily`   |
+| Codex              | `ccusage codex daily`    |
+| OpenCode           | `ccusage opencode daily` |
+| Amp                | `ccusage amp daily`      |
+| Droid              | `ccusage droid daily`    |
+| Codebuff           | `ccusage codebuff daily` |
+| Hermes Agent       | `ccusage hermes daily`   |
+| pi-agent           | `ccusage pi daily`       |
+| Goose              | `ccusage goose daily`    |
+| OpenClaw           | `ccusage openclaw daily` |
+| Kilo               | `ccusage kilo daily`     |
+| Kimi               | `ccusage kimi daily`     |
+| Qwen               | `ccusage qwen daily`     |
+| GitHub Copilot CLI | `ccusage copilot daily`  |
+| Gemini CLI         | `ccusage gemini daily`   |
+
+Use `ccusage daily`, `ccusage weekly`, `ccusage monthly`, or `ccusage session` to include every detected source in one report.
 
 ## Installation
 
