@@ -23,6 +23,17 @@
               overlays = [ rust-overlay.overlays.default ];
             };
           in f system pkgs);
+      mkRepoSrc = pkgs: pkgs.lib.cleanSourceWith {
+        src = ./.;
+        filter = path: type:
+          let
+            rel = pkgs.lib.removePrefix "${toString ./.}/" (toString path);
+          in
+            !(pkgs.lib.hasPrefix "node_modules/" rel)
+            && !(pkgs.lib.hasPrefix "target/" rel)
+            && !(pkgs.lib.hasPrefix "dist/" rel)
+            && !(pkgs.lib.hasPrefix "coverage/" rel);
+      };
     in {
       apps = forAllSystems (system: pkgs:
         let
@@ -55,17 +66,7 @@
               || pkgs.lib.hasSuffix "/fast-multiplier-overrides.json" path
               || pkgs.lib.hasSuffix "/litellm-pricing-fallback.json" path;
           };
-          repoSrc = pkgs.lib.cleanSourceWith {
-            src = ./.;
-            filter = path: type:
-              let
-                rel = pkgs.lib.removePrefix "${toString ./.}/" (toString path);
-              in
-                !(pkgs.lib.hasPrefix "node_modules/" rel)
-                && !(pkgs.lib.hasPrefix "target/" rel)
-                && !(pkgs.lib.hasPrefix "dist/" rel)
-                && !(pkgs.lib.hasPrefix "coverage/" rel);
-          };
+          repoSrc = mkRepoSrc pkgs;
           commonArgs = {
             pname = "ccusage";
             inherit version;
@@ -169,17 +170,7 @@
 
       checks = forAllSystems (system: pkgs:
         let
-          repoSrc = pkgs.lib.cleanSourceWith {
-            src = ./.;
-            filter = path: type:
-              let
-                rel = pkgs.lib.removePrefix "${toString ./.}/" (toString path);
-              in
-                !(pkgs.lib.hasPrefix "node_modules/" rel)
-                && !(pkgs.lib.hasPrefix "target/" rel)
-                && !(pkgs.lib.hasPrefix "dist/" rel)
-                && !(pkgs.lib.hasPrefix "coverage/" rel);
-          };
+          repoSrc = mkRepoSrc pkgs;
           mkRepoCheck = name: nativeBuildInputs: command:
             pkgs.runCommand name {
               src = repoSrc;
