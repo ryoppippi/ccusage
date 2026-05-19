@@ -212,8 +212,19 @@ impl Cli {
         if let Some(message) = unsupported_agent_report_error(&parser.args) {
             return Err(message);
         }
-        if parser.peek_help_or_version() {
-            parser.print_help_or_version();
+        if parser
+            .args
+            .iter()
+            .any(|arg| matches!(arg.as_str(), "-v" | "-V" | "--version"))
+        {
+            print_version_and_exit();
+        }
+        if parser
+            .args
+            .iter()
+            .any(|arg| matches!(arg.as_str(), "-h" | "--help"))
+        {
+            print_help_and_exit(&parser.args);
         }
 
         let mut shared = SharedArgs::with_defaults();
@@ -962,7 +973,7 @@ impl ArgParser {
         let arg = self
             .next()
             .ok_or_else(|| "Expected option but reached end of arguments".to_string())?;
-        if matches!(arg.as_str(), "-h" | "--help" | "-V" | "--version") {
+        if matches!(arg.as_str(), "-h" | "--help" | "-v" | "-V" | "--version") {
             print_help_or_version_arg(&arg);
         }
         if let Some((flag, value)) = arg.split_once('=') {
@@ -991,26 +1002,313 @@ impl ArgParser {
         }
         Ok(value)
     }
-
-    fn peek_help_or_version(&self) -> bool {
-        matches!(self.peek(), Some("-h" | "--help" | "-V" | "--version"))
-    }
-
-    fn print_help_or_version(&mut self) -> ! {
-        print_help_or_version_arg(self.next().as_deref().unwrap_or("--help"))
-    }
 }
 
 fn print_help_or_version_arg(arg: &str) -> ! {
     match arg {
-        "-V" | "--version" => println!("ccusage {}", env!("CARGO_PKG_VERSION")),
+        "-v" | "-V" | "--version" => print_version_and_exit(),
         _ => println!("{}", help_text()),
     }
     process::exit(0);
 }
 
-fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n  amp\n  pi\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+fn print_version_and_exit() -> ! {
+    println!("ccusage {}", env!("CARGO_PKG_VERSION"));
+    process::exit(0);
+}
+
+fn print_help_and_exit(args: &[String]) -> ! {
+    println!("{}", help_text_for_args(args));
+    process::exit(0);
+}
+
+fn help_text() -> String {
+    root_help_text()
+}
+
+fn help_text_for_args(args: &[String]) -> String {
+    let args = strip_program_name(args);
+    let tokens = command_tokens(args);
+    help_text_for_tokens(&tokens)
+}
+
+fn strip_program_name(args: &[String]) -> &[String] {
+    if args.first().is_some_and(|arg| arg == "ccusage") {
+        &args[1..]
+    } else {
+        args
+    }
+}
+
+fn help_text_for_tokens(tokens: &[String]) -> String {
+    match tokens {
+        [] => root_help_text(),
+        [command] => match command.as_str() {
+            "daily" | "monthly" | "weekly" | "session" => all_report_help(command),
+            "blocks" => blocks_help("ccusage blocks"),
+            "statusline" => statusline_help("ccusage statusline"),
+            "claude" => claude_report_help("daily"),
+            "codex" => codex_report_help("daily"),
+            "opencode" => opencode_report_help("daily"),
+            "amp" => amp_report_help("daily"),
+            "pi" => pi_report_help("daily"),
+            _ => root_help_text(),
+        },
+        [agent, report, ..] => match agent.as_str() {
+            "claude" => match report.as_str() {
+                "daily" | "monthly" | "weekly" | "session" => claude_report_help(report),
+                "blocks" => blocks_help("ccusage claude blocks"),
+                "statusline" => statusline_help("ccusage claude statusline"),
+                _ => root_help_text(),
+            },
+            "codex" => codex_report_help(report),
+            "opencode" => opencode_report_help(report),
+            "amp" => amp_report_help(report),
+            "pi" => pi_report_help(report),
+            _ => root_help_text(),
+        },
+    }
+}
+
+fn root_help_text() -> String {
+    [
+        "USAGE:",
+        "  ccusage [daily] <OPTIONS>",
+        "  ccusage <COMMANDS>",
+        "",
+        "COMMANDS:",
+        "  daily                      Show all detected coding (agent) CLI usage grouped by date",
+        "  monthly                    Show all detected coding (agent) CLI usage grouped by month",
+        "  weekly                     Show all detected coding (agent) CLI usage grouped by week",
+        "  session                    Show all detected coding (agent) CLI usage grouped by session",
+        "  blocks                     Show usage report grouped by session billing blocks",
+        "  statusline                 Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+        "  claude daily               Show usage report grouped by date",
+        "  claude monthly             Show usage report grouped by month",
+        "  claude weekly              Show usage report grouped by week",
+        "  claude session             Show usage report grouped by conversation session",
+        "  claude blocks              Show usage report grouped by session billing blocks",
+        "  claude statusline          Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+        "  codex daily                Show Codex token usage grouped by day",
+        "  codex monthly              Show Codex token usage grouped by month",
+        "  codex session              Show Codex token usage grouped by session",
+        "  opencode daily             Show OpenCode token usage grouped by day",
+        "  opencode weekly            Show OpenCode token usage grouped by week",
+        "  opencode monthly           Show OpenCode token usage grouped by month",
+        "  opencode session           Show OpenCode token usage grouped by session",
+        "  amp daily                  Show Amp token usage grouped by day",
+        "  amp monthly                Show Amp token usage grouped by month",
+        "  amp session                Show Amp token usage grouped by session",
+        "  pi daily                   Show pi-agent usage grouped by date",
+        "  pi monthly                 Show pi-agent usage grouped by month",
+        "  pi session                 Show pi-agent usage grouped by session",
+        "",
+        "For more info, run any command with the `--help` flag:",
+        "  ccusage daily --help",
+        "  ccusage monthly --help",
+        "  ccusage weekly --help",
+        "  ccusage session --help",
+        "  ccusage blocks --help",
+        "  ccusage statusline --help",
+        "  ccusage claude daily --help",
+        "  ccusage claude monthly --help",
+        "  ccusage claude weekly --help",
+        "  ccusage claude session --help",
+        "  ccusage claude blocks --help",
+        "  ccusage claude statusline --help",
+        "  ccusage codex daily --help",
+        "  ccusage codex monthly --help",
+        "  ccusage codex session --help",
+        "  ccusage opencode daily --help",
+        "  ccusage opencode weekly --help",
+        "  ccusage opencode monthly --help",
+        "  ccusage opencode session --help",
+        "  ccusage amp daily --help",
+        "  ccusage amp monthly --help",
+        "  ccusage amp session --help",
+        "  ccusage pi daily --help",
+        "  ccusage pi monthly --help",
+        "  ccusage pi session --help",
+        "",
+        all_agent_options(),
+    ]
+    .join("\n")
+}
+
+fn all_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show all detected coding (agent) CLI usage grouped by date",
+        "monthly" => "Show all detected coding (agent) CLI usage grouped by month",
+        "weekly" => "Show all detected coding (agent) CLI usage grouped by week",
+        "session" => "Show all detected coding (agent) CLI usage grouped by session",
+        _ => unreachable!("all-agent report is prevalidated"),
+    };
+    command_help(
+        description,
+        &format!("ccusage {report} <OPTIONS>"),
+        all_agent_options(),
+    )
+}
+
+fn claude_report_help(report: &str) -> String {
+    let (description, options) = match report {
+        "daily" => (
+            "Show usage report grouped by date",
+            command_options(&[shared_claude_options(), daily_options()]),
+        ),
+        "monthly" => (
+            "Show usage report grouped by month",
+            shared_claude_options().to_string(),
+        ),
+        "weekly" => (
+            "Show usage report grouped by week",
+            command_options(&[shared_claude_options(), weekly_options()]),
+        ),
+        "session" => (
+            "Show usage report grouped by conversation session",
+            command_options(&[shared_claude_options(), session_options()]),
+        ),
+        _ => unreachable!("Claude report is prevalidated"),
+    };
+    command_help(
+        description,
+        &format!("ccusage claude {report} <OPTIONS>"),
+        &options,
+    )
+}
+
+fn codex_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Codex token usage grouped by day",
+        "monthly" => "Show Codex token usage grouped by month",
+        "session" => "Show Codex token usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage codex {report} <OPTIONS>"),
+        codex_options(),
+    )
+}
+
+fn opencode_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show OpenCode token usage grouped by day",
+        "weekly" => "Show OpenCode token usage grouped by week",
+        "monthly" => "Show OpenCode token usage grouped by month",
+        "session" => "Show OpenCode token usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage opencode {report} <OPTIONS>"),
+        agent_options(),
+    )
+}
+
+fn amp_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Amp token usage grouped by day",
+        "monthly" => "Show Amp token usage grouped by month",
+        "session" => "Show Amp token usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage amp {report} <OPTIONS>"),
+        agent_options(),
+    )
+}
+
+fn pi_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show pi-agent usage grouped by date",
+        "monthly" => "Show pi-agent usage grouped by month",
+        "session" => "Show pi-agent usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage pi {report} <OPTIONS>"),
+        &command_options(&[agent_options(), pi_options()]),
+    )
+}
+
+fn blocks_help(usage: &str) -> String {
+    command_help(
+        "Show usage report grouped by session billing blocks",
+        &format!("{usage} <OPTIONS>"),
+        &command_options(&[shared_claude_options(), blocks_options()]),
+    )
+}
+
+fn statusline_help(usage: &str) -> String {
+    command_help(
+        "Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+        &format!("{usage} <OPTIONS>"),
+        statusline_options(),
+    )
+}
+
+fn command_help(description: &str, usage: &str, options: &str) -> String {
+    [
+        description,
+        "",
+        "USAGE:",
+        &format!("  {usage}"),
+        "",
+        options,
+    ]
+    .join("\n")
+}
+
+fn command_options(parts: &[&str]) -> String {
+    let option_lines = parts
+        .iter()
+        .flat_map(|part| part.lines().skip(1))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("OPTIONS:\n{option_lines}")
+}
+
+fn all_agent_options() -> &'static str {
+    "OPTIONS:\n  -j, --json                         Output in JSON format (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  --all                              Accepted for compatibility; all detected supported agents are included by default (default: false)\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  -O, --offline                      Use cached pricing data where supported (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
+}
+
+fn shared_claude_options() -> &'static str {
+    "OPTIONS:\n  -s, --since <since>                          Filter from date (YYYYMMDD format)\n  -u, --until <until>                          Filter until date (YYYYMMDD format)\n  -j, --json                                   Output in JSON format (default: false)\n  -m, --mode [mode]                            Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD) (default: auto, choices: auto | calculate | display)\n  -d, --debug                                  Show pricing mismatch information for debugging (default: false)\n  --debug-samples [debug-samples]              Number of sample discrepancies to show in debug output (default: 5)\n  -o, --order [order]                          Sort order: desc (newest first) or asc (oldest first) (default: asc, choices: desc | asc)\n  -b, --breakdown                              Show per-model cost breakdown (default: false)\n  -O, --offline                                Use cached pricing data for Claude models instead of fetching from API (default: false)\n  --no-offline                                 Negatable of -O, --offline\n  --single-thread                              Disable parallel JSONL file loading (default: false)\n  --color                                      Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                                   Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  -z, --timezone <timezone>                    Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone\n  --config <config>                            Path to configuration file (default: auto-discovery)\n  --compact                                    Force compact mode for narrow displays (better for screenshots) (default: false)\n  -h, --help                                   Display this help message\n  -v, --version                                Display this version"
+}
+
+fn agent_options() -> &'static str {
+    "OPTIONS:\n  -j, --json                         Output in JSON format (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  -O, --offline                      Use cached pricing data instead of fetching from LiteLLM (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  --color                            Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                         Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
+}
+
+fn codex_options() -> &'static str {
+    "OPTIONS:\n  -j, --json                         Output report as JSON (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  -O, --offline                      Use cached pricing data instead of fetching from LiteLLM (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --speed [speed]                    Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override (default: auto, choices: auto | standard | fast)\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  --color                            Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                         Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
+}
+
+fn pi_options() -> &'static str {
+    "OPTIONS:\n  --pi-path <pi-path>                Path or comma-separated paths to pi-agent sessions directories"
+}
+
+fn daily_options() -> &'static str {
+    "OPTIONS:\n  -i, --instances                              Show usage breakdown by project/instance (default: false)\n  -p, --project <project>                      Filter to specific project name\n  --project-aliases <project-aliases>          Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')"
+}
+
+fn weekly_options() -> &'static str {
+    "OPTIONS:\n  -w, --start-of-week [start-of-week]          Start day of the week (default: sunday, choices: sunday | monday | tuesday | wednesday | thursday | friday | saturday)"
+}
+
+fn session_options() -> &'static str {
+    "OPTIONS:\n  -i, --id <id>                                Filter to specific session ID"
+}
+
+fn blocks_options() -> &'static str {
+    "OPTIONS:\n  -a, --active                                 Show only active block with projections (default: false)\n  -r, --recent                                 Show blocks from last 3 days (including active) (default: false)\n  -t, --token-limit <token-limit>              Token limit for quota warnings (e.g., 500000 or \"max\")\n  -n, --session-length [session-length]        Session block duration in hours (default: 5)"
+}
+
+fn statusline_options() -> &'static str {
+    "OPTIONS:\n  -O, --offline                                                  Use cached pricing data for Claude models instead of fetching from API (default: true)\n  --no-offline                                                   Negatable of -O, --offline\n  -B, --visual-burn-rate [visual-burn-rate]                      Controls the visualization of the burn rate status (default: off, choices: off | emoji | text | emoji-text)\n  --cost-source [cost-source]                                    Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs) (default: auto, choices: auto | ccusage | cc | both)\n  --cache                                                        Enable cache for status line output (default: true)\n  --no-cache                                                     Negatable of --cache\n  --refresh-interval [refresh-interval]                          Refresh interval in seconds for cache expiry (default: 1)\n  --context-low-threshold [context-low-threshold]                Context usage percentage below which status is shown in green (0-100) (default: 50)\n  --context-medium-threshold [context-medium-threshold]          Context usage percentage below which status is shown in yellow (0-100) (default: 80)\n  --config <config>                                              Path to configuration file (default: auto-discovery)\n  -d, --debug                                                    Show pricing mismatch information for debugging (default: false)\n  -h, --help                                                     Display this help message\n  -v, --version                                                  Display this version"
 }
 
 #[cfg(test)]
@@ -1210,18 +1508,50 @@ mod tests {
     #[test]
     fn help_lists_agent_namespace_commands() {
         let help = help_text();
-        assert!(help.contains("\n  claude\n"));
-        assert!(help.contains("\n  codex\n"));
-        assert!(help.contains("\n  opencode\n"));
-        assert!(help.contains("\n  amp\n"));
-        assert!(help.contains("\n  pi\n"));
+        assert!(help.contains("\n  claude daily"));
+        assert!(help.contains("\n  codex daily"));
+        assert!(help.contains("\n  opencode daily"));
+        assert!(help.contains("\n  amp daily"));
+        assert!(help.contains("\n  pi daily"));
+    }
+
+    #[test]
+    fn root_help_lists_command_descriptions_and_follow_up_help_commands() {
+        let help = help_text();
+
+        assert!(help.contains("codex daily                Show Codex token usage grouped by day"));
+        assert!(help.contains("For more info, run any command with the `--help` flag:"));
+        assert!(help.contains("ccusage codex daily --help"));
+    }
+
+    #[test]
+    fn contextual_codex_help_lists_speed_choices() {
+        let help = help_text_for_args(&[
+            "ccusage".to_string(),
+            "codex".to_string(),
+            "daily".to_string(),
+            "--help".to_string(),
+        ]);
+
+        assert!(help.contains("Show Codex token usage grouped by day"));
+        assert!(help.contains("USAGE:\n  ccusage codex daily <OPTIONS>"));
+        assert!(help.contains("choices: auto | standard | fast"));
+    }
+
+    #[test]
+    fn contextual_statusline_help_lists_choice_options() {
+        let help = help_text_for_args(&["ccusage".to_string(), "statusline".to_string()]);
+
+        assert!(help.contains("choices: off | emoji | text | emoji-text"));
+        assert!(help.contains("choices: auto | ccusage | cc | both"));
     }
 
     #[test]
     fn cargo_version_matches_npm_package_version() {
-        let package_json =
-            serde_json::from_str::<serde_json::Value>(include_str!("../../../../apps/ccusage/package.json"))
-                .unwrap();
+        let package_json = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../../../apps/ccusage/package.json"
+        ))
+        .unwrap();
 
         assert_eq!(
             env!("CARGO_PKG_VERSION"),
