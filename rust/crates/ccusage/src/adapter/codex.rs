@@ -109,7 +109,7 @@ fn codex_config_requests_fast_service_tier(content: &str) -> bool {
 fn load_groups(shared: &SharedArgs, kind: AgentReportKind) -> Result<BTreeMap<String, CodexGroup>> {
     let mut groups = BTreeMap::new();
     let seen = create_dedupe_shards();
-    for path in crate::codex_sessions_paths()? {
+    for path in crate::codex_usage_paths()? {
         merge_groups(
             &mut groups,
             load_groups_from_directory_with_dedupe(&path, shared, kind, &seen)?,
@@ -261,7 +261,7 @@ fn add_event_to_groups(
         AgentReportKind::Monthly => date[..7].to_string(),
         AgentReportKind::Session => event.session_id.clone(),
     };
-    let group = groups.entry(period).or_insert_with(CodexGroup::default);
+    let group = groups.entry(period).or_default();
     accumulate_codex_event_into_group(group, event, model);
     Ok(())
 }
@@ -573,9 +573,7 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
         let models = row
             .get("models")
             .and_then(Value::as_object)
-            .map(|models| {
-                format_models_multiline(&models.keys().cloned().collect::<Vec<_>>())
-            })
+            .map(|models| format_models_multiline(&models.keys().cloned().collect::<Vec<_>>()))
             .unwrap_or_default();
         table.push(vec![
             label.to_string(),

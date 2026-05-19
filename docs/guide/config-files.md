@@ -176,7 +176,7 @@ Override shared defaults for specific unified reports and legacy Claude commands
 
 ### Source-Specific Configuration
 
-Use data source namespaces to set defaults and report overrides. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, `pi`, and `hermes`.
+Use data source namespaces to set defaults and report overrides. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, `hermes`, `pi`, `copilot`, and `gemini`.
 
 ```json
 {
@@ -204,16 +204,24 @@ Use data source namespaces to set defaults and report overrides. Supported names
 			}
 		}
 	},
+	"hermes": {
+		"defaults": {
+			"offline": true
+		}
+	},
 	"pi": {
 		"defaults": {
 			"piPath": "/path/to/pi/sessions,/archive/pi/sessions"
 		}
 	},
-	"hermes": {
-		"commands": {
-			"daily": {
-				"json": true
-			}
+	"copilot": {
+		"defaults": {
+			"offline": true
+		}
+	},
+	"gemini": {
+		"defaults": {
+			"offline": true
 		}
 	}
 }
@@ -224,8 +232,10 @@ This configuration affects source-focused commands such as:
 ```bash
 ccusage codex daily
 ccusage opencode weekly
-ccusage pi daily
 ccusage hermes daily
+ccusage pi daily
+ccusage copilot monthly
+ccusage gemini daily
 ```
 
 Source-specific settings are also applied when running unified reports such as `ccusage daily`. In that case, each source receives its own merged options before data is loaded.

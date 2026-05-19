@@ -1,6 +1,6 @@
 pub(crate) mod loader;
-mod paths;
 mod parser;
+mod paths;
 
 use serde_json::{json, Value};
 

@@ -49,7 +49,6 @@ pub(crate) struct TokenCounts {
     pub(crate) output_tokens: u64,
     pub(crate) cache_creation_tokens: u64,
     pub(crate) cache_read_tokens: u64,
-    #[serde(skip)]
     pub(crate) extra_total_tokens: u64,
 }
 
@@ -78,19 +77,9 @@ pub(crate) struct ModelBreakdown {
     pub(crate) output_tokens: u64,
     pub(crate) cache_creation_tokens: u64,
     pub(crate) cache_read_tokens: u64,
-    #[serde(skip)]
+    #[serde(skip_serializing)]
     pub(crate) extra_total_tokens: u64,
     pub(crate) cost: f64,
-}
-
-impl ModelBreakdown {
-    pub(crate) fn total_tokens(&self) -> u64 {
-        self.input_tokens
-            + self.output_tokens
-            + self.cache_creation_tokens
-            + self.cache_read_tokens
-            + self.extra_total_tokens
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -102,8 +91,8 @@ pub(crate) struct LoadedEntry {
     pub(crate) session_id: Arc<str>,
     pub(crate) project_path: Arc<str>,
     pub(crate) cost: f64,
-    pub(crate) credits: Option<f64>,
     pub(crate) extra_total_tokens: u64,
+    pub(crate) credits: Option<f64>,
     pub(crate) message_count: Option<u64>,
     pub(crate) model: Option<String>,
     pub(crate) usage_limit_reset_time: Option<TimestampMs>,
@@ -178,11 +167,11 @@ pub(crate) struct UsageSummary {
     pub(crate) output_tokens: u64,
     pub(crate) cache_creation_tokens: u64,
     pub(crate) cache_read_tokens: u64,
-    #[serde(skip)]
+    #[serde(skip_serializing)]
     pub(crate) extra_total_tokens: u64,
     pub(crate) total_cost: f64,
     pub(crate) credits: Option<f64>,
-    #[serde(skip)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) message_count: Option<u64>,
     pub(crate) models_used: Vec<String>,
     pub(crate) model_breakdowns: Vec<ModelBreakdown>,

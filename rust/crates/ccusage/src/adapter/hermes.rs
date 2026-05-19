@@ -37,7 +37,11 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let mut entries = load_entries(&shared, &pricing)?;
     filter_loaded_entries_by_date(&mut entries, &shared);
     let mut rows = summarize_entries(&entries, args.kind)?;
-    sort_summaries(&mut rows, &shared.order, crate::adapter::opencode::summary_period);
+    sort_summaries(
+        &mut rows,
+        &shared.order,
+        crate::adapter::opencode::summary_period,
+    );
     if wants_json(&shared) {
         return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
     }
@@ -155,7 +159,10 @@ fn load_state_db_entries(db_path: &Path, shared: &SharedArgs) -> Vec<HermesEntry
     else {
         crate::debug_log(
             shared,
-            format!("Failed to open Hermes state database: {}", db_path.display()),
+            format!(
+                "Failed to open Hermes state database: {}",
+                db_path.display()
+            ),
         );
         return Vec::new();
     };
@@ -181,7 +188,10 @@ fn load_state_db_entries(db_path: &Path, shared: &SharedArgs) -> Vec<HermesEntry
     ) else {
         crate::debug_log(
             shared,
-            format!("Failed to read Hermes state database: {}", db_path.display()),
+            format!(
+                "Failed to read Hermes state database: {}",
+                db_path.display()
+            ),
         );
         return Vec::new();
     };
@@ -197,7 +207,10 @@ fn load_state_db_entries(db_path: &Path, shared: &SharedArgs) -> Vec<HermesEntry
             Err(_) => {
                 crate::debug_log(
                     shared,
-                    format!("Failed to query Hermes state database: {}", db_path.display()),
+                    format!(
+                        "Failed to query Hermes state database: {}",
+                        db_path.display()
+                    ),
                 );
                 break;
             }
@@ -272,7 +285,12 @@ fn read_f64(statement: &sqlite::Statement<'_>, index: usize) -> Option<f64> {
         .read::<f64, _>(index)
         .ok()
         .filter(|value| value.is_finite())
-        .or_else(|| statement.read::<i64, _>(index).ok().map(|value| value as f64))
+        .or_else(|| {
+            statement
+                .read::<i64, _>(index)
+                .ok()
+                .map(|value| value as f64)
+        })
 }
 
 fn read_non_negative_f64(statement: &sqlite::Statement<'_>, index: usize) -> Option<f64> {
@@ -283,11 +301,7 @@ fn timestamp_from_number(value: f64) -> Option<TimestampMs> {
     if !value.is_finite() {
         return None;
     }
-    let millis = if value > 1e12 {
-        value
-    } else {
-        value * 1000.0
-    };
+    let millis = if value > 1e12 { value } else { value * 1000.0 };
     (millis > 0.0).then(|| TimestampMs::from_millis(millis.trunc() as i64))
 }
 
@@ -313,11 +327,7 @@ fn infer_provider_from_model(model: &str) -> &'static str {
         "anthropic"
     } else if model.starts_with("gpt")
         || model.starts_with("chatgpt")
-        || model.starts_with('o')
-            && model
-                .as_bytes()
-                .get(1)
-                .is_some_and(u8::is_ascii_digit)
+        || model.starts_with('o') && model.as_bytes().get(1).is_some_and(u8::is_ascii_digit)
     {
         "openai"
     } else if model.starts_with("gemini-") || model.starts_with("gemini/") {
@@ -489,7 +499,10 @@ mod tests {
         );
         assert_eq!(entries[0].data.message.usage.input_tokens, 1200);
         assert_eq!(entries[0].data.message.usage.output_tokens, 300);
-        assert_eq!(entries[0].data.message.usage.cache_creation_input_tokens, 20);
+        assert_eq!(
+            entries[0].data.message.usage.cache_creation_input_tokens,
+            20
+        );
         assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 50);
         assert_eq!(entries[0].extra_total_tokens, 10);
         assert_eq!(entries[0].message_count, Some(42));
