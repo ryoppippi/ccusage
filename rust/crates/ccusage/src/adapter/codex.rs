@@ -791,4 +791,103 @@ mod tests {
 
         assert!((fast - (standard * 2.0)).abs() < f64::EPSILON);
     }
+
+    #[test]
+    fn snapshots_codex_reports_for_periods_sessions_costs_and_fallback_models() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-5.3-codex": {
+                    "input_cost_per_token": 0.00000175,
+                    "output_cost_per_token": 0.000014,
+                    "cache_read_input_token_cost": 0.000000175
+                },
+                "gpt-5-mini": {
+                    "input_cost_per_token": 0.00000025,
+                    "output_cost_per_token": 0.000002
+                }
+            }"#,
+        );
+        let events = vec![
+            CodexTokenUsageEvent {
+                session_id: "/workspace/api/session-a.jsonl".to_string(),
+                timestamp: "2026-01-02T00:00:00.000Z".to_string(),
+                model: Some("gpt-5.3-codex".to_string()),
+                input_tokens: 140,
+                cached_input_tokens: 40,
+                output_tokens: 5,
+                reasoning_output_tokens: 2,
+                total_tokens: 147,
+                is_fallback_model: false,
+            },
+            CodexTokenUsageEvent {
+                session_id: "/workspace/api/session-a.jsonl".to_string(),
+                timestamp: "2026-01-02T00:05:00.000Z".to_string(),
+                model: Some("gpt-5.3-codex".to_string()),
+                input_tokens: 70,
+                cached_input_tokens: 70,
+                output_tokens: 10,
+                reasoning_output_tokens: 0,
+                total_tokens: 80,
+                is_fallback_model: true,
+            },
+            CodexTokenUsageEvent {
+                session_id: "/workspace/web/session-b.jsonl".to_string(),
+                timestamp: "2026-01-05T23:59:59.000Z".to_string(),
+                model: Some("gpt-5-mini".to_string()),
+                input_tokens: 10,
+                cached_input_tokens: 0,
+                output_tokens: 2,
+                reasoning_output_tokens: 0,
+                total_tokens: 12,
+                is_fallback_model: false,
+            },
+            CodexTokenUsageEvent {
+                session_id: "ignored-missing-model".to_string(),
+                timestamp: "2026-01-06T00:00:00.000Z".to_string(),
+                model: None,
+                input_tokens: 999,
+                cached_input_tokens: 0,
+                output_tokens: 999,
+                reasoning_output_tokens: 0,
+                total_tokens: 1_998,
+                is_fallback_model: false,
+            },
+        ];
+
+        insta::assert_json_snapshot!(serde_json::json!({
+            "daily": report_json(
+                &events,
+                AgentReportKind::Daily,
+                Some("UTC"),
+                &pricing,
+                CodexSpeed::Standard,
+            )
+            .unwrap(),
+            "weekly": report_json(
+                &events,
+                AgentReportKind::Weekly,
+                Some("UTC"),
+                &pricing,
+                CodexSpeed::Standard,
+            )
+            .unwrap(),
+            "monthly": report_json(
+                &events,
+                AgentReportKind::Monthly,
+                Some("UTC"),
+                &pricing,
+                CodexSpeed::Standard,
+            )
+            .unwrap(),
+            "sessionFast": report_json(
+                &events,
+                AgentReportKind::Session,
+                Some("UTC"),
+                &pricing,
+                CodexSpeed::Fast,
+            )
+            .unwrap(),
+        }));
+    }
 }

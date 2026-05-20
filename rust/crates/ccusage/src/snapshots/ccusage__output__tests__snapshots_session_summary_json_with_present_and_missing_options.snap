@@ -1,0 +1,37 @@
+---
+source: crates/ccusage/src/output.rs
+expression: session_summary_json(&row)
+---
+{
+  "cacheCreationTokens": 89,
+  "cacheReadTokens": 10,
+  "inputTokens": 1234,
+  "lastActivity": "2026-01-02 12:34:56",
+  "modelBreakdowns": [
+    {
+      "cacheCreationTokens": 50,
+      "cacheReadTokens": 10,
+      "cost": 0.3,
+      "inputTokens": 900,
+      "modelName": "gpt-5.2-codex",
+      "outputTokens": 300
+    },
+    {
+      "cacheCreationTokens": 39,
+      "cacheReadTokens": 0,
+      "cost": 0.12,
+      "inputTokens": 334,
+      "modelName": "claude-sonnet-4-20250514",
+      "outputTokens": 267
+    }
+  ],
+  "modelsUsed": [
+    "gpt-5.2-codex",
+    "claude-sonnet-4-20250514"
+  ],
+  "outputTokens": 567,
+  "projectPath": "/Users/example/workspace/api",
+  "sessionId": "session-a",
+  "totalCost": 0.42,
+  "totalTokens": 1900
+}

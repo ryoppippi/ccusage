@@ -4,3 +4,6 @@ version = "20.0.1"
 edition = "2021"
 
 [dependencies]
+
+[dev-dependencies]
+insta = "1.47.2"

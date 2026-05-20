@@ -1667,6 +1667,7 @@ include!(concat!(env!("OUT_DIR"), "/cli-help.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::{json, Value};
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1689,6 +1690,110 @@ mod tests {
         let dir = env::temp_dir().join(format!("ccusage-cli-{name}-{nanos}"));
         fs::create_dir_all(&dir).unwrap();
         dir.join("ccusage.json")
+    }
+
+    fn shared_snapshot(shared: &SharedArgs) -> Value {
+        json!({
+            "since": shared.since.as_deref(),
+            "until": shared.until.as_deref(),
+            "json": shared.json,
+            "mode": format!("{:?}", shared.mode),
+            "debug": shared.debug,
+            "debugSamples": shared.debug_samples,
+            "order": format!("{:?}", shared.order),
+            "breakdown": shared.breakdown,
+            "offline": shared.offline,
+            "noOffline": shared.no_offline,
+            "color": shared.color,
+            "noColor": shared.no_color,
+            "timezone": shared.timezone.as_deref(),
+            "jq": shared.jq.as_deref(),
+            "config": shared.config.as_ref().map(|path| path.to_string_lossy().to_string()),
+            "compact": shared.compact,
+            "singleThread": shared.single_thread,
+        })
+    }
+
+    fn cli_snapshot(cli: Cli) -> Value {
+        json!({
+            "shared": shared_snapshot(&cli.shared),
+            "command": command_snapshot(cli.command),
+        })
+    }
+
+    fn command_snapshot(command: Option<Command>) -> Value {
+        match command {
+            None => Value::Null,
+            Some(Command::All(args)) => agent_command_snapshot("all", args),
+            Some(Command::Daily(args)) => json!({
+                "type": "daily",
+                "shared": shared_snapshot(&args.shared),
+                "instances": args.instances,
+                "project": args.project,
+                "projectAliases": args.project_aliases,
+            }),
+            Some(Command::Monthly(shared)) => json!({
+                "type": "monthly",
+                "shared": shared_snapshot(&shared),
+            }),
+            Some(Command::Weekly(args)) => json!({
+                "type": "weekly",
+                "shared": shared_snapshot(&args.shared),
+                "startOfWeek": format!("{:?}", args.start_of_week),
+            }),
+            Some(Command::Session(args)) => json!({
+                "type": "session",
+                "shared": shared_snapshot(&args.shared),
+                "id": args.id,
+            }),
+            Some(Command::Blocks(args)) => json!({
+                "type": "blocks",
+                "shared": shared_snapshot(&args.shared),
+                "active": args.active,
+                "recent": args.recent,
+                "tokenLimit": args.token_limit,
+                "sessionLength": args.session_length,
+            }),
+            Some(Command::Statusline(args)) => json!({
+                "type": "statusline",
+                "offline": args.offline,
+                "noOffline": args.no_offline,
+                "visualBurnRate": format!("{:?}", args.visual_burn_rate),
+                "costSource": format!("{:?}", args.cost_source),
+                "cache": args.cache,
+                "noCache": args.no_cache,
+                "refreshInterval": args.refresh_interval,
+                "contextLowThreshold": args.context_low_threshold,
+                "contextMediumThreshold": args.context_medium_threshold,
+                "config": args.config.as_ref().map(|path| path.to_string_lossy().to_string()),
+                "debug": args.debug,
+            }),
+            Some(Command::Codex(args)) => agent_command_snapshot("codex", args),
+            Some(Command::OpenCode(args)) => agent_command_snapshot("opencode", args),
+            Some(Command::Amp(args)) => agent_command_snapshot("amp", args),
+            Some(Command::Droid(args)) => agent_command_snapshot("droid", args),
+            Some(Command::Codebuff(args)) => agent_command_snapshot("codebuff", args),
+            Some(Command::Hermes(args)) => agent_command_snapshot("hermes", args),
+            Some(Command::Pi(args)) => agent_command_snapshot("pi", args),
+            Some(Command::Goose(args)) => agent_command_snapshot("goose", args),
+            Some(Command::Kilo(args)) => agent_command_snapshot("kilo", args),
+            Some(Command::Copilot(args)) => agent_command_snapshot("copilot", args),
+            Some(Command::Gemini(args)) => agent_command_snapshot("gemini", args),
+            Some(Command::Kimi(args)) => agent_command_snapshot("kimi", args),
+            Some(Command::Qwen(args)) => agent_command_snapshot("qwen", args),
+            Some(Command::OpenClaw(args)) => agent_command_snapshot("openclaw", args),
+        }
+    }
+
+    fn agent_command_snapshot(agent: &str, args: AgentCommandArgs) -> Value {
+        json!({
+            "type": agent,
+            "shared": shared_snapshot(&args.shared),
+            "kind": format!("{:?}", args.kind),
+            "piPath": args.pi_path,
+            "openClawPath": args.open_claw_path,
+            "codexSpeed": format!("{:?}", args.codex_speed),
+        })
     }
 
     #[test]
@@ -1934,6 +2039,196 @@ mod tests {
 
         assert!(help.contains("choices: off | emoji | text | emoji-text"));
         assert!(help.contains("choices: auto | ccusage | cc | both"));
+    }
+
+    #[test]
+    fn snapshots_root_and_contextual_help_text() {
+        insta::assert_snapshot!("root_help", help_text());
+        insta::assert_snapshot!(
+            "claude_agent_help",
+            help_text_for_args(&["ccusage".to_string(), "claude".to_string()])
+        );
+        insta::assert_snapshot!(
+            "codex_daily_help",
+            help_text_for_args(&[
+                "ccusage".to_string(),
+                "codex".to_string(),
+                "daily".to_string(),
+            ])
+        );
+        insta::assert_snapshot!(
+            "statusline_help",
+            help_text_for_args(&["ccusage".to_string(), "statusline".to_string()])
+        );
+    }
+
+    #[test]
+    fn snapshots_representative_cli_parse_shapes() {
+        let cases = vec![
+            json!({
+                "case": "default all-agent daily",
+                "cli": cli_snapshot(parse(&["ccusage"])),
+            }),
+            json!({
+                "case": "root daily with shared flags",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "--json",
+                    "--since=20260102",
+                    "--until",
+                    "20260110",
+                    "--mode",
+                    "calculate",
+                    "--debug",
+                    "--debug-samples",
+                    "9",
+                    "--order",
+                    "desc",
+                    "--breakdown",
+                    "--offline",
+                    "--no-offline",
+                    "--color",
+                    "--no-color",
+                    "--timezone",
+                    "Asia/Tokyo",
+                    "--jq",
+                    ".totals",
+                    "--compact",
+                    "--single-thread",
+                    "daily",
+                ])),
+            }),
+            json!({
+                "case": "claude weekly monday",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "claude",
+                    "weekly",
+                    "--start-of-week",
+                    "monday",
+                ])),
+            }),
+            json!({
+                "case": "claude daily project instances",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "claude",
+                    "daily",
+                    "--instances",
+                    "--project",
+                    "repo",
+                    "--project-aliases",
+                    "repo=Repository",
+                ])),
+            }),
+            json!({
+                "case": "codex monthly fast",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "codex",
+                    "monthly",
+                    "--speed=fast",
+                ])),
+            }),
+            json!({
+                "case": "opencode weekly",
+                "cli": cli_snapshot(parse(&["ccusage", "opencode", "weekly", "--json"])),
+            }),
+            json!({
+                "case": "pi session path",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "pi",
+                    "session",
+                    "--pi-path",
+                    "/tmp/pi-sessions",
+                ])),
+            }),
+            json!({
+                "case": "openclaw session path",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "openclaw",
+                    "session",
+                    "--open-claw-path=/tmp/openclaw",
+                ])),
+            }),
+            json!({
+                "case": "blocks active recent",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "blocks",
+                    "--active",
+                    "--recent",
+                    "--token-limit",
+                    "max",
+                    "--session-length=6.5",
+                ])),
+            }),
+            json!({
+                "case": "statusline thresholds",
+                "cli": cli_snapshot(parse(&[
+                    "ccusage",
+                    "statusline",
+                    "--no-offline",
+                    "--visual-burn-rate",
+                    "emoji-text",
+                    "--cost-source",
+                    "both",
+                    "--no-cache",
+                    "--refresh-interval",
+                    "3",
+                    "--context-low-threshold",
+                    "45",
+                    "--context-medium-threshold",
+                    "75",
+                    "--debug",
+                ])),
+            }),
+        ];
+
+        insta::assert_json_snapshot!(cases);
+    }
+
+    #[test]
+    fn snapshots_cli_parse_error_guidance() {
+        let cases = vec![
+            json!({
+                "args": ["ccusage", "--daily"],
+                "error": parse_error(&["ccusage", "--daily"]),
+            }),
+            json!({
+                "args": ["ccusage", "daily", "--agent", "codex"],
+                "error": parse_error(&["ccusage", "daily", "--agent", "codex"]),
+            }),
+            json!({
+                "args": ["ccusage", "codex", "blocks"],
+                "error": parse_error(&["ccusage", "codex", "blocks"]),
+            }),
+            json!({
+                "args": ["ccusage", "--mode", "bad"],
+                "error": parse_error(&["ccusage", "--mode", "bad"]),
+            }),
+            json!({
+                "args": ["ccusage", "blocks", "--session-length", "abc"],
+                "error": parse_error(&["ccusage", "blocks", "--session-length", "abc"]),
+            }),
+            json!({
+                "args": ["ccusage", "statusline", "--visual-burn-rate", "loud"],
+                "error": parse_error(&[
+                    "ccusage",
+                    "statusline",
+                    "--visual-burn-rate",
+                    "loud",
+                ]),
+            }),
+            json!({
+                "args": ["ccusage", "pi", "weekly"],
+                "error": parse_error(&["ccusage", "pi", "weekly"]),
+            }),
+        ];
+
+        insta::assert_json_snapshot!(cases);
     }
 
     #[test]
