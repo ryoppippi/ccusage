@@ -18,7 +18,7 @@
     "litellm-pricing": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-0FvNNOBhUPVF3s7yVnT6Xn2y3x4jgGbO9L2cmbCgasw=",
+        "narHash": "sha256-GYGEQUcNe4JcHwYNDL4M5yVZpYj0ExjVEOV3vdH4vSc=",
         "type": "file",
         "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
       },
