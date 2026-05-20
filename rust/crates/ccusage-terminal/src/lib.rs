@@ -457,12 +457,12 @@ pub fn terminal_width() -> usize {
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|width| *width > 0)
-        .or_else(terminal_width_from_ioctl)
+        .or_else(terminal_width_from_os)
         .unwrap_or(DEFAULT_TERMINAL_WIDTH)
 }
 
 #[cfg(unix)]
-fn terminal_width_from_ioctl() -> Option<usize> {
+fn terminal_width_from_os() -> Option<usize> {
     if !io::stdout().is_terminal() {
         return None;
     }
@@ -487,14 +487,88 @@ fn terminal_width_from_ioctl() -> Option<usize> {
     }
 }
 
-#[cfg(not(unix))]
-fn terminal_width_from_ioctl() -> Option<usize> {
+#[cfg(windows)]
+#[repr(C)]
+struct ConsoleCoord {
+    x: i16,
+    y: i16,
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct ConsoleSmallRect {
+    left: i16,
+    top: i16,
+    right: i16,
+    bottom: i16,
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct ConsoleScreenBufferInfo {
+    size: ConsoleCoord,
+    cursor_position: ConsoleCoord,
+    attributes: u16,
+    window: ConsoleSmallRect,
+    maximum_window_size: ConsoleCoord,
+}
+
+#[cfg(windows)]
+fn terminal_width_from_os() -> Option<usize> {
+    if !io::stdout().is_terminal() {
+        return None;
+    }
+    const STD_OUTPUT_HANDLE: u32 = -11i32 as u32;
+    const INVALID_HANDLE_VALUE: *mut std::ffi::c_void = -1isize as *mut std::ffi::c_void;
+    let mut info = ConsoleScreenBufferInfo {
+        size: ConsoleCoord { x: 0, y: 0 },
+        cursor_position: ConsoleCoord { x: 0, y: 0 },
+        attributes: 0,
+        window: ConsoleSmallRect {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        },
+        maximum_window_size: ConsoleCoord { x: 0, y: 0 },
+    };
+    let handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
+    if handle.is_null() || handle == INVALID_HANDLE_VALUE {
+        return None;
+    }
+    let ok = unsafe { GetConsoleScreenBufferInfo(handle, &mut info) };
+    if ok == 0 {
+        return None;
+    }
+    console_window_width(info.window.left, info.window.right)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn terminal_width_from_os() -> Option<usize> {
     None
 }
 
 #[cfg(unix)]
 extern "C" {
     fn ioctl(fd: i32, request: usize, ...) -> i32;
+}
+
+#[cfg(windows)]
+extern "system" {
+    fn GetStdHandle(n_std_handle: u32) -> *mut std::ffi::c_void;
+    fn GetConsoleScreenBufferInfo(
+        h_console_output: *mut std::ffi::c_void,
+        lp_console_screen_buffer_info: *mut ConsoleScreenBufferInfo,
+    ) -> i32;
+}
+
+fn console_window_width(left: i16, right: i16) -> Option<usize> {
+    let span = i32::from(right) - i32::from(left) + 1;
+    if span > 0 {
+        Some(span as usize)
+    } else {
+        None
+    }
 }
 
 pub fn print_box_title(title: &str, style: impl Into<TerminalStyle>) {
@@ -621,5 +695,20 @@ mod tests {
         let truncated = truncate_visible("\x1b[33mvery-long-value\x1b[0m", 8);
 
         assert!(truncated.ends_with("\x1b[0m…"));
+    }
+
+    #[test]
+    fn console_window_width_returns_inclusive_span() {
+        assert_eq!(console_window_width(0, 216), Some(217));
+    }
+
+    #[test]
+    fn console_window_width_handles_single_column_window() {
+        assert_eq!(console_window_width(0, 0), Some(1));
+    }
+
+    #[test]
+    fn console_window_width_rejects_inverted_bounds() {
+        assert_eq!(console_window_width(10, 5), None);
     }
 }
