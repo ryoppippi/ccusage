@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execFileSync } from 'node:child_process';
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import process, { arch, execPath, platform } from 'node:process';
 import { createFixture } from 'fs-fixture';
@@ -187,7 +187,13 @@ async function installedNativePackageBinEntry(
 		'bin',
 		targetPlatform === 'win32' ? 'ccusage.exe' : 'ccusage',
 	);
-	return (await optionalFileSizeBytes(binEntry)) == null ? undefined : binEntry;
+	if ((await optionalFileSizeBytes(binEntry)) == null) {
+		return undefined;
+	}
+	if (targetPlatform !== 'win32') {
+		await chmod(binEntry, 0o755);
+	}
+	return binEntry;
 }
 
 function parseHeadRuntime(value: string | undefined): HeadRuntime {
@@ -1471,6 +1477,25 @@ if (import.meta.vitest != null) {
 			await expect(installedNativePackageBinEntry(fixture.path, 'linux', 'arm64')).resolves.toBe(
 				nativeBin,
 			);
+		});
+
+		it('makes installed native package binaries executable on Unix platforms', async () => {
+			await using fixture = await createFixture({});
+			const nativeBin = join(
+				fixture.path,
+				'node_modules',
+				'@ccusage',
+				'ccusage-linux-arm64',
+				'bin',
+				'ccusage',
+			);
+			await mkdir(join(nativeBin, '..'), { recursive: true });
+			await writeFile(nativeBin, '');
+			await chmod(nativeBin, 0o644);
+
+			await installedNativePackageBinEntry(fixture.path, 'linux', 'arm64');
+
+			expect((await stat(nativeBin)).mode & 0o111).not.toBe(0);
 		});
 	});
 
