@@ -1,11 +1,13 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
 
 use crate::{
     cli::{SharedArgs, SortOrder, WeekDay},
-    cli_error, format_date, format_naive_date, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
+    cli_error,
+    fast::{FxHashMap, FxHashSet},
+    format_date, format_naive_date, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
     TimestampMs, TokenCounts, UsageSummary,
 };
 
@@ -41,9 +43,8 @@ struct UsageAccumulator {
     credits: Option<f64>,
     message_count: Option<u64>,
     models: Vec<String>,
-    seen_models: HashSet<String>,
     breakdowns: Vec<ModelBreakdown>,
-    breakdown_indexes: HashMap<String, usize>,
+    breakdown_indexes: FxHashMap<String, usize>,
 }
 
 impl UsageAccumulator {
@@ -59,20 +60,18 @@ impl UsageAccumulator {
             *self.message_count.get_or_insert(0) += message_count;
         }
         if let Some(model) = &entry.model {
-            if self.seen_models.insert(model.clone()) {
+            let index = if let Some(index) = self.breakdown_indexes.get(model.as_str()) {
+                *index
+            } else {
+                let index = self.breakdowns.len();
+                self.breakdown_indexes.insert(model.clone(), index);
                 self.models.push(model.clone());
-            }
-            let index = *self
-                .breakdown_indexes
-                .entry(model.clone())
-                .or_insert_with(|| {
-                    let index = self.breakdowns.len();
-                    self.breakdowns.push(ModelBreakdown {
-                        model_name: model.clone(),
-                        ..ModelBreakdown::default()
-                    });
-                    index
+                self.breakdowns.push(ModelBreakdown {
+                    model_name: model.clone(),
+                    ..ModelBreakdown::default()
                 });
+                index
+            };
             let breakdown = &mut self.breakdowns[index];
             breakdown.input_tokens += usage.input_tokens;
             breakdown.output_tokens += usage.output_tokens;
@@ -204,8 +203,8 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         project: None,
         versions: None,
     };
-    let mut seen_models = HashSet::new();
-    let mut breakdown_indexes = HashMap::<String, usize>::new();
+    let mut seen_models = FxHashSet::default();
+    let mut breakdown_indexes = FxHashMap::<String, usize>::default();
 
     for row in rows {
         summary.input_tokens += row.input_tokens;
@@ -226,16 +225,17 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
             }
         }
         for item in &row.model_breakdowns {
-            let index = *breakdown_indexes
-                .entry(item.model_name.clone())
-                .or_insert_with(|| {
-                    let index = summary.model_breakdowns.len();
-                    summary.model_breakdowns.push(ModelBreakdown {
-                        model_name: item.model_name.clone(),
-                        ..ModelBreakdown::default()
-                    });
-                    index
+            let index = if let Some(index) = breakdown_indexes.get(item.model_name.as_str()) {
+                *index
+            } else {
+                let index = summary.model_breakdowns.len();
+                breakdown_indexes.insert(item.model_name.clone(), index);
+                summary.model_breakdowns.push(ModelBreakdown {
+                    model_name: item.model_name.clone(),
+                    ..ModelBreakdown::default()
                 });
+                index
+            };
             let breakdown = &mut summary.model_breakdowns[index];
             breakdown.input_tokens += item.input_tokens;
             breakdown.output_tokens += item.output_tokens;

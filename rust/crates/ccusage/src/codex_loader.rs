@@ -1,15 +1,19 @@
 use std::{
-    collections::HashSet,
     env, fs,
     path::{Path, PathBuf},
     thread,
 };
 
+use compact_str::CompactString;
 use serde_json::Value;
 
 use crate::{
-    chunk_file_indexes_by_size, cli::SharedArgs, cli_error, collect_usage_files, home,
-    non_empty_json_string, progress, CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs,
+    chunk_file_indexes_by_size,
+    cli::SharedArgs,
+    cli_error, collect_usage_files,
+    fast::{byte_lines, FxHashSet},
+    home, non_empty_json_string, progress, CodexRawUsage, CodexTokenUsageEvent, Result,
+    TimestampMs,
 };
 
 pub(crate) fn load_codex_events_from_directory(
@@ -93,7 +97,7 @@ fn read_codex_session_files_parallel(
 
 pub(crate) fn codex_usage_paths() -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     for path in codex_home_paths()? {
         let sessions = path.join("sessions");
         if sessions.is_dir() {
@@ -135,7 +139,7 @@ pub(crate) fn visit_codex_session_file(
     path: &Path,
     mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    let Ok(content) = fs::read_to_string(path) else {
+    let Ok(content) = fs::read(path) else {
         return Ok(());
     };
     let session_id = codex_session_id(sessions_dir, path);
@@ -144,16 +148,11 @@ pub(crate) fn visit_codex_session_file(
     let mut current_model_is_fallback = false;
     let fallback_timestamp = file_modified_timestamp(path);
 
-    for line in content.lines() {
-        if !line.contains("turn_context")
-            && !line.contains("token_count")
-            && !line.contains("\"usage\":")
-            && !line.contains("\"input_tokens\":")
-            && !line.contains("\"prompt_tokens\":")
-        {
+    for line in byte_lines(&content) {
+        if !codex_line_may_contain_usage(line) {
             continue;
         }
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
+        let Ok(value) = serde_json::from_slice::<Value>(line) else {
             continue;
         };
         let entry_type = value.get("type").and_then(Value::as_str);
@@ -166,8 +165,7 @@ pub(crate) fn visit_codex_session_file(
         }
         if entry_type != Some("event_msg") {
             add_codex_exec_event(
-                sessions_dir,
-                path,
+                &session_id,
                 &value,
                 &fallback_timestamp,
                 &mut current_model,
@@ -248,8 +246,7 @@ pub(crate) fn visit_codex_session_file(
 }
 
 fn add_codex_exec_event(
-    sessions_dir: &Path,
-    path: &Path,
+    session_id: &str,
     value: &Value,
     fallback_timestamp: &str,
     current_model: &mut Option<String>,
@@ -275,7 +272,7 @@ fn add_codex_exec_event(
         is_fallback_model = true;
     }
     visit(CodexTokenUsageEvent {
-        session_id: codex_session_id(sessions_dir, path),
+        session_id: session_id.to_string(),
         timestamp: codex_timestamp_from_result(value)
             .unwrap_or_else(|| fallback_timestamp.to_string()),
         model,
@@ -286,6 +283,14 @@ fn add_codex_exec_event(
         total_tokens: raw_usage.total_tokens,
         is_fallback_model,
     })
+}
+
+fn codex_line_may_contain_usage(line: &[u8]) -> bool {
+    memchr::memmem::find(line, b"turn_context").is_some()
+        || memchr::memmem::find(line, b"token_count").is_some()
+        || memchr::memmem::find(line, br#""usage":"#).is_some()
+        || memchr::memmem::find(line, br#""input_tokens":"#).is_some()
+        || memchr::memmem::find(line, br#""prompt_tokens":"#).is_some()
 }
 
 fn parsed_model_is_missing(
@@ -488,12 +493,12 @@ fn subtract_codex_raw_usage(
 }
 
 fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     events.retain(|event| {
         seen.insert((
-            event.session_id.clone(),
-            event.timestamp.clone(),
-            event.model.clone(),
+            CompactString::new(&event.session_id),
+            CompactString::new(&event.timestamp),
+            event.model.as_deref().map(CompactString::new),
             event.input_tokens,
             event.cached_input_tokens,
             event.output_tokens,

@@ -1,15 +1,15 @@
-use std::collections::HashSet;
-
 use serde_json::{json, Value};
 
 use crate::{
     am_pm,
     cli::{SharedArgs, SortOrder},
-    color, format_currency, format_date, format_models_multiline, format_number,
-    format_rfc3339_millis, format_utc_second, hour_12, json_float, local_parts, print_box_title,
-    terminal_width, utc_now, Align, BurnRate, Color, LoadedEntry, Projection, SessionBlock,
-    SimpleTable, TimestampMs, TokenCounts, BLOCKS_COMPACT_WIDTH_THRESHOLD,
-    BLOCKS_WARNING_THRESHOLD, MILLIS_PER_HOUR, MILLIS_PER_MINUTE,
+    color,
+    fast::FxHashSet,
+    format_currency, format_date, format_models_multiline, format_number, format_rfc3339_millis,
+    format_utc_second, hour_12, json_float, local_parts, print_box_title, terminal_width, utc_now,
+    Align, BurnRate, Color, LoadedEntry, Projection, SessionBlock, SimpleTable, TimestampMs,
+    TokenCounts, BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_WARNING_THRESHOLD, MILLIS_PER_HOUR,
+    MILLIS_PER_MINUTE,
 };
 
 pub(crate) fn identify_session_blocks(
@@ -80,7 +80,7 @@ fn create_block(
     let mut token_counts = TokenCounts::default();
     let mut cost = 0.0;
     let mut models = Vec::new();
-    let mut seen_models = HashSet::new();
+    let mut seen_models = FxHashSet::default();
     let mut usage_limit_reset_time = None;
     for entry in &entries {
         token_counts.add_usage(entry.data.message.usage);

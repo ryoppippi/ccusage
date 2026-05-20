@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
+    collections::BTreeMap,
     env, fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
@@ -7,19 +7,31 @@ use std::{
     thread,
 };
 
+use compact_str::CompactString;
 use jiff::tz::TimeZone as JiffTimeZone;
+use rustc_hash::FxHasher;
 use serde_json::{json, Value};
 
 use crate::{
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
-    color, format_currency, format_date_tz, format_models_multiline, format_number, json_float,
+    color,
+    fast::FxHashSet,
+    format_currency, format_date_tz, format_models_multiline, format_number, json_float,
     json_value_u64, log_level, parse_ts_timestamp, parse_tz, print_box_title, print_json_or_jq,
     wants_json, week_start, Align, CodexGroup, CodexModelUsage, CodexTokenUsageEvent, Color,
     PricingMap, Result, SimpleTable,
 };
 
-type CodexEventKey = (String, Option<String>, u64, u64, u64, u64, u64);
-type CodexDedupeShards = [Mutex<HashSet<CodexEventKey>>];
+type CodexEventKey = (
+    CompactString,
+    Option<CompactString>,
+    u64,
+    u64,
+    u64,
+    u64,
+    u64,
+);
+type CodexDedupeShards = [Mutex<FxHashSet<CodexEventKey>>];
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
@@ -293,26 +305,26 @@ fn accumulate_codex_event_into_group(
     model_usage.is_fallback |= event.is_fallback_model;
 }
 
-fn create_dedupe_shards() -> Vec<Mutex<HashSet<CodexEventKey>>> {
+fn create_dedupe_shards() -> Vec<Mutex<FxHashSet<CodexEventKey>>> {
     let shard_count = thread::available_parallelism()
         .map(usize::from)
         .unwrap_or(1);
     (0..shard_count.max(1))
-        .map(|_| Mutex::new(HashSet::new()))
+        .map(|_| Mutex::new(FxHashSet::default()))
         .collect()
 }
 
 fn insert_event_key(event: &CodexTokenUsageEvent, seen: &CodexDedupeShards) -> bool {
     let key = (
-        event.timestamp.clone(),
-        event.model.clone(),
+        CompactString::new(&event.timestamp),
+        event.model.as_deref().map(CompactString::new),
         event.input_tokens,
         event.cached_input_tokens,
         event.output_tokens,
         event.reasoning_output_tokens,
         event.total_tokens,
     );
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     key.hash(&mut hasher);
     let shard_index = hasher.finish() as usize % seen.len();
     seen[shard_index].lock().unwrap().insert(key)
