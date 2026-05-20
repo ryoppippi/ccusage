@@ -83,8 +83,8 @@ Use standard git history commands to understand intent before committing. Prefer
 - Avoid vague review-process subjects such as `chore: address review feedback`,
   `chore: apply comments`, or `fix: update per CodeRabbit`.
 - Put reviewer context in the body, not the subject. For example, use
-  `docs(skills): clarify arkregex newline guidance` with a body explaining that
-  it addresses CodeRabbit feedback.
+  `docs(skills): clarify reference routing` with a body explaining that it
+  addresses CodeRabbit feedback.
 
 ## Quality Checks
 

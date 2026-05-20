@@ -34,10 +34,6 @@ Use `typescript-style` for detailed TypeScript conventions. In this repo:
 - Do not use dynamic imports, especially in Vitest blocks.
 - Keep exports limited to values used outside the module.
 
-Read the focused `typescript-style` references only when they apply:
-
-- `../typescript-style/references/arkregex.md` for new regular expression work.
-
 ## Vitest
 
 Vitest remains relevant for the TypeScript package launcher, schema artifacts,

@@ -1,6 +1,6 @@
 ---
 name: typescript-style
-description: Guides ccusage TypeScript and JavaScript reading, writing, and review. Use before opening or editing .ts, .tsx, .js, or .jsx files, including regexes, mocks, fixtures, satisfies, or suppressions.
+description: Guides ccusage TypeScript and JavaScript reading, writing, and review. Use before opening or editing .ts, .tsx, .js, or .jsx files, including mocks, fixtures, satisfies, or suppressions.
 paths:
   - '**/*.ts'
   - '**/*.tsx'
@@ -10,12 +10,6 @@ globs: '*.ts,*.tsx,*.js,*.jsx'
 ---
 
 # TypeScript Style
-
-## Library Conventions
-
-Use the focused regex reference when code touches regular expressions:
-
-- Read `references/arkregex.md` for regular expressions, `RegExp`, `.match()`, `.test()`, `.replace()`, or `.split()` patterns.
 
 ## Prefer `satisfies` Over `as`
 
