@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execFileSync } from 'node:child_process';
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import process, { arch, execPath, platform } from 'node:process';
 import { createFixture } from 'fs-fixture';
@@ -187,7 +187,13 @@ async function installedNativePackageBinEntry(
 		'bin',
 		targetPlatform === 'win32' ? 'ccusage.exe' : 'ccusage',
 	);
-	return (await optionalFileSizeBytes(binEntry)) == null ? undefined : binEntry;
+	if ((await optionalFileSizeBytes(binEntry)) == null) {
+		return undefined;
+	}
+	if (targetPlatform !== 'win32') {
+		await chmod(binEntry, 0o755);
+	}
+	return binEntry;
 }
 
 function parseHeadRuntime(value: string | undefined): HeadRuntime {
@@ -644,11 +650,20 @@ export async function createHeadCcusageCommand(options: {
 	fixtureDir: string;
 	headBinEntry?: string;
 	headDir: string;
+	headNativeBinEntry?: string;
 	headRuntime: HeadRuntime;
 }): Promise<string> {
 	if (options.headRuntime === 'package' && options.headBinEntry != null) {
 		return createCcusageCommandFromBin(
 			options.headBinEntry,
+			options.fixtureDir,
+			options.codexFixtureDir,
+			options.command,
+		);
+	}
+	if (options.headRuntime === 'rust' && options.headNativeBinEntry != null) {
+		return createCcusageCommandFromRustBinary(
+			options.headNativeBinEntry,
 			options.fixtureDir,
 			options.codexFixtureDir,
 			options.command,
@@ -685,6 +700,7 @@ async function compareCommand(
 		fixtureDir: string;
 		headBinEntry?: string;
 		headDir: string;
+		headNativeBinEntry?: string;
 		headRuntime: HeadRuntime;
 		runs: number;
 		warmup: number;
@@ -705,6 +721,7 @@ async function compareCommand(
 		fixtureDir: options.fixtureDir,
 		headBinEntry: options.headBinEntry,
 		headDir: options.headDir,
+		headNativeBinEntry: options.headNativeBinEntry,
 		headRuntime: options.headRuntime,
 	});
 	const hyperfine = Bun.spawn(
@@ -859,6 +876,7 @@ async function compareFixture(options: {
 	fixtureDir: string;
 	headBinEntry?: string;
 	headDir: string;
+	headNativeBinEntry?: string;
 	headRuntime: HeadRuntime;
 	runs: number;
 	title: string;
@@ -1426,6 +1444,23 @@ if (import.meta.vitest != null) {
 			expect(commandText).not.toContain('/repo/apps/ccusage');
 		});
 
+		it('uses the installed native binary for Rust runtime benchmarks when one is available', async () => {
+			const commandText = await createHeadCcusageCommand({
+				codexFixtureDir: '/fixtures/codex',
+				command: 'claude',
+				fixtureDir: '/fixtures/claude',
+				headDir: '/repo',
+				headNativeBinEntry:
+					'/tmp/head-package/node_modules/@ccusage/ccusage-linux-arm64/bin/ccusage',
+				headRuntime: 'rust',
+			});
+
+			expect(commandText).toContain(
+				'/tmp/head-package/node_modules/@ccusage/ccusage-linux-arm64/bin/ccusage',
+			);
+			expect(commandText).not.toContain('/repo/rust/target/release/ccusage');
+		});
+
 		it('resolves the installed native optional package binary for diagnostics', async () => {
 			await using fixture = await createFixture({});
 			const nativeBin = join(
@@ -1442,6 +1477,25 @@ if (import.meta.vitest != null) {
 			await expect(installedNativePackageBinEntry(fixture.path, 'linux', 'arm64')).resolves.toBe(
 				nativeBin,
 			);
+		});
+
+		it('makes installed native package binaries executable on Unix platforms', async () => {
+			await using fixture = await createFixture({});
+			const nativeBin = join(
+				fixture.path,
+				'node_modules',
+				'@ccusage',
+				'ccusage-linux-arm64',
+				'bin',
+				'ccusage',
+			);
+			await mkdir(join(nativeBin, '..'), { recursive: true });
+			await writeFile(nativeBin, '');
+			await chmod(nativeBin, 0o644);
+
+			await installedNativePackageBinEntry(fixture.path, 'linux', 'arm64');
+
+			expect((await stat(nativeBin)).mode & 0o111).not.toBe(0);
 		});
 	});
 

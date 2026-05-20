@@ -197,6 +197,147 @@ jobs:
           pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
           pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline
 
+  ccusage-perf-comment:
+    name: ccusage perf comment
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
+    needs:
+      - changes
+      - npm-publish-dry-run-and-upload-pkg-pr-now
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Resolve PR preview package URL
+        env:
+          PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
+        run: |
+          preview_url="$(
+            node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
+          )"
+          echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
+
+      - name: Generate large ccusage fixture
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
+            --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --codex-output-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
+            --size-mib 1024
+
+      - name: Compare fixture performance
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+            --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
+            --head-dir . \
+            --head-package-url "$CCUSAGE_PREVIEW_URL" \
+            --fixture-dir apps/ccusage/test/fixtures/claude \
+            --codex-fixture-dir apps/ccusage/test/fixtures/codex \
+            --warmup 2 \
+            --runs 7 \
+            --large-fixture-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
+            --large-warmup 0 \
+            --large-runs 1 \
+            --package-runner-timeout-ms 1800000 \
+            --output "$RUNNER_TEMP/ccusage-perf-comment.md"
+
+      - name: Write job summary
+        run: cat "$RUNNER_TEMP/ccusage-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upsert PR comment
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          COMMENT_FILE: ${{ runner.temp }}/ccusage-perf-comment.md
+          COMMENT_MARKER: <!-- ccusage-perf-comment:${{ github.event.pull_request.head.sha }} -->
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+
+  ccusage-rust-perf-comment:
+    name: ccusage rust perf comment
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
+    needs:
+      - changes
+      - npm-publish-dry-run-and-upload-pkg-pr-now
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Resolve PR preview package URL
+        env:
+          PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
+        run: |
+          preview_url="$(
+            node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
+          )"
+          echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
+
+      - name: Generate large ccusage fixture
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
+            --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --codex-output-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
+            --size-mib 1024
+
+      - name: Compare Rust performance
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+            --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
+            --head-dir . \
+            --head-package-url "$CCUSAGE_PREVIEW_URL" \
+            --head-runtime rust \
+            --fixture-dir apps/ccusage/test/fixtures/claude \
+            --codex-fixture-dir apps/ccusage/test/fixtures/codex \
+            --warmup 2 \
+            --runs 7 \
+            --large-fixture-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
+            --large-warmup 0 \
+            --large-runs 1 \
+            --package-runner-timeout-ms 1800000 \
+            --output "$RUNNER_TEMP/ccusage-rust-perf-comment.md"
+
+      - name: Write job summary
+        run: cat "$RUNNER_TEMP/ccusage-rust-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upsert PR comment
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          COMMENT_FILE: ${{ runner.temp }}/ccusage-rust-perf-comment.md
+          COMMENT_MARKER: <!-- ccusage-rust-perf-comment:${{ github.event.pull_request.head.sha }} -->
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+
   schema-check:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
