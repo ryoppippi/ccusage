@@ -162,7 +162,36 @@ mod tests {
     use serde_json::json;
 
     use super::{message_value_to_entry, open_code_model_candidates};
-    use crate::{cli::CostMode, PricingMap};
+    use crate::{cli::CostMode, LoadedEntry, PricingMap};
+
+    fn entry_snapshot(entry: &LoadedEntry) -> serde_json::Value {
+        json!({
+            "date": entry.date,
+            "timestamp": entry.timestamp.as_millis(),
+            "sessionId": entry.session_id.as_ref(),
+            "project": entry.project.as_ref(),
+            "projectPath": entry.project_path.as_ref(),
+            "cost": entry.cost,
+            "extraTotalTokens": entry.extra_total_tokens,
+            "model": entry.model.as_deref(),
+            "data": {
+                "sessionId": entry.data.session_id.as_deref(),
+                "timestamp": entry.data.timestamp,
+                "version": entry.data.version.as_deref(),
+                "message": {
+                    "id": entry.data.message.id.as_deref(),
+                    "model": entry.data.message.model.as_deref(),
+                    "usage": {
+                        "inputTokens": entry.data.message.usage.input_tokens,
+                        "outputTokens": entry.data.message.usage.output_tokens,
+                        "cacheCreationInputTokens": entry.data.message.usage.cache_creation_input_tokens,
+                        "cacheReadInputTokens": entry.data.message.usage.cache_read_input_tokens,
+                    },
+                },
+                "costUSD": entry.data.cost_usd,
+            },
+        })
+    }
 
     #[test]
     fn calculates_cost_when_opencode_stores_zero_cost() {
@@ -262,5 +291,68 @@ mod tests {
                 "github_copilot/claude-sonnet-4-5",
             ]
         );
+    }
+
+    #[test]
+    fn snapshots_message_to_entry_variants_and_model_candidates() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "github_copilot/claude-sonnet-4-5": {
+                    "input_cost_per_token": 0.125,
+                    "output_cost_per_token": 0.25,
+                    "cache_read_input_token_cost": 0.0625
+                }
+            }"#,
+        );
+        let calculated = message_value_to_entry(
+            &json!({
+                "id": "message-a",
+                "sessionID": "session-a",
+                "providerID": "github-copilot",
+                "modelID": "claude-sonnet-4.5",
+                "time": { "created": 1767312000000i64 },
+                "tokens": {
+                    "input": 100,
+                    "output": 10,
+                    "cache": { "read": 50, "write": 25 },
+                    "total": 185
+                },
+                "cost": 0
+            }),
+            None,
+            None,
+            None,
+            CostMode::Auto,
+            Some(&pricing),
+        )
+        .unwrap();
+        let display_cost = message_value_to_entry(
+            &json!({
+                "id": "message-b",
+                "providerID": "openai",
+                "modelID": "gpt-test",
+                "time": { "created": 0 },
+                "tokens": { "total": 123 },
+                "cost": 0.02
+            }),
+            None,
+            Some("explicit-session".to_string()),
+            None,
+            CostMode::Display,
+            None,
+        )
+        .unwrap();
+
+        insta::assert_json_snapshot!(json!({
+            "calculated": entry_snapshot(&calculated),
+            "displayCost": entry_snapshot(&display_cost),
+            "candidates": {
+                "anthropic": open_code_model_candidates("claude-sonnet-4.5", "anthropic"),
+                "copilot": open_code_model_candidates("claude-sonnet-4.5", "github-copilot"),
+                "geminiAlias": open_code_model_candidates("gemini-3-pro-high", "google"),
+                "unknownProvider": open_code_model_candidates("gpt-test", "unknown"),
+            }
+        }));
     }
 }

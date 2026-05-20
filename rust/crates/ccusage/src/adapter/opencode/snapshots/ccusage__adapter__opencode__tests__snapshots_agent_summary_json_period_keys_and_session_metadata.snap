@@ -1,0 +1,124 @@
+---
+source: crates/ccusage/src/adapter/opencode/mod.rs
+expression: "serde_json::json!({\n    \"daily\": agent_summary_json(&daily, AgentReportKind::Daily, false),\n    \"weekly\": agent_summary_json(&weekly, AgentReportKind::Weekly, false),\n    \"monthly\": agent_summary_json(&monthly, AgentReportKind::Monthly, false),\n    \"session\": agent_summary_json(&session, AgentReportKind::Session, true),\n    \"dailyReport\":\n    report_from_rows(std::slice::from_ref(&daily), AgentReportKind::Daily),\n    \"sessionReport\": report_from_rows(&[session], AgentReportKind::Session),\n})"
+---
+{
+  "daily": {
+    "cacheCreationTokens": 10,
+    "cacheReadTokens": 5,
+    "credits": 1.5,
+    "date": "2026-01-02",
+    "inputTokens": 100,
+    "messageCount": 3,
+    "modelsUsed": [
+      "gpt-5.2-codex",
+      "claude-sonnet-4-20250514"
+    ],
+    "outputTokens": 50,
+    "totalCost": 0.25,
+    "totalTokens": 172
+  },
+  "dailyReport": {
+    "daily": [
+      {
+        "cacheCreationTokens": 10,
+        "cacheReadTokens": 5,
+        "credits": 1.5,
+        "date": "2026-01-02",
+        "inputTokens": 100,
+        "messageCount": 3,
+        "modelsUsed": [
+          "gpt-5.2-codex",
+          "claude-sonnet-4-20250514"
+        ],
+        "outputTokens": 50,
+        "totalCost": 0.25,
+        "totalTokens": 172
+      }
+    ],
+    "totals": {
+      "cacheCreationTokens": 10,
+      "cacheReadTokens": 5,
+      "credits": 1.5,
+      "inputTokens": 100,
+      "outputTokens": 50,
+      "totalCost": 0.25,
+      "totalTokens": 172
+    }
+  },
+  "monthly": {
+    "cacheCreationTokens": 10,
+    "cacheReadTokens": 5,
+    "credits": 1.5,
+    "inputTokens": 100,
+    "messageCount": 3,
+    "modelsUsed": [
+      "gpt-5.2-codex",
+      "claude-sonnet-4-20250514"
+    ],
+    "month": "2026-01",
+    "outputTokens": 50,
+    "totalCost": 0.25,
+    "totalTokens": 172
+  },
+  "session": {
+    "cacheCreationTokens": 10,
+    "cacheReadTokens": 5,
+    "credits": 1.5,
+    "inputTokens": 100,
+    "lastActivity": "2026-01-02",
+    "messageCount": 3,
+    "modelsUsed": [
+      "gpt-5.2-codex",
+      "claude-sonnet-4-20250514"
+    ],
+    "outputTokens": 50,
+    "projectPath": "/workspace/api",
+    "sessionId": "session-a",
+    "totalCost": 0.25,
+    "totalTokens": 172
+  },
+  "sessionReport": {
+    "sessions": [
+      {
+        "cacheCreationTokens": 10,
+        "cacheReadTokens": 5,
+        "credits": 1.5,
+        "inputTokens": 100,
+        "messageCount": 3,
+        "modelsUsed": [
+          "gpt-5.2-codex",
+          "claude-sonnet-4-20250514"
+        ],
+        "outputTokens": 50,
+        "sessionId": "session-a",
+        "totalCost": 0.25,
+        "totalTokens": 172
+      }
+    ],
+    "totals": {
+      "cacheCreationTokens": 10,
+      "cacheReadTokens": 5,
+      "credits": 1.5,
+      "inputTokens": 100,
+      "outputTokens": 50,
+      "totalCost": 0.25,
+      "totalTokens": 172
+    }
+  },
+  "weekly": {
+    "cacheCreationTokens": 10,
+    "cacheReadTokens": 5,
+    "credits": 1.5,
+    "inputTokens": 100,
+    "messageCount": 3,
+    "modelsUsed": [
+      "gpt-5.2-codex",
+      "claude-sonnet-4-20250514"
+    ],
+    "outputTokens": 50,
+    "totalCost": 0.25,
+    "totalTokens": 172,
+    "week": "2025-12-29"
+  }
+}

@@ -1244,6 +1244,40 @@ mod tests {
         );
     }
 
+    #[test]
+    fn snapshots_schema_agent_specific_option_edges() {
+        if running_in_schema_generator_test_binary() {
+            return;
+        }
+        let schema = generated_schema();
+
+        insta::assert_json_snapshot!(json!({
+            "rootRef": schema["$ref"],
+            "rootProperties": definition_properties(&schema, "ccusage-config"),
+            "rootAdditionalProperties": schema["definitions"]["ccusage-config"]["additionalProperties"],
+            "defaults": schema_node(&schema, &["defaults"]),
+            "rootDaily": schema_node(&schema, &["commands", "daily"]),
+            "claudeStatusline": schema_node(&schema, &["claude", "commands", "statusline"]),
+            "codexDefaults": schema_node(&schema, &["codex", "defaults"]),
+            "opencodeWeekly": schema_node(&schema, &["opencode", "commands", "weekly"]),
+            "piDefaults": schema_node(&schema, &["pi", "defaults"]),
+            "openclawDefaults": schema_node(&schema, &["openclaw", "defaults"]),
+        }));
+    }
+
+    fn running_in_schema_generator_test_binary() -> bool {
+        std::env::current_exe()
+            .ok()
+            .and_then(|path| {
+                path.file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+            })
+            .is_some_and(|name| {
+                name.starts_with("generate_config_schema")
+                    || name.starts_with("generate-config-schema")
+            })
+    }
+
     fn generated_schema() -> Value {
         serde_json::from_str(&generate_config_schema_json()).unwrap()
     }

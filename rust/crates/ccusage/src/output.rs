@@ -411,6 +411,7 @@ pub(crate) fn format_currency(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ModelBreakdown;
 
     #[test]
     fn empty_usage_table_message_is_provider_agnostic() {
@@ -441,5 +442,104 @@ mod tests {
         }]);
 
         assert_eq!(totals["totalTokens"], 172);
+    }
+
+    #[test]
+    fn snapshots_summary_json_with_optional_fields_and_model_breakdowns() {
+        let row = snapshot_summary("2026-01-02", Some("workspace/api"), Some(1.25));
+
+        insta::assert_json_snapshot!(summary_json(&row));
+    }
+
+    #[test]
+    fn snapshots_session_summary_json_with_present_and_missing_options() {
+        let mut row = snapshot_summary("session-a", None, None);
+        row.date = None;
+        row.session_id = Some("session-a".to_string());
+        row.project_path = Some("/Users/example/workspace/api".to_string());
+        row.last_activity = Some("2026-01-02 12:34:56".to_string());
+
+        insta::assert_json_snapshot!(session_summary_json(&row));
+    }
+
+    #[test]
+    fn snapshots_totals_json_with_extra_tokens_credits_and_zero_credit_omission() {
+        let mut first = snapshot_summary("2026-01-02", Some("workspace/api"), Some(1.25));
+        first.extra_total_tokens = 17;
+        let mut second = snapshot_summary("2026-01-03", Some("workspace/web"), None);
+        second.input_tokens = 0;
+        second.output_tokens = 0;
+        second.cache_creation_tokens = 0;
+        second.cache_read_tokens = 0;
+        second.extra_total_tokens = 3;
+        second.total_cost = 0.0;
+
+        insta::assert_json_snapshot!(totals_json(&[first, second]));
+    }
+
+    #[test]
+    fn snapshots_group_project_output_orders_named_projects_and_unknown_bucket() {
+        let named = snapshot_summary("2026-01-02", Some("workspace/api"), Some(1.25));
+        let unknown = snapshot_summary("2026-01-03", None, None);
+        let other = snapshot_summary("2026-01-04", Some("workspace/web"), None);
+
+        insta::assert_json_snapshot!(group_project_output(&[named, unknown, other]));
+    }
+
+    #[test]
+    fn snapshots_model_multiline_formatting_sorts_dedupes_and_shortens_names() {
+        let models = vec![
+            "claude-sonnet-4-20250514".to_string(),
+            "gpt-5.2-codex".to_string(),
+            "claude-sonnet-4-20250514".to_string(),
+            "unknown".to_string(),
+        ];
+
+        insta::assert_snapshot!(format_models_multiline(&models));
+    }
+
+    fn snapshot_summary(period: &str, project: Option<&str>, credits: Option<f64>) -> UsageSummary {
+        UsageSummary {
+            date: Some(period.to_string()),
+            month: None,
+            week: None,
+            session_id: None,
+            project_path: None,
+            last_activity: None,
+            input_tokens: 1_234,
+            output_tokens: 567,
+            cache_creation_tokens: 89,
+            cache_read_tokens: 10,
+            extra_total_tokens: 0,
+            total_cost: 0.42,
+            credits,
+            message_count: Some(7),
+            models_used: vec![
+                "gpt-5.2-codex".to_string(),
+                "claude-sonnet-4-20250514".to_string(),
+            ],
+            model_breakdowns: vec![
+                ModelBreakdown {
+                    model_name: "gpt-5.2-codex".to_string(),
+                    input_tokens: 900,
+                    output_tokens: 300,
+                    cache_creation_tokens: 50,
+                    cache_read_tokens: 10,
+                    extra_total_tokens: 0,
+                    cost: 0.3,
+                },
+                ModelBreakdown {
+                    model_name: "claude-sonnet-4-20250514".to_string(),
+                    input_tokens: 334,
+                    output_tokens: 267,
+                    cache_creation_tokens: 39,
+                    cache_read_tokens: 0,
+                    extra_total_tokens: 0,
+                    cost: 0.12,
+                },
+            ],
+            project: project.map(str::to_string),
+            versions: Some(vec!["1.0.0".to_string(), "1.1.0".to_string()]),
+        }
     }
 }

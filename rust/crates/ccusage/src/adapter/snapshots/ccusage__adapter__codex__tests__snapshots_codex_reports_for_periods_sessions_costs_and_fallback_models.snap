@@ -1,0 +1,201 @@
+---
+source: crates/ccusage/src/adapter/codex.rs
+expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, AgentReportKind::Daily, Some(\"UTC\"), &pricing,\n    CodexSpeed::Standard,).unwrap(), \"weekly\":\n    report_json(&events, AgentReportKind::Weekly, Some(\"UTC\"), &pricing,\n    CodexSpeed::Standard,).unwrap(), \"monthly\":\n    report_json(&events, AgentReportKind::Monthly, Some(\"UTC\"), &pricing,\n    CodexSpeed::Standard,).unwrap(), \"sessionFast\":\n    report_json(&events, AgentReportKind::Session, Some(\"UTC\"), &pricing,\n    CodexSpeed::Fast,).unwrap(),\n})"
+---
+{
+  "daily": {
+    "daily": [
+      {
+        "cachedInputTokens": 110,
+        "costUSD": 0.00040425,
+        "date": "2026-01-02",
+        "inputTokens": 100,
+        "models": {
+          "gpt-5.3-codex": {
+            "cachedInputTokens": 110,
+            "inputTokens": 100,
+            "isFallback": true,
+            "outputTokens": 15,
+            "reasoningOutputTokens": 2,
+            "totalTokens": 227
+          }
+        },
+        "outputTokens": 15,
+        "reasoningOutputTokens": 2,
+        "totalTokens": 227
+      },
+      {
+        "cachedInputTokens": 0,
+        "costUSD": 0.0000065,
+        "date": "2026-01-05",
+        "inputTokens": 10,
+        "models": {
+          "gpt-5-mini": {
+            "cachedInputTokens": 0,
+            "inputTokens": 10,
+            "isFallback": false,
+            "outputTokens": 2,
+            "reasoningOutputTokens": 0,
+            "totalTokens": 12
+          }
+        },
+        "outputTokens": 2,
+        "reasoningOutputTokens": 0,
+        "totalTokens": 12
+      }
+    ],
+    "totals": {
+      "cachedInputTokens": 110,
+      "costUSD": 0.00041075,
+      "inputTokens": 110,
+      "outputTokens": 17,
+      "reasoningOutputTokens": 2,
+      "totalTokens": 239
+    }
+  },
+  "monthly": {
+    "monthly": [
+      {
+        "cachedInputTokens": 110,
+        "costUSD": 0.00041075,
+        "inputTokens": 110,
+        "models": {
+          "gpt-5-mini": {
+            "cachedInputTokens": 0,
+            "inputTokens": 10,
+            "isFallback": false,
+            "outputTokens": 2,
+            "reasoningOutputTokens": 0,
+            "totalTokens": 12
+          },
+          "gpt-5.3-codex": {
+            "cachedInputTokens": 110,
+            "inputTokens": 100,
+            "isFallback": true,
+            "outputTokens": 15,
+            "reasoningOutputTokens": 2,
+            "totalTokens": 227
+          }
+        },
+        "month": "2026-01",
+        "outputTokens": 17,
+        "reasoningOutputTokens": 2,
+        "totalTokens": 239
+      }
+    ],
+    "totals": {
+      "cachedInputTokens": 110,
+      "costUSD": 0.00041075,
+      "inputTokens": 110,
+      "outputTokens": 17,
+      "reasoningOutputTokens": 2,
+      "totalTokens": 239
+    }
+  },
+  "sessionFast": {
+    "sessions": [
+      {
+        "cachedInputTokens": 110,
+        "costUSD": 0.0008085,
+        "directory": "/workspace/api",
+        "inputTokens": 100,
+        "lastActivity": "2026-01-02T00:05:00.000Z",
+        "models": {
+          "gpt-5.3-codex": {
+            "cachedInputTokens": 110,
+            "inputTokens": 100,
+            "isFallback": true,
+            "outputTokens": 15,
+            "reasoningOutputTokens": 2,
+            "totalTokens": 227
+          }
+        },
+        "outputTokens": 15,
+        "reasoningOutputTokens": 2,
+        "sessionFile": "session-a.jsonl",
+        "sessionId": "/workspace/api/session-a.jsonl",
+        "totalTokens": 227
+      },
+      {
+        "cachedInputTokens": 0,
+        "costUSD": 0.000013,
+        "directory": "/workspace/web",
+        "inputTokens": 10,
+        "lastActivity": "2026-01-05T23:59:59.000Z",
+        "models": {
+          "gpt-5-mini": {
+            "cachedInputTokens": 0,
+            "inputTokens": 10,
+            "isFallback": false,
+            "outputTokens": 2,
+            "reasoningOutputTokens": 0,
+            "totalTokens": 12
+          }
+        },
+        "outputTokens": 2,
+        "reasoningOutputTokens": 0,
+        "sessionFile": "session-b.jsonl",
+        "sessionId": "/workspace/web/session-b.jsonl",
+        "totalTokens": 12
+      }
+    ],
+    "totals": {
+      "cachedInputTokens": 110,
+      "costUSD": 0.0008215,
+      "inputTokens": 110,
+      "outputTokens": 17,
+      "reasoningOutputTokens": 2,
+      "totalTokens": 239
+    }
+  },
+  "weekly": {
+    "totals": {
+      "cachedInputTokens": 110,
+      "costUSD": 0.00041075,
+      "inputTokens": 110,
+      "outputTokens": 17,
+      "reasoningOutputTokens": 2,
+      "totalTokens": 239
+    },
+    "weekly": [
+      {
+        "cachedInputTokens": 110,
+        "costUSD": 0.00040425,
+        "inputTokens": 100,
+        "models": {
+          "gpt-5.3-codex": {
+            "cachedInputTokens": 110,
+            "inputTokens": 100,
+            "isFallback": true,
+            "outputTokens": 15,
+            "reasoningOutputTokens": 2,
+            "totalTokens": 227
+          }
+        },
+        "outputTokens": 15,
+        "reasoningOutputTokens": 2,
+        "totalTokens": 227,
+        "week": "2025-12-29"
+      },
+      {
+        "cachedInputTokens": 0,
+        "costUSD": 0.0000065,
+        "inputTokens": 10,
+        "models": {
+          "gpt-5-mini": {
+            "cachedInputTokens": 0,
+            "inputTokens": 10,
+            "isFallback": false,
+            "outputTokens": 2,
+            "reasoningOutputTokens": 0,
+            "totalTokens": 12
+          }
+        },
+        "outputTokens": 2,
+        "reasoningOutputTokens": 0,
+        "totalTokens": 12,
+        "week": "2026-01-05"
+      }
+    ]
+  }
+}

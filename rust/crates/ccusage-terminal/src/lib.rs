@@ -79,34 +79,42 @@ impl SimpleTable {
     }
 
     pub fn print(&self) {
+        for line in self.render_lines() {
+            println!("{line}");
+        }
+    }
+
+    fn render_lines(&self) -> Vec<String> {
         let widths = self.column_widths();
-        println!("{}", border('┌', '┬', '┐', &widths));
+        let mut lines = Vec::new();
+        lines.push(border('┌', '┬', '┐', &widths));
         for header_row in expand_multiline_row(&self.headers, self.headers.len(), &widths) {
             let header_row = header_row
                 .iter()
                 .map(|header| color(self.style, header, Color::Blue))
                 .collect::<Vec<_>>();
-            println!("{}", table_line(&header_row, &self.aligns, &widths));
+            lines.push(table_line(&header_row, &self.aligns, &widths));
         }
-        println!("{}", border('├', '┼', '┤', &widths));
+        lines.push(border('├', '┼', '┤', &widths));
         for (row_index, row) in self.rows.iter().enumerate() {
             match row {
                 Some(row) => {
                     let row = self.compact_date_row(row, &widths);
                     for physical_row in expand_multiline_row(&row, self.headers.len(), &widths) {
-                        println!("{}", table_line(&physical_row, &self.aligns, &widths));
+                        lines.push(table_line(&physical_row, &self.aligns, &widths));
                     }
                 }
-                None => println!("{}", border('├', '┼', '┤', &widths)),
+                None => lines.push(border('├', '┼', '┤', &widths)),
             }
             if row.is_some()
                 && row_index + 1 < self.rows.len()
                 && !matches!(self.rows.get(row_index + 1), Some(None))
             {
-                println!("{}", border('├', '┼', '┤', &widths));
+                lines.push(border('├', '┼', '┤', &widths));
             }
         }
-        println!("{}", border('└', '┴', '┘', &widths));
+        lines.push(border('└', '┴', '┘', &widths));
+        lines
     }
 
     fn column_widths(&self) -> Vec<usize> {
@@ -596,6 +604,19 @@ mod tests {
     }
 
     #[test]
+    fn snapshots_multiline_box_title_layout() {
+        let lines = box_title_lines(
+            "Coding (Agent) CLI Usage Report - Daily\nDetected: Claude, Codex",
+            TerminalStyle {
+                no_color: true,
+                ..TerminalStyle::default()
+            },
+        );
+
+        insta::assert_snapshot!(lines.join("\n"));
+    }
+
+    #[test]
     fn compact_date_cell_splits_iso_dates() {
         assert_eq!(
             compact_date_cell("2026-05-18"),
@@ -617,9 +638,86 @@ mod tests {
     }
 
     #[test]
+    fn snapshots_full_table_with_multiline_cells_and_separators() {
+        let mut table = SimpleTable::new(
+            vec!["Date", "Models", "Input", "Output", "Cost (USD)"],
+            vec![
+                Align::Left,
+                Align::Left,
+                Align::Right,
+                Align::Right,
+                Align::Right,
+            ],
+            TerminalStyle {
+                no_color: true,
+                ..TerminalStyle::default()
+            },
+        )
+        .with_terminal_width(120);
+        table.push(vec![
+            "2026-05-18".to_string(),
+            "- claude-sonnet-4\n- gpt-5.2-codex".to_string(),
+            "1,234".to_string(),
+            "56".to_string(),
+            "$0.42".to_string(),
+        ]);
+        table.push(vec![
+            "(assuming cache warmup)".to_string(),
+            String::new(),
+            "0".to_string(),
+            "0".to_string(),
+            "$0.00".to_string(),
+        ]);
+        table.separator();
+        table.push(vec![
+            "Total".to_string(),
+            String::new(),
+            "1,234".to_string(),
+            "56".to_string(),
+            "$0.42".to_string(),
+        ]);
+
+        insta::assert_snapshot!(table.render_lines().join("\n"));
+    }
+
+    #[test]
+    fn snapshots_narrow_table_with_wrapping_truncation_and_compact_dates() {
+        let mut table = SimpleTable::new(
+            vec!["Date", "Models", "Input", "Output", "Cost (USD)"],
+            vec![
+                Align::Left,
+                Align::Left,
+                Align::Right,
+                Align::Right,
+                Align::Right,
+            ],
+            TerminalStyle {
+                no_color: true,
+                ..TerminalStyle::default()
+            },
+        )
+        .with_terminal_width(56)
+        .with_date_compaction(true);
+        table.push(vec![
+            "2026-05-18".to_string(),
+            "- claude-sonnet-4-20250514\n- unusually-long-model-name-without-breaks".to_string(),
+            "123,456,789".to_string(),
+            "9,876,543".to_string(),
+            "$12345.67".to_string(),
+        ]);
+
+        insta::assert_snapshot!(table.render_lines().join("\n"));
+    }
+
+    #[test]
     fn truncate_visible_preserves_ansi_reset() {
         let truncated = truncate_visible("\x1b[33mvery-long-value\x1b[0m", 8);
 
         assert!(truncated.ends_with("\x1b[0m…"));
+    }
+
+    #[test]
+    fn snapshots_ansi_truncation_boundary() {
+        insta::assert_snapshot!(truncate_visible("\x1b[33mvery-long-value\x1b[0m", 8));
     }
 }

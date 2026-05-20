@@ -1,0 +1,11 @@
+---
+source: crates/ccusage-terminal/src/lib.rs
+expression: "lines.join(\"\\n\")"
+---
+
+╭────────────────────────────────────────────╮
+│                                            │
+│  Coding (Agent) CLI Usage Report - Daily   │
+│          Detected: Claude, Codex           │
+│                                            │
+╰────────────────────────────────────────────╯

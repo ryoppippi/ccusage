@@ -36,3 +36,6 @@ serde_json = "1"
 
 [target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
 mimalloc = "0.1.50"
+
+[dev-dependencies]
+insta = { version = "1.47.2", features = ["json"] }
