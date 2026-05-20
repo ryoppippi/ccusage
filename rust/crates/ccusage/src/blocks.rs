@@ -1,3 +1,5 @@
+use std::io::IsTerminal;
+
 use serde_json::{json, Value};
 
 use crate::{
@@ -302,7 +304,8 @@ pub(crate) fn print_blocks_table(
         return Ok(());
     }
     let terminal_width = terminal_width();
-    let compact = shared.compact || terminal_width < BLOCKS_COMPACT_WIDTH_THRESHOLD;
+    let is_tty = std::io::stdout().is_terminal();
+    let compact = shared.compact || (is_tty && terminal_width < BLOCKS_COMPACT_WIDTH_THRESHOLD);
     let actual_limit = parse_token_limit(token_limit, max_tokens);
     print_box_title("Claude Code Token Usage Report - Session Blocks", shared);
     let mut headers = vec!["Block Start", "Duration/Status", "Models", "Tokens"];

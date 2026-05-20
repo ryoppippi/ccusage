@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    io::{BufWriter, Write},
+    io::{self, BufWriter, IsTerminal, Write},
 };
 
 use serde_json::{json, Value};
@@ -142,7 +142,8 @@ pub(crate) fn print_usage_table(
         return Ok(());
     }
     let terminal_width = terminal_width();
-    let compact = shared.compact || terminal_width < USAGE_COMPACT_WIDTH_THRESHOLD;
+    let is_tty = io::stdout().is_terminal();
+    let compact = shared.compact || (is_tty && terminal_width < USAGE_COMPACT_WIDTH_THRESHOLD);
     let include_last_activity = rows.iter().any(|row| row.last_activity.is_some());
     print_box_title(title, shared);
     let mut headers = if compact {

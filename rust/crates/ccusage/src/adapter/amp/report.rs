@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use std::io::IsTerminal;
 
 use crate::{
     adapter::opencode, cli::AgentReportKind, cli::SharedArgs, cli::WeekDay, format_currency,
@@ -90,7 +91,8 @@ pub(crate) fn print_table_for_agent(
         return Ok(());
     }
     let terminal_width = crate::terminal_width();
-    let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
+    let is_tty = std::io::stdout().is_terminal();
+    let compact = shared.compact || (is_tty && terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD);
     print_box_title(
         &format!(
             "{agent_name} Token Usage Report - {}",
