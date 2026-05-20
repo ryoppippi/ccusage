@@ -1,6 +1,8 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use serde::Deserialize;
+
+use crate::fast::FxHashMap;
 
 const BUILD_TIME_PRICING_JSON: &str =
     include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
@@ -27,8 +29,8 @@ pub(crate) struct Pricing {
 
 #[derive(Debug, Default)]
 pub(crate) struct PricingMap {
-    entries: HashMap<String, Pricing>,
-    context_limits: HashMap<String, u64>,
+    entries: FxHashMap<String, Pricing>,
+    context_limits: FxHashMap<String, u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,8 +54,8 @@ struct ProviderSpecificEntry {
 
 #[derive(Debug, Default, Deserialize)]
 struct FastMultiplierOverrides {
-    exact: HashMap<String, f64>,
-    normalized_prefix: HashMap<String, f64>,
+    exact: FxHashMap<String, f64>,
+    normalized_prefix: FxHashMap<String, f64>,
 }
 
 impl FastMultiplierOverrides {
@@ -127,7 +129,7 @@ impl PricingMap {
         json: &str,
         fast_multiplier_overrides: &FastMultiplierOverrides,
     ) -> usize {
-        let Ok(raw) = serde_json::from_str::<HashMap<String, serde_json::Value>>(json) else {
+        let Ok(raw) = serde_json::from_str::<FxHashMap<String, serde_json::Value>>(json) else {
             return 0;
         };
         let mut loaded_count = 0;
@@ -537,7 +539,7 @@ fn matches_model_suffix(part: &str, base: &str) -> bool {
         return false;
     };
     let suffix = &part[index..];
-    suffix == base || suffix.starts_with(&format!("{base}-"))
+    suffix == base || suffix.as_bytes().get(base.len()) == Some(&b'-')
 }
 
 fn should_log_pricing_refresh_details() -> bool {

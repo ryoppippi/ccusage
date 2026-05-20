@@ -767,8 +767,9 @@ impl AllAccumulator {
 }
 
 fn aggregate_model_breakdowns(rows: &[AllRow]) -> Vec<ModelBreakdown> {
-    use std::collections::HashMap;
-    let mut indexes: HashMap<String, usize> = HashMap::new();
+    use crate::fast::FxHashMap;
+
+    let mut indexes = FxHashMap::<String, usize>::default();
     let mut breakdowns: Vec<ModelBreakdown> = Vec::new();
     for row in rows {
         for item in &row.model_breakdowns {

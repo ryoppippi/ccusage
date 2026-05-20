@@ -1,7 +1,5 @@
 use std::{
-    collections::hash_map::DefaultHasher,
     collections::BTreeMap,
-    collections::{HashMap, HashSet},
     env, fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
@@ -11,14 +9,17 @@ use std::{
 
 use jiff::tz::TimeZone as JiffTimeZone;
 use memchr::memmem;
+use rustc_hash::FxHasher;
 use serde::Deserialize;
 
 use crate::{
     calculate_cost, calculate_cost_for_usage,
     cli::{CostMode, SharedArgs},
-    cli_error, debug_log, format_date_tz, home, log_level, parse_ts_timestamp, parse_tz, progress,
-    LoadedEntry, LoadedFile, ModelBreakdown, PricingMap, Result, Speed, TimestampMs, TokenCounts,
-    TokenUsageRaw, UsageEntry, UsageSummary,
+    cli_error, debug_log,
+    fast::{byte_lines, suffix_string, FxHashMap, FxHashSet, SmallIndexVec},
+    format_date_tz, home, log_level, parse_ts_timestamp, parse_tz, progress, LoadedEntry,
+    LoadedFile, ModelBreakdown, PricingMap, Result, Speed, TimestampMs, TokenCounts, TokenUsageRaw,
+    UsageEntry, UsageSummary,
 };
 
 pub(crate) fn load_entries(
@@ -67,7 +68,7 @@ fn load_daily_summaries_inner(
         read_daily_usage_files_parallel(&files, tz.as_ref(), mode, pricing.as_ref())
     };
 
-    let mut deduped_indexes: HashMap<u64, Vec<usize>> = HashMap::new();
+    let mut deduped_indexes: FxHashMap<u64, SmallIndexVec> = FxHashMap::default();
     let mut deduped = Vec::with_capacity(loaded_files.iter().map(|file| file.entries.len()).sum());
     for loaded_file in loaded_files {
         for entry in loaded_file.entries {
@@ -80,23 +81,37 @@ fn load_daily_summaries_inner(
         }
     }
 
-    let mut groups = BTreeMap::<String, DailyAccumulator>::new();
-    for entry in &deduped {
-        let key = if group_by_project {
-            format!("{}\0{}", entry.date, entry.project)
-        } else {
-            entry.date.clone()
-        };
-        groups.entry(key).or_default().add_entry(entry);
+    if group_by_project {
+        let mut groups = BTreeMap::<(String, Arc<str>), DailyAccumulator>::new();
+        for entry in &deduped {
+            groups
+                .entry((entry.date.clone(), Arc::clone(&entry.project)))
+                .or_default()
+                .add_entry(entry);
+        }
+        return Ok(groups
+            .into_iter()
+            .map(|((date, project), group)| {
+                let mut summary = group.into_summary();
+                summary.date = Some(date);
+                summary.project = Some(project.to_string());
+                summary
+            })
+            .collect());
     }
 
+    let mut groups = BTreeMap::<String, DailyAccumulator>::new();
+    for entry in &deduped {
+        groups
+            .entry(entry.date.clone())
+            .or_default()
+            .add_entry(entry);
+    }
     Ok(groups
         .into_iter()
         .map(|(key, group)| {
-            let mut parts = key.split('\0');
             let mut summary = group.into_summary();
-            summary.date = Some(parts.next().unwrap_or_default().to_string());
-            summary.project = parts.next().map(str::to_string);
+            summary.date = Some(key);
             summary
         })
         .collect())
@@ -151,7 +166,7 @@ fn load_entries_inner(
         ),
     );
 
-    let mut deduped_indexes: HashMap<u64, Vec<usize>> = HashMap::new();
+    let mut deduped_indexes: FxHashMap<u64, SmallIndexVec> = FxHashMap::default();
     let mut deduped: Vec<LoadedEntry> =
         Vec::with_capacity(loaded_files.iter().map(|file| file.entries.len()).sum());
     for loaded_file in loaded_files {
@@ -405,7 +420,7 @@ fn read_daily_usage_file(
     };
 
     let usage_marker = memmem::Finder::new(br#""usage":{"#);
-    for line in content.split(|byte| *byte == b'\n') {
+    for line in byte_lines(&content) {
         if usage_marker.find(line).is_none() {
             continue;
         }
@@ -439,7 +454,7 @@ fn read_daily_usage_file(
             if model == "<synthetic>" {
                 None
             } else if matches!(usage.speed, Some(Speed::Fast)) {
-                Some(format!("{model}-fast"))
+                Some(suffix_string(model, "-fast"))
             } else {
                 Some(model.clone())
             }
@@ -525,7 +540,7 @@ fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -
 
 fn push_deduped_entry(
     entry: LoadedEntry,
-    deduped_indexes: &mut HashMap<u64, Vec<usize>>,
+    deduped_indexes: &mut FxHashMap<u64, SmallIndexVec>,
     deduped: &mut Vec<LoadedEntry>,
 ) {
     let dedupe_lookup = entry.data.message.id.as_deref().map(|message_id| {
@@ -555,7 +570,7 @@ fn push_deduped_entry(
 
 fn push_deduped_daily_entry(
     entry: DailyLoadedEntry,
-    deduped_indexes: &mut HashMap<u64, Vec<usize>>,
+    deduped_indexes: &mut FxHashMap<u64, SmallIndexVec>,
     deduped: &mut Vec<DailyLoadedEntry>,
 ) {
     let dedupe_lookup = entry.message_id.as_deref().map(|message_id| {
@@ -594,7 +609,7 @@ fn push_deduped_daily_entry(
 }
 
 fn usage_dedupe_hash(message_id: &str, request_id: Option<&str>) -> u64 {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     message_id.hash(&mut hasher);
     request_id.hash(&mut hasher);
     hasher.finish()
@@ -614,9 +629,8 @@ struct DailyAccumulator {
     counts: TokenCounts,
     cost: f64,
     models: Vec<String>,
-    seen_models: HashSet<String>,
     breakdowns: Vec<ModelBreakdown>,
-    breakdown_indexes: HashMap<String, usize>,
+    breakdown_indexes: FxHashMap<String, usize>,
 }
 
 impl DailyAccumulator {
@@ -624,20 +638,18 @@ impl DailyAccumulator {
         self.counts.add_usage(entry.usage);
         self.cost += entry.cost;
         if let Some(model) = &entry.model {
-            if self.seen_models.insert(model.clone()) {
+            let index = if let Some(index) = self.breakdown_indexes.get(model.as_str()) {
+                *index
+            } else {
+                let index = self.breakdowns.len();
+                self.breakdown_indexes.insert(model.clone(), index);
                 self.models.push(model.clone());
-            }
-            let index = *self
-                .breakdown_indexes
-                .entry(model.clone())
-                .or_insert_with(|| {
-                    let index = self.breakdowns.len();
-                    self.breakdowns.push(ModelBreakdown {
-                        model_name: model.clone(),
-                        ..ModelBreakdown::default()
-                    });
-                    index
+                self.breakdowns.push(ModelBreakdown {
+                    model_name: model.clone(),
+                    ..ModelBreakdown::default()
                 });
+                index
+            };
             let breakdown = &mut self.breakdowns[index];
             breakdown.input_tokens += entry.usage.input_tokens;
             breakdown.output_tokens += entry.usage.output_tokens;
@@ -691,7 +703,7 @@ fn read_usage_file(
     };
 
     let usage_marker = memmem::Finder::new(br#""usage":{"#);
-    for line in content.split(|byte| *byte == b'\n') {
+    for line in byte_lines(&content) {
         if usage_marker.find(line).is_none() {
             continue;
         }
@@ -716,7 +728,7 @@ fn read_usage_file(
             if model == "<synthetic>" {
                 None
             } else if matches!(data.message.usage.speed, Some(Speed::Fast)) {
-                Some(format!("{model}-fast"))
+                Some(suffix_string(model, "-fast"))
             } else {
                 Some(model.clone())
             }
@@ -815,44 +827,48 @@ fn has_unsupported_null_field(line: &[u8]) -> bool {
 }
 
 fn is_unsupported_nullable_field(field: &[u8]) -> bool {
-    matches!(
-        field,
-        b"id"
-            | b"cwd"
-            | b"model"
-            | b"speed"
-            | b"costUSD"
-            | b"version"
-            | b"sessionId"
-            | b"requestId"
-            | b"isApiErrorMessage"
-            | b"cache_read_input_tokens"
-            | b"cache_creation_input_tokens"
-    )
+    static FIELDS: phf::Set<&'static str> = phf::phf_set! {
+        "id",
+        "cwd",
+        "model",
+        "speed",
+        "costUSD",
+        "version",
+        "sessionId",
+        "requestId",
+        "isApiErrorMessage",
+        "cache_read_input_tokens",
+        "cache_creation_input_tokens",
+    };
+
+    std::str::from_utf8(field).is_ok_and(|field| FIELDS.contains(field))
 }
 
 fn is_semver_prefix(value: &str) -> bool {
-    let mut parts = value.split('.');
-    let Some(major) = parts.next() else {
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    if !consume_ascii_digits(bytes, &mut index) || bytes.get(index) != Some(&b'.') {
         return false;
-    };
-    let Some(minor) = parts.next() else {
+    }
+    index += 1;
+    if !consume_ascii_digits(bytes, &mut index) || bytes.get(index) != Some(&b'.') {
         return false;
-    };
-    let Some(patch) = parts.next() else {
-        return false;
-    };
-    !major.is_empty()
-        && !minor.is_empty()
-        && !patch.is_empty()
-        && major.chars().all(|ch| ch.is_ascii_digit())
-        && minor.chars().all(|ch| ch.is_ascii_digit())
-        && patch.chars().next().is_some_and(|ch| ch.is_ascii_digit())
+    }
+    index += 1;
+    bytes.get(index).is_some_and(u8::is_ascii_digit)
+}
+
+fn consume_ascii_digits(bytes: &[u8], index: &mut usize) -> bool {
+    let start = *index;
+    while bytes.get(*index).is_some_and(u8::is_ascii_digit) {
+        *index += 1;
+    }
+    *index > start
 }
 
 pub(crate) fn claude_paths() -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+    let mut seen = FxHashSet::default();
     if let Ok(env_paths) = env::var("CLAUDE_CONFIG_DIR") {
         for raw in env_paths
             .split(',')

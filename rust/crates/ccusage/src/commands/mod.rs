@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     env, fs,
     io::{self, Read},
     path::{Path, PathBuf},
@@ -17,14 +16,16 @@ use crate::{
         BlocksArgs, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder, StatuslineArgs,
         VisualBurnRate, WeekDay, WeeklyArgs,
     },
-    color, filter_and_sort_summaries, filter_blocks_by_date, format_compact_utc_date,
-    format_currency, format_number, format_remaining_time, format_rfc3339_millis,
-    group_project_output, identify_session_blocks, load_daily_summaries, load_entries,
-    print_active_block_detail, print_blocks_table, print_json_or_jq, print_usage_table,
-    session_summary_json, sort_blocks, sort_summaries, summarize_by_key,
-    summarize_summaries_by_bucket, summary_json, total_usage_tokens, totals_json, utc_now,
-    wants_json, BucketKind, Color, Context, Result, SessionAccumulator, TimestampMs,
-    DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS, MILLIS_PER_DAY, MILLIS_PER_MINUTE,
+    color,
+    fast::FxHashMap,
+    filter_and_sort_summaries, filter_blocks_by_date, format_compact_utc_date, format_currency,
+    format_number, format_remaining_time, format_rfc3339_millis, group_project_output,
+    identify_session_blocks, load_daily_summaries, load_entries, print_active_block_detail,
+    print_blocks_table, print_json_or_jq, print_usage_table, session_summary_json, sort_blocks,
+    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, summary_json,
+    total_usage_tokens, totals_json, utc_now, wants_json, BucketKind, Color, Context, Result,
+    SessionAccumulator, TimestampMs, DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS,
+    MILLIS_PER_DAY, MILLIS_PER_MINUTE,
 };
 
 pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
@@ -150,7 +151,7 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
     session_shared.order = SortOrder::Desc;
     let entries = load_entries(&session_shared, None)?;
     let mut grouped = Vec::<SessionAccumulator>::new();
-    let mut group_indexes = HashMap::<(Arc<str>, Arc<str>), usize>::new();
+    let mut group_indexes = FxHashMap::<(Arc<str>, Arc<str>), usize>::default();
     for entry in &entries {
         let key = (
             Arc::clone(&entry.project_path),

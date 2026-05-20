@@ -10,6 +10,7 @@ mod config;
 mod config_schema;
 mod cost;
 mod date_utils;
+mod fast;
 mod home;
 mod logger;
 mod output;
