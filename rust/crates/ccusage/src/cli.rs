@@ -36,6 +36,7 @@ pub(crate) enum Command {
     Kimi(AgentCommandArgs),
     Qwen(AgentCommandArgs),
     OpenClaw(AgentCommandArgs),
+    Antigravity(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -441,6 +442,13 @@ fn parse_command(
             Command::Qwen,
         ),
         "openclaw" => parse_openclaw_command(parser, shared, config),
+        "antigravity" => parse_basic_agent_command(
+            parser,
+            shared,
+            "antigravity",
+            STANDARD_AGENT_REPORTS,
+            Command::Antigravity,
+        ),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -763,6 +771,7 @@ fn is_command(arg: &str) -> bool {
             | "gemini"
             | "kimi"
             | "qwen"
+            | "antigravity"
     )
 }
 
@@ -908,6 +917,7 @@ fn is_agent_command(command: &str) -> bool {
             | "kimi"
             | "qwen"
             | "openclaw"
+            | "antigravity"
     )
 }
 
@@ -920,7 +930,7 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
         "amp" | "droid" | "codebuff" | "hermes" | "pi" | "goose" | "kilo" | "copilot"
-        | "gemini" | "kimi" | "qwen" | "openclaw" => {
+        | "gemini" | "kimi" | "qwen" | "openclaw" | "antigravity" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -944,6 +954,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "kimi" => "Kimi",
         "qwen" => "Qwen",
         "openclaw" => "OpenClaw",
+        "antigravity" => "Antigravity",
         _ => unreachable!("agent is prevalidated"),
     }
 }
@@ -1276,6 +1287,14 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
                     ("session", "Show OpenClaw usage grouped by session"),
                 ],
             ),
+            "antigravity" => agent_help(
+                "antigravity",
+                &[
+                    ("daily", "Show Antigravity CLI usage grouped by date"),
+                    ("monthly", "Show Antigravity CLI usage grouped by month"),
+                    ("session", "Show Antigravity CLI usage grouped by session"),
+                ],
+            ),
             _ => root_help_text(),
         },
         [agent, report, ..] => match agent.as_str() {
@@ -1299,6 +1318,7 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             "kimi" => kimi_report_help(report),
             "qwen" => qwen_report_help(report),
             "openclaw" => openclaw_report_help(report),
+            "antigravity" => antigravity_report_help(report),
             _ => root_help_text(),
         },
     }
@@ -1352,6 +1372,7 @@ fn root_help_text() -> String {
         "  kimi                       Show Kimi usage commands",
         "  qwen                       Show Qwen usage commands",
         "  openclaw                   Show OpenClaw usage commands",
+        "  antigravity                Show Antigravity CLI usage commands",
         "",
         "For more info, run any command with the `--help` flag:",
         "  ccusage daily --help",
@@ -1375,6 +1396,7 @@ fn root_help_text() -> String {
         "  ccusage kimi --help",
         "  ccusage qwen --help",
         "  ccusage openclaw --help",
+        "  ccusage antigravity --help",
         "",
     ]
     .map(str::to_string)
@@ -1604,6 +1626,20 @@ fn kimi_report_help(report: &str) -> String {
     command_help(
         description,
         &format!("ccusage kimi {report} <OPTIONS>"),
+        agent_options(),
+    )
+}
+
+fn antigravity_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Antigravity CLI usage grouped by date",
+        "monthly" => "Show Antigravity CLI usage grouped by month",
+        "session" => "Show Antigravity CLI usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage antigravity {report} <OPTIONS>"),
         agent_options(),
     )
 }
@@ -1876,7 +1912,7 @@ mod tests {
         let help = help_text();
         let agents = [
             "claude", "codex", "opencode", "amp", "droid", "codebuff", "hermes", "pi", "goose",
-            "kilo", "copilot", "gemini", "kimi", "qwen", "openclaw",
+            "kilo", "copilot", "gemini", "kimi", "qwen", "openclaw", "antigravity",
         ];
 
         for agent in agents {
@@ -2223,5 +2259,15 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
         assert_eq!(args.open_claw_path.as_deref(), Some("/tmp/openclaw"));
+    }
+
+    #[test]
+    fn parses_antigravity_session_options() {
+        let cli = parse(&["ccusage", "antigravity", "session", "--json"]);
+        let Some(Command::Antigravity(args)) = cli.command else {
+            panic!("expected antigravity command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
     }
 }

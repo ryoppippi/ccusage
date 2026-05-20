@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use crate::{
     adapter::{
         amp, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
-        opencode, pi, qwen,
+        opencode, pi, qwen, antigravity,
     },
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
@@ -178,6 +178,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
                 agent: "qwen",
                 progress_agent: crate::progress::UsageLoadAgent::Qwen,
                 load: Box::new(|| load_qwen_rows(load_kind, &loader_shared)),
+            },
+            AgentLoadSpec {
+                index: 15,
+                agent: "antigravity",
+                progress_agent: crate::progress::UsageLoadAgent::Antigravity,
+                load: Box::new(|| load_antigravity_rows(load_kind, &loader_shared, &pricing)),
             },
         ],
         &mut progress,
@@ -440,6 +446,20 @@ fn load_openclaw_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Agen
         shared,
         || openclaw::load_entries(shared, None),
         openclaw::summarize_entries,
+    )
+}
+
+fn load_antigravity_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    load_summary_agent_rows(
+        "antigravity",
+        kind,
+        shared,
+        || antigravity::load_entries(shared, pricing),
+        antigravity::summarize_entries,
     )
 }
 
@@ -1172,6 +1192,7 @@ fn agent_label(agent: &str) -> &str {
         "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
         "qwen" => "Qwen",
+        "antigravity" => "Antigravity",
         _ => agent,
     }
 }
