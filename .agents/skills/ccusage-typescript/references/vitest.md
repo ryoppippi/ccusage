@@ -34,4 +34,5 @@ prefer Rust tests through `ccusage-testing`.
 - Do not hoist one-off values out of tests.
 
 For broader TDD examples and modifiers, read
-`../../tdd/references/vitest-examples.md`.
+`../../tdd/references/vitest-running-and-modifiers.md` and
+`../../tdd/references/vitest-readability.md`.

@@ -28,7 +28,10 @@ direnv exec . pnpm run test
 
 Put Rust unit tests near the module they exercise with `#[cfg(test)] mod tests`. When splitting a large module, move its tests with the code instead of leaving unrelated tests in `main.rs`.
 
-Use fixture-backed Rust tests for parser, path discovery, SQLite loading, dedupe, aggregation, pricing, and CLI output parity. For TDD syntax and focused cargo test examples, read `../tdd/references/rust-examples.md`.
+Use fixture-backed Rust tests for parser, path discovery, SQLite loading,
+dedupe, aggregation, pricing, and CLI output parity. For focused cargo commands,
+read `../tdd/references/rust-running.md`; for Rust test syntax examples, read
+`../tdd/references/rust-test-examples.md`.
 
 ## Test Readability
 
@@ -37,7 +40,7 @@ Use fixture-backed Rust tests for parser, path discovery, SQLite loading, dedupe
 - Tests do not need to be DRY. Prefer repeated, explicit setup in each test when it makes the behavior easier to read.
 - Do not hoist one-off values out of tests. Write literals and direct setup values inline in the test body when sharing them would make the behavior harder to read.
 
-For concrete Rust examples, read `../tdd/references/rust-examples.md`.
+For concrete Rust examples, read `../tdd/references/rust-test-examples.md`.
 
 ## CLI Output Tests
 

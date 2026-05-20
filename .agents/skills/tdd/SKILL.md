@@ -57,8 +57,12 @@ Prefer running only the tests affected by your changes during the Red-Green-Refa
 
 **Runner-specific guidance** — Read the relevant example file alongside this skill for detailed test modifiers, idioms, and runner-specific tips:
 
-- **Vitest**: See `references/vitest-examples.md` — test modifiers (`it.todo`, `it.skip`, `it.fails`, etc.), `--changed` flag
-- **Rust (cargo test)**: See `references/rust-examples.md` — `#[ignore]`, `#[should_panic]`, filtering, doc tests
+- **Vitest**: See `references/vitest-running-and-modifiers.md` for focused
+  commands and modifiers, and `references/vitest-readability.md` for assertion
+  examples.
+- **Rust (cargo test)**: See `references/rust-running.md` for focused cargo
+  commands and `references/rust-test-examples.md` for attributes, Result tests,
+  and doc tests.
 - **Zig (zig test)**: Use `zig test <file> --test-filter <name>` for focused runs
 
 For other runners, adapt the general patterns:

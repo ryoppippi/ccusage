@@ -1,6 +1,6 @@
 ---
 name: typescript-style
-description: Guides ccusage TypeScript and JavaScript reading, writing, and review. Use before opening or editing .ts, .tsx, .js, or .jsx files, including regexes, Result handling, Gunshi CLI types, mocks, fixtures, satisfies, or suppressions.
+description: Guides ccusage TypeScript and JavaScript reading, writing, and review. Use before opening or editing .ts, .tsx, .js, or .jsx files, including mocks, fixtures, satisfies, or suppressions.
 paths:
   - '**/*.ts'
   - '**/*.tsx'
@@ -10,14 +10,6 @@ globs: '*.ts,*.tsx,*.js,*.jsx'
 ---
 
 # TypeScript Style
-
-## Library Conventions
-
-Use the focused references when code touches their areas:
-
-- Read `references/arkregex.md` for regular expressions, `RegExp`, `.match()`, `.test()`, `.replace()`, or `.split()` patterns.
-- Read `references/byethrow.md` for `@praha/byethrow` Result-based error handling.
-- Read `references/gunshi.md` for Gunshi command definitions, command option types, and CLI type inference.
 
 ## Prefer `satisfies` Over `as`
 
