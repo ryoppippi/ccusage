@@ -23,7 +23,7 @@ use crate::{
     print_active_block_detail, print_blocks_table, print_json_or_jq, print_usage_table,
     session_summary_json, sort_blocks, sort_summaries, summarize_by_key,
     summarize_summaries_by_bucket, summary_json, total_usage_tokens, totals_json, utc_now,
-    wants_json, BucketKind, Color, Context, Result, SessionAccumulator, TimestampMs,
+    wants_json, BucketKind, Color, Context, DateFilter, Result, SessionAccumulator, TimestampMs,
     DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS, MILLIS_PER_DAY, MILLIS_PER_MINUTE,
 };
 
@@ -168,21 +168,18 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
     for group in grouped {
         rows.push(group.into_summary(session_shared.timezone.as_deref())?);
     }
-    if session_shared.since.is_some() || session_shared.until.is_some() {
+    let date_filter = DateFilter::new(
+        session_shared.since.as_deref(),
+        session_shared.until.as_deref(),
+    );
+    if !date_filter.is_empty() {
         rows.retain(|row| {
             let date = row
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
                 .replace('-', "");
-            session_shared
-                .since
-                .as_ref()
-                .is_none_or(|since| &date >= since)
-                && session_shared
-                    .until
-                    .as_ref()
-                    .is_none_or(|until| &date <= until)
+            date_filter.contains_compact_date(&date)
         });
     }
     rows.retain(|row| {

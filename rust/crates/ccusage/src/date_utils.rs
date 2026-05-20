@@ -28,6 +28,12 @@ pub(crate) struct IsoDate {
     pub(crate) day: u32,
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct DateFilter {
+    since: Option<String>,
+    until: Option<String>,
+}
+
 impl TimestampMs {
     pub(crate) const UNIX_EPOCH: Self = Self(0);
 
@@ -97,6 +103,42 @@ impl IsoDate {
         let days = self.days_since_epoch().checked_add(days)?;
         let (year, month, day) = civil_from_days(days);
         Some(Self { year, month, day })
+    }
+}
+
+impl DateFilter {
+    pub(crate) fn new(since: Option<&str>, until: Option<&str>) -> Self {
+        Self {
+            since: since.map(normalize_date_filter_bound),
+            until: until.map(normalize_date_filter_bound),
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.since.is_none() && self.until.is_none()
+    }
+
+    pub(crate) fn contains_compact_date(&self, date: &str) -> bool {
+        self.since
+            .as_ref()
+            .is_none_or(|since| date >= since.as_str())
+            && self
+                .until
+                .as_ref()
+                .is_none_or(|until| date <= until.as_str())
+    }
+
+    pub(crate) fn contains_iso_date(&self, date: &str) -> bool {
+        let date = date.replace('-', "");
+        self.contains_compact_date(&date)
+    }
+}
+
+pub(crate) fn normalize_date_filter_bound(value: &str) -> String {
+    if parse_iso_date(value).is_some() {
+        value.replace('-', "")
+    } else {
+        value.to_string()
     }
 }
 
@@ -316,5 +358,23 @@ pub(crate) fn am_pm(hour: u32) -> &'static str {
         "AM"
     } else {
         "PM"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn date_filter_accepts_iso_and_compact_bounds() {
+        let iso = DateFilter::new(Some("2026-01-02"), Some("2026-01-03"));
+        let compact = DateFilter::new(Some("20260102"), Some("20260103"));
+
+        for filter in [iso, compact] {
+            assert!(!filter.contains_iso_date("2026-01-01"));
+            assert!(filter.contains_iso_date("2026-01-02"));
+            assert!(filter.contains_iso_date("2026-01-03"));
+            assert!(!filter.contains_iso_date("2026-01-04"));
+        }
     }
 }

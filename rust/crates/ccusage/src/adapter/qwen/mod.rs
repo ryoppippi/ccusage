@@ -7,7 +7,7 @@ use crate::{
     cli::{AgentCommandArgs, AgentReportKind, SharedArgs, WeekDay},
     filter_loaded_entries_by_date, print_json_or_jq, print_usage_table, sort_summaries,
     summarize_by_key, summarize_summaries_by_bucket, totals_json, wants_json, BucketKind,
-    LoadedEntry, Result, SessionAccumulator,
+    DateFilter, LoadedEntry, Result, SessionAccumulator,
 };
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
@@ -103,17 +103,15 @@ fn rows_key(kind: AgentReportKind) -> &'static str {
 }
 
 fn filter_session_summaries(rows: &mut Vec<crate::UsageSummary>, shared: &SharedArgs) {
-    if shared.since.is_some() || shared.until.is_some() {
-        let since = shared.since.as_deref().map(|value| value.replace('-', ""));
-        let until = shared.until.as_deref().map(|value| value.replace('-', ""));
+    let date_filter = DateFilter::new(shared.since.as_deref(), shared.until.as_deref());
+    if !date_filter.is_empty() {
         rows.retain(|row| {
             let date = row
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
                 .replace('-', "");
-            since.as_ref().is_none_or(|bound| &date >= bound)
-                && until.as_ref().is_none_or(|bound| &date <= bound)
+            date_filter.contains_compact_date(&date)
         });
     }
 }

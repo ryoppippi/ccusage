@@ -5,8 +5,8 @@ use std::{
 
 use crate::{
     cli::{SharedArgs, SortOrder, WeekDay},
-    cli_error, format_date, format_naive_date, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
-    TimestampMs, TokenCounts, UsageSummary,
+    cli_error, format_date, format_naive_date, parse_iso_date, DateFilter, LoadedEntry,
+    ModelBreakdown, Result, TimestampMs, TokenCounts, UsageSummary,
 };
 
 pub(crate) fn summarize_by_key<F, M>(
@@ -258,11 +258,11 @@ pub(crate) fn filter_and_sort_summaries<F>(
 ) where
     F: Fn(&UsageSummary) -> &str,
 {
-    if shared.since.is_some() || shared.until.is_some() {
+    let date_filter = DateFilter::new(shared.since.as_deref(), shared.until.as_deref());
+    if !date_filter.is_empty() {
         rows.retain(|row| {
             let date = date_fn(row).replace('-', "");
-            shared.since.as_ref().is_none_or(|since| &date >= since)
-                && shared.until.as_ref().is_none_or(|until| &date <= until)
+            date_filter.contains_compact_date(&date)
         });
     }
     sort_summaries(rows, &shared.order, date_fn);

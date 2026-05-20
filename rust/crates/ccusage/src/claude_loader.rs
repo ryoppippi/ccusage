@@ -17,8 +17,8 @@ use crate::{
     calculate_cost, calculate_cost_for_usage,
     cli::{CostMode, SharedArgs},
     cli_error, debug_log, format_date_tz, home, log_level, parse_ts_timestamp, parse_tz, progress,
-    LoadedEntry, LoadedFile, ModelBreakdown, PricingMap, Result, Speed, TimestampMs, TokenCounts,
-    TokenUsageRaw, UsageEntry, UsageSummary,
+    DateFilter, LoadedEntry, LoadedFile, ModelBreakdown, PricingMap, Result, Speed, TimestampMs,
+    TokenCounts, TokenUsageRaw, UsageEntry, UsageSummary,
 };
 
 pub(crate) fn load_entries(
@@ -172,13 +172,13 @@ fn load_entries_inner(
 }
 
 pub(crate) fn filter_loaded_entries_by_date(entries: &mut Vec<LoadedEntry>, shared: &SharedArgs) {
-    if shared.since.is_none() && shared.until.is_none() {
+    let date_filter = DateFilter::new(shared.since.as_deref(), shared.until.as_deref());
+    if date_filter.is_empty() {
         return;
     }
     entries.retain(|entry| {
         let date = entry.date.replace('-', "");
-        shared.since.as_ref().is_none_or(|since| &date >= since)
-            && shared.until.as_ref().is_none_or(|until| &date <= until)
+        date_filter.contains_compact_date(&date)
     });
 }
 

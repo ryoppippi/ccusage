@@ -14,8 +14,8 @@ use crate::{
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, short_model_name, summarize_by_key,
-    summarize_summaries_by_bucket, wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry,
-    ModelBreakdown, PricingMap, Result, SessionAccumulator, SimpleTable, UsageSummary,
+    summarize_summaries_by_bucket, wants_json, Align, BucketKind, CodexGroup, Color, DateFilter,
+    LoadedEntry, ModelBreakdown, PricingMap, Result, SessionAccumulator, SimpleTable, UsageSummary,
 };
 
 #[derive(Debug, Clone)]
@@ -573,15 +573,15 @@ fn summarize_entry_sessions(
 }
 
 fn filter_session_summaries(rows: &mut Vec<UsageSummary>, shared: &SharedArgs) {
-    if shared.since.is_some() || shared.until.is_some() {
+    let date_filter = DateFilter::new(shared.since.as_deref(), shared.until.as_deref());
+    if !date_filter.is_empty() {
         rows.retain(|row| {
             let date = row
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
                 .replace('-', "");
-            shared.since.as_ref().is_none_or(|since| &date >= since)
-                && shared.until.as_ref().is_none_or(|until| &date <= until)
+            date_filter.contains_compact_date(&date)
         });
     }
 }

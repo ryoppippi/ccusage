@@ -7,8 +7,8 @@ use crate::{
     cli::{SharedArgs, SortOrder},
     color, format_currency, format_date, format_models_multiline, format_number,
     format_rfc3339_millis, format_utc_second, hour_12, json_float, local_parts, print_box_title,
-    terminal_width, utc_now, Align, BurnRate, Color, LoadedEntry, Projection, SessionBlock,
-    SimpleTable, TimestampMs, TokenCounts, BLOCKS_COMPACT_WIDTH_THRESHOLD,
+    terminal_width, utc_now, Align, BurnRate, Color, DateFilter, LoadedEntry, Projection,
+    SessionBlock, SimpleTable, TimestampMs, TokenCounts, BLOCKS_COMPACT_WIDTH_THRESHOLD,
     BLOCKS_WARNING_THRESHOLD, MILLIS_PER_HOUR, MILLIS_PER_MINUTE,
 };
 
@@ -125,13 +125,13 @@ fn create_gap_block(last: TimestampMs, next: TimestampMs, duration: i64) -> Sess
 }
 
 pub(crate) fn filter_blocks_by_date(blocks: &mut Vec<SessionBlock>, shared: &SharedArgs) {
-    if shared.since.is_none() && shared.until.is_none() {
+    let date_filter = DateFilter::new(shared.since.as_deref(), shared.until.as_deref());
+    if date_filter.is_empty() {
         return;
     }
     blocks.retain(|block| {
         let date = format_date(block.start_time, shared.timezone.as_deref()).replace('-', "");
-        shared.since.as_ref().is_none_or(|since| &date >= since)
-            && shared.until.as_ref().is_none_or(|until| &date <= until)
+        date_filter.contains_compact_date(&date)
     });
 }
 

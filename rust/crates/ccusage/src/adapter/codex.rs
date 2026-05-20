@@ -15,7 +15,7 @@ use crate::{
     color, format_currency, format_date_tz, format_models_multiline, format_number, json_float,
     json_value_u64, log_level, parse_ts_timestamp, parse_tz, print_box_title, print_json_or_jq,
     wants_json, week_start, Align, CodexGroup, CodexModelUsage, CodexTokenUsageEvent, Color,
-    PricingMap, Result, SimpleTable,
+    DateFilter, PricingMap, Result, SimpleTable,
 };
 
 type CodexEventKey = (String, Option<String>, u64, u64, u64, u64, u64);
@@ -225,8 +225,9 @@ fn aggregate_file(
     seen: &CodexDedupeShards,
     groups: &mut BTreeMap<String, CodexGroup>,
 ) -> Result<()> {
+    let date_filter = DateFilter::new(shared.since.as_deref(), shared.until.as_deref());
     crate::visit_codex_session_file(sessions_dir, file, |event| {
-        add_event_to_groups(&event, kind, timezone, shared, seen, groups)
+        add_event_to_groups(&event, kind, timezone, &date_filter, seen, groups)
     })
 }
 
@@ -234,7 +235,7 @@ fn add_event_to_groups(
     event: &CodexTokenUsageEvent,
     kind: AgentReportKind,
     timezone: Option<&JiffTimeZone>,
-    shared: &SharedArgs,
+    date_filter: &DateFilter,
     seen: &CodexDedupeShards,
     groups: &mut BTreeMap<String, CodexGroup>,
 ) -> Result<()> {
@@ -247,13 +248,8 @@ fn add_event_to_groups(
     let timestamp = parse_ts_timestamp(&event.timestamp)
         .ok_or_else(|| crate::cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
     let date = format_date_tz(timestamp, timezone);
-    if shared.since.is_some() || shared.until.is_some() {
-        let date_key = date.replace('-', "");
-        if shared.since.as_ref().is_some_and(|since| &date_key < since)
-            || shared.until.as_ref().is_some_and(|until| &date_key > until)
-        {
-            return Ok(());
-        }
+    if !date_filter.is_empty() && !date_filter.contains_iso_date(&date) {
+        return Ok(());
     }
     let period = match kind {
         AgentReportKind::Daily => date,
@@ -389,7 +385,8 @@ pub(crate) fn filter_events_by_date(
     events: &mut Vec<CodexTokenUsageEvent>,
     shared: &SharedArgs,
 ) -> Result<()> {
-    if shared.since.is_none() && shared.until.is_none() {
+    let date_filter = DateFilter::new(shared.since.as_deref(), shared.until.as_deref());
+    if date_filter.is_empty() {
         return Ok(());
     }
     let timezone = parse_tz(shared.timezone.as_deref()).or_else(|| Some(JiffTimeZone::system()));
@@ -399,9 +396,7 @@ pub(crate) fn filter_events_by_date(
             crate::cli_error(format!("Invalid Codex timestamp: {}", event.timestamp))
         })?;
         let date = format_date_tz(timestamp, timezone.as_ref()).replace('-', "");
-        if shared.since.as_ref().is_none_or(|since| &date >= since)
-            && shared.until.as_ref().is_none_or(|until| &date <= until)
-        {
+        if date_filter.contains_compact_date(&date) {
             kept.push(event);
         }
     }
@@ -674,7 +669,8 @@ mod tests {
         )
         .unwrap();
         let shared = SharedArgs {
-            since: Some("20260103".to_string()),
+            since: Some("2026-01-03".to_string()),
+            until: Some("2026-01-03".to_string()),
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
