@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage"
-version = "20.0.0"
+version = "20.0.1"
 dependencies = [
  "ccusage-terminal",
  "compact_str",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage-terminal"
-version = "20.0.0"
+version = "20.0.1"
 
 [[package]]
 name = "cfg-if"
