@@ -318,3 +318,26 @@ pub(crate) fn am_pm(hour: u32) -> &'static str {
         "PM"
     }
 }
+
+/// Normalizes a `--since` / `--until` date filter to the dashless `YYYYMMDD`
+/// form used for entry-date comparisons.
+///
+/// Date filters are compared against entry dates that have their dashes
+/// stripped, so the documented `YYYY-MM-DD` input must be normalized the same
+/// way. Without this, a value like `2026-03-15` is compared verbatim and the
+/// filter silently misbehaves (`--since` matches everything, `--until` matches
+/// nothing) because `-` sorts before the digits it sits next to.
+pub(crate) fn normalize_date_filter(value: &str) -> String {
+    value.replace('-', "")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_date_filter;
+
+    #[test]
+    fn normalizes_dashed_and_dashless_dates_identically() {
+        assert_eq!(normalize_date_filter("2026-03-15"), "20260315");
+        assert_eq!(normalize_date_filter("20260315"), "20260315");
+    }
+}

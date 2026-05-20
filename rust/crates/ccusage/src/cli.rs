@@ -712,8 +712,16 @@ fn parse_shared_arg_for_command(
 
 fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(), String> {
     match parser.next_flag()?.as_str() {
-        "-s" | "--since" => shared.since = Some(parser.value_for("--since")?),
-        "-u" | "--until" => shared.until = Some(parser.value_for("--until")?),
+        "-s" | "--since" => {
+            shared.since = Some(crate::date_utils::normalize_date_filter(
+                &parser.value_for("--since")?,
+            ))
+        }
+        "-u" | "--until" => {
+            shared.until = Some(crate::date_utils::normalize_date_filter(
+                &parser.value_for("--until")?,
+            ))
+        }
         "-j" | "--json" => shared.json = true,
         "-m" | "--mode" => shared.mode = parse_cost_mode(&parser.value_for("--mode")?)?,
         "-d" | "--debug" => shared.debug = true,
@@ -1805,6 +1813,23 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn normalizes_dashed_since_and_until_to_dashless_form() {
+        let cli = parse(&[
+            "ccusage",
+            "daily",
+            "--since",
+            "2026-01-02",
+            "--until",
+            "2026-03-15",
+        ]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+        assert_eq!(args.shared.until.as_deref(), Some("20260315"));
     }
 
     #[test]
