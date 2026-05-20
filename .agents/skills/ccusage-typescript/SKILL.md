@@ -37,8 +37,6 @@ Use `typescript-style` for detailed TypeScript conventions. In this repo:
 Read the focused `typescript-style` references only when they apply:
 
 - `../typescript-style/references/arkregex.md` for new regular expression work.
-- `../typescript-style/references/byethrow.md` for Result-based TypeScript error handling.
-- `../typescript-style/references/gunshi.md` for TypeScript CLI command definitions.
 
 ## Vitest
 
@@ -47,8 +45,9 @@ benchmark scripts, and docs/package tooling. Prefer Rust tests for production CL
 runtime behavior.
 
 Read `references/vitest.md` for ccusage-specific Vitest patterns. Read
-`../tdd/references/vitest-examples.md` for broader TDD examples and Vitest test
-modifiers.
+`../tdd/references/vitest-running-and-modifiers.md` for broader Vitest command
+and modifier examples, and `../tdd/references/vitest-readability.md` for
+behavior-focused assertion examples.
 
 ## Bun And Package Scripts
 
