@@ -644,11 +644,20 @@ export async function createHeadCcusageCommand(options: {
 	fixtureDir: string;
 	headBinEntry?: string;
 	headDir: string;
+	headNativeBinEntry?: string;
 	headRuntime: HeadRuntime;
 }): Promise<string> {
 	if (options.headRuntime === 'package' && options.headBinEntry != null) {
 		return createCcusageCommandFromBin(
 			options.headBinEntry,
+			options.fixtureDir,
+			options.codexFixtureDir,
+			options.command,
+		);
+	}
+	if (options.headRuntime === 'rust' && options.headNativeBinEntry != null) {
+		return createCcusageCommandFromRustBinary(
+			options.headNativeBinEntry,
 			options.fixtureDir,
 			options.codexFixtureDir,
 			options.command,
@@ -685,6 +694,7 @@ async function compareCommand(
 		fixtureDir: string;
 		headBinEntry?: string;
 		headDir: string;
+		headNativeBinEntry?: string;
 		headRuntime: HeadRuntime;
 		runs: number;
 		warmup: number;
@@ -705,6 +715,7 @@ async function compareCommand(
 		fixtureDir: options.fixtureDir,
 		headBinEntry: options.headBinEntry,
 		headDir: options.headDir,
+		headNativeBinEntry: options.headNativeBinEntry,
 		headRuntime: options.headRuntime,
 	});
 	const hyperfine = Bun.spawn(
@@ -859,6 +870,7 @@ async function compareFixture(options: {
 	fixtureDir: string;
 	headBinEntry?: string;
 	headDir: string;
+	headNativeBinEntry?: string;
 	headRuntime: HeadRuntime;
 	runs: number;
 	title: string;
@@ -1424,6 +1436,23 @@ if (import.meta.vitest != null) {
 
 			expect(commandText).toContain('/tmp/head-package/node_modules/ccusage/dist/cli.js');
 			expect(commandText).not.toContain('/repo/apps/ccusage');
+		});
+
+		it('uses the installed native binary for Rust runtime benchmarks when one is available', async () => {
+			const commandText = await createHeadCcusageCommand({
+				codexFixtureDir: '/fixtures/codex',
+				command: 'claude',
+				fixtureDir: '/fixtures/claude',
+				headDir: '/repo',
+				headNativeBinEntry:
+					'/tmp/head-package/node_modules/@ccusage/ccusage-linux-arm64/bin/ccusage',
+				headRuntime: 'rust',
+			});
+
+			expect(commandText).toContain(
+				'/tmp/head-package/node_modules/@ccusage/ccusage-linux-arm64/bin/ccusage',
+			);
+			expect(commandText).not.toContain('/repo/rust/target/release/ccusage');
 		});
 
 		it('resolves the installed native optional package binary for diagnostics', async () => {
