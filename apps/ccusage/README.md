@@ -188,10 +188,10 @@ nix run github:ryoppippi/ccusage -- codex daily --offline
 nix build github:ryoppippi/ccusage
 ```
 
-Nix builds embed the LiteLLM pricing file from the locked `litellm-pricing` flake input, so sandboxed builds do not fetch pricing at build time. To update the locked pricing snapshot and refresh the non-Nix Cargo fallback JSON:
+Nix builds embed the LiteLLM pricing file from the locked `litellm` flake input, so sandboxed builds do not fetch pricing at build time. To update the locked pricing snapshot and refresh the non-Nix Cargo fallback JSON:
 
 ```bash
-nix flake update litellm-pricing
+nix flake update litellm
 nix run .#update-pricing-fallback
 nix flake check
 ```

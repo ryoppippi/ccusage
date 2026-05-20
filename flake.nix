@@ -3,8 +3,8 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   inputs.crane.url = "github:ipetkov/crane";
-  inputs.litellm-pricing = {
-    url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+  inputs.litellm = {
+    url = "github:BerriAI/litellm";
     flake = false;
   };
   inputs.rust-overlay = {
@@ -12,8 +12,9 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, crane, litellm-pricing, nixpkgs, rust-overlay, ... }:
+  outputs = { self, crane, litellm, nixpkgs, rust-overlay, ... }:
     let
+      litellm-pricing = "${litellm}/model_prices_and_context_window.json";
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forAllSystems = f:
         nixpkgs.lib.genAttrs systems (system:

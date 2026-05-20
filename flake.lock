@@ -15,16 +15,20 @@
         "type": "github"
       }
     },
-    "litellm-pricing": {
+    "litellm": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-GYGEQUcNe4JcHwYNDL4M5yVZpYj0ExjVEOV3vdH4vSc=",
-        "type": "file",
-        "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        "lastModified": 1779231723,
+        "narHash": "sha256-0MG6NXwVytdRQIf+L+nV5T4GZfIDUCJNZPnIlVfCoq0=",
+        "owner": "BerriAI",
+        "repo": "litellm",
+        "rev": "e59e34bed3670a6894d43129c2af16af28057d03",
+        "type": "github"
       },
       "original": {
-        "type": "file",
-        "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        "owner": "BerriAI",
+        "repo": "litellm",
+        "type": "github"
       }
     },
     "nixpkgs": {
@@ -46,7 +50,7 @@
     "root": {
       "inputs": {
         "crane": "crane",
-        "litellm-pricing": "litellm-pricing",
+        "litellm": "litellm",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
       }
