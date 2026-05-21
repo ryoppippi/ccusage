@@ -373,7 +373,13 @@ fn to_loaded_entry(
 }
 
 fn calculate_hermes_cost(entry: &HermesEntry, pricing: &PricingMap) -> f64 {
-    if let Some(cost) = entry.cost_usd {
+    // Only trust a recorded cost when it is strictly positive. Hermes writes
+    // estimated_cost_usd = 0.0 for subscription-included billing modes (for
+    // example, ChatGPT Plus/Pro via https://chatgpt.com/backend-api/codex),
+    // even when the session burned non-trivial tokens. Treat that recorded
+    // zero as "no cost recorded" and fall through to pricing-based
+    // calculation, mirroring how the codex adapter handles the same models.
+    if let Some(cost) = entry.cost_usd.filter(|cost| *cost > 0.0) {
         return cost;
     }
     let usage = TokenUsageRaw {
@@ -388,7 +394,7 @@ fn calculate_hermes_cost(entry: &HermesEntry, pricing: &PricingMap) -> f64 {
             CostMode::Calculate,
             Some(pricing),
         );
-        if cost >= 0.0 && cost.is_finite() && cost > 0.0 {
+        if cost.is_finite() && cost > 0.0 {
             return cost;
         }
     }
@@ -579,6 +585,62 @@ mod tests {
                 "{model} should resolve to embedded pricing"
             );
         }
+    }
+
+    #[test]
+    fn recorded_zero_cost_falls_back_to_pricing_calculation() {
+        // Hermes writes estimated_cost_usd = 0.0 for subscription-included
+        // billing (e.g. ChatGPT Plus/Pro via the codex backend), even when the
+        // session consumed real tokens. The adapter should not short-circuit
+        // on that recorded zero; it should price the tokens from the embedded
+        // table so users still see a meaningful cost number.
+        let pricing = PricingMap::load_embedded();
+        let entry = HermesEntry {
+            timestamp: crate::parse_ts_timestamp("2026-05-19T00:00:00.000Z").unwrap(),
+            timestamp_text: "2026-05-19T00:00:00.000Z".to_string(),
+            session_id: "subscription-included".to_string(),
+            model: "gpt-5.5".to_string(),
+            provider: "openai".to_string(),
+            usage: TokenUsageRaw {
+                input_tokens: 244_075,
+                output_tokens: 10_019,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 3_339_776,
+                speed: None,
+            },
+            reasoning_tokens: 3_216,
+            message_count: 72,
+            cost_usd: Some(0.0),
+        };
+
+        assert!(
+            calculate_hermes_cost(&entry, &pricing) > 0.0,
+            "subscription-included sessions with token usage should still be priced"
+        );
+    }
+
+    #[test]
+    fn recorded_positive_cost_is_trusted() {
+        let pricing = PricingMap::load_embedded();
+        let entry = HermesEntry {
+            timestamp: crate::parse_ts_timestamp("2026-05-19T00:00:00.000Z").unwrap(),
+            timestamp_text: "2026-05-19T00:00:00.000Z".to_string(),
+            session_id: "metered".to_string(),
+            model: "gpt-5.5".to_string(),
+            provider: "openai".to_string(),
+            usage: TokenUsageRaw {
+                input_tokens: 1_000,
+                output_tokens: 100,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                speed: None,
+            },
+            reasoning_tokens: 0,
+            message_count: 1,
+            cost_usd: Some(0.42),
+        };
+
+        assert_eq!(calculate_hermes_cost(&entry, &pricing), 0.42);
     }
 
     #[test]
