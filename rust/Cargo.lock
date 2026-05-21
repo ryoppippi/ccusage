@@ -65,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage"
-version = "20.0.1"
+version = "20.0.2"
 dependencies = [
  "ccusage-terminal",
  "compact_str",
@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage-terminal"
-version = "20.0.1"
+version = "20.0.2"
 dependencies = [
  "insta",
 ]
