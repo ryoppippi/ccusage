@@ -82,7 +82,7 @@ impl SimpleTable {
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
         for line in self.render_lines() {
-            let _ = writeln!(stdout, "{line}");
+            writeln!(stdout, "{line}").expect("failed to write table line");
         }
     }
 

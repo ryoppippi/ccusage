@@ -23,6 +23,9 @@ static TURN_CONTEXT_TYPE_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""type":"turn_context""#));
 static TOKEN_COUNT_TYPE_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""type":"token_count""#));
+static COMPACT_TYPE_FIELD_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""type":"#));
+static TYPE_KEY_FINDER: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(br#""type""#));
 static USAGE_FIELD_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""usage":"#));
 static INPUT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
@@ -336,11 +339,17 @@ fn add_codex_exec_event(
 }
 
 fn codex_line_usage_kind(line: &[u8]) -> Option<CodexLineKind> {
+    let has_event_msg = EVENT_MSG_TYPE_FINDER.find(line).is_some();
     if TURN_CONTEXT_TYPE_FINDER.find(line).is_some()
-        || (EVENT_MSG_TYPE_FINDER.find(line).is_some()
-            && TOKEN_COUNT_TYPE_FINDER.find(line).is_some())
+        || (has_event_msg && TOKEN_COUNT_TYPE_FINDER.find(line).is_some())
     {
         return Some(CodexLineKind::Session);
+    }
+    if has_event_msg || COMPACT_TYPE_FIELD_FINDER.find(line).is_none() {
+        let (has_turn_context, has_event_msg, has_token_count) = codex_line_type_flags(line);
+        if has_turn_context || (has_event_msg && has_token_count) {
+            return Some(CodexLineKind::Session);
+        }
     }
     if USAGE_FIELD_FINDER.find(line).is_some()
         || INPUT_TOKENS_FIELD_FINDER.find(line).is_some()
@@ -349,6 +358,48 @@ fn codex_line_usage_kind(line: &[u8]) -> Option<CodexLineKind> {
         return Some(CodexLineKind::Headless);
     }
     None
+}
+
+fn codex_line_type_flags(line: &[u8]) -> (bool, bool, bool) {
+    let mut start = 0;
+    let mut has_turn_context = false;
+    let mut has_event_msg = false;
+    let mut has_token_count = false;
+    while let Some(index) = TYPE_KEY_FINDER.find(&line[start..]) {
+        let key_start = start + index;
+        let mut cursor = skip_json_whitespace(line, key_start + br#""type""#.len());
+        if line.get(cursor) != Some(&b':') {
+            start = key_start + br#""type""#.len();
+            continue;
+        }
+        cursor = skip_json_whitespace(line, cursor + 1);
+        if line.get(cursor) != Some(&b'"') {
+            start = cursor.saturating_add(1);
+            continue;
+        }
+        cursor += 1;
+        has_turn_context |= json_string_value_matches(line, cursor, b"turn_context");
+        has_event_msg |= json_string_value_matches(line, cursor, b"event_msg");
+        has_token_count |= json_string_value_matches(line, cursor, b"token_count");
+        if has_turn_context || (has_event_msg && has_token_count) {
+            return (has_turn_context, has_event_msg, has_token_count);
+        }
+        start = cursor.saturating_add(1);
+    }
+    (has_turn_context, has_event_msg, has_token_count)
+}
+
+fn json_string_value_matches(line: &[u8], start: usize, value: &[u8]) -> bool {
+    line.get(start..start + value.len())
+        .is_some_and(|candidate| candidate == value)
+        && line.get(start + value.len()) == Some(&b'"')
+}
+
+fn skip_json_whitespace(line: &[u8], mut index: usize) -> usize {
+    while matches!(line.get(index), Some(b' ' | b'\n' | b'\r' | b'\t')) {
+        index += 1;
+    }
+    index
 }
 
 fn codex_session_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<String> {
@@ -1128,6 +1179,33 @@ mod tests {
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].session_id, "session");
+        assert_eq!(events[0].timestamp, "2026-01-02T00:00:01.000Z");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5"));
+        assert_eq!(events[0].input_tokens, 100);
+        assert_eq!(events[0].cached_input_tokens, 10);
+        assert_eq!(events[0].output_tokens, 50);
+        assert_eq!(events[0].total_tokens, 150);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn loads_session_usage_with_spaced_type_fields() {
+        let dir = temp_dir("spaced-session-type");
+        let file = dir.join("session.jsonl");
+        fs::write(
+            &file,
+            [
+                r#"{ "timestamp": "2026-01-02T00:00:00.000Z", "type" : "turn_context", "payload": { "model": "gpt-5" } }"#,
+                r#"{ "timestamp": "2026-01-02T00:00:01.000Z", "type" : "event_msg", "payload": { "type" : "token_count", "info": { "total_token_usage": { "input_tokens": 100, "cached_input_tokens": 10, "output_tokens": 50, "total_tokens": 150 }, "model": "gpt-5" } } }"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let events = load_codex_events_from_directory(&dir, true).unwrap();
+
+        assert_eq!(events.len(), 1);
         assert_eq!(events[0].timestamp, "2026-01-02T00:00:01.000Z");
         assert_eq!(events[0].model.as_deref(), Some("gpt-5"));
         assert_eq!(events[0].input_tokens, 100);
