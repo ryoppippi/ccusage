@@ -1,6 +1,6 @@
 use std::{
     env,
-    io::{self, IsTerminal},
+    io::{self, IsTerminal, Write},
 };
 
 #[cfg(unix)]
@@ -78,10 +78,13 @@ impl SimpleTable {
         self.headers.len()
     }
 
-    pub fn print(&self) {
+    pub fn print(&self) -> io::Result<()> {
+        let stdout = io::stdout();
+        let mut stdout = stdout.lock();
         for line in self.render_lines() {
-            println!("{line}");
+            writeln!(stdout, "{line}")?;
         }
+        Ok(())
     }
 
     fn render_lines(&self) -> Vec<String> {

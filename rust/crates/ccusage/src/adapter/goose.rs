@@ -45,7 +45,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     if wants_json(&shared) {
         return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
     }
-    crate::adapter::amp::print_table(args.kind, &rows, &shared);
+    crate::adapter::amp::print_table(args.kind, &rows, &shared)?;
     Ok(())
 }
 

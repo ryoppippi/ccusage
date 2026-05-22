@@ -55,7 +55,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         &args.shared,
         false,
         None,
-    );
+    )?;
     Ok(())
 }
 

@@ -7,7 +7,6 @@ use std::{
     thread,
 };
 
-use compact_str::CompactString;
 use jiff::tz::TimeZone as JiffTimeZone;
 use rustc_hash::FxHasher;
 use serde_json::{json, Value};
@@ -16,34 +15,29 @@ use crate::{
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
     color,
     fast::FxHashSet,
-    format_currency, format_date_tz, format_models_multiline, format_number, json_float,
-    json_value_u64, log_level, parse_ts_timestamp, parse_tz, print_box_title, print_json_or_jq,
-    wants_json, week_start, Align, CodexGroup, CodexModelUsage, CodexTokenUsageEvent, Color,
-    PricingMap, Result, SimpleTable,
+    format_currency, format_date_tz, format_models_multiline, format_number, json_float, log_level,
+    parse_ts_timestamp, parse_tz, print_box_title, print_json_or_jq, wants_json, week_start, Align,
+    CodexGroup, CodexModelUsage, CodexTokenUsageEvent, Color, PricingMap, Result, SimpleTable,
 };
 
-type CodexEventKey = (
-    CompactString,
-    Option<CompactString>,
-    u64,
-    u64,
-    u64,
-    u64,
-    u64,
-);
+type CodexEventKey = (crate::TimestampMs, u64, usize, u64, u64, u64, u64, u64);
 type CodexDedupeShards = [Mutex<FxHashSet<CodexEventKey>>];
+
+struct CodexAggregation {
+    groups: BTreeMap<String, CodexGroup>,
+    seen: FxHashSet<CodexEventKey>,
+}
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
     let pricing = PricingMap::load(shared.offline, log_level() != Some(0));
     let groups = load_groups(&shared, args.kind)?;
     let speed = resolve_codex_speed(args.codex_speed);
-    let output = report_from_groups(&groups, args.kind, &pricing, speed);
     if wants_json(&shared) {
+        let output = report_from_groups(&groups, args.kind, &pricing, speed);
         return print_json_or_jq(output, shared.jq.as_deref());
     }
-    print_table(&output, args.kind, &shared);
-    Ok(())
+    print_table_from_groups(&groups, args.kind, &pricing, speed, &shared)
 }
 
 #[cfg(test)]
@@ -119,9 +113,13 @@ fn codex_config_requests_fast_service_tier(content: &str) -> bool {
 }
 
 fn load_groups(shared: &SharedArgs, kind: AgentReportKind) -> Result<BTreeMap<String, CodexGroup>> {
+    let paths = crate::codex_usage_paths()?;
+    if paths.len() == 1 && !wants_json(shared) {
+        return load_groups_from_directory(&paths[0], shared, kind);
+    }
     let mut groups = BTreeMap::new();
     let seen = create_dedupe_shards();
-    for path in crate::codex_usage_paths()? {
+    for path in paths {
         merge_groups(
             &mut groups,
             load_groups_from_directory_with_dedupe(&path, shared, kind, &seen)?,
@@ -130,14 +128,18 @@ fn load_groups(shared: &SharedArgs, kind: AgentReportKind) -> Result<BTreeMap<St
     Ok(groups)
 }
 
-#[cfg(test)]
 fn load_groups_from_directory(
     sessions_dir: &Path,
     shared: &SharedArgs,
     kind: AgentReportKind,
 ) -> Result<BTreeMap<String, CodexGroup>> {
+    let mut files = Vec::new();
+    crate::collect_usage_files(sessions_dir, &mut files);
+    if shared.single_thread {
+        return aggregate_files_local(sessions_dir, &files, shared, kind);
+    }
     let seen = create_dedupe_shards();
-    load_groups_from_directory_with_dedupe(sessions_dir, shared, kind, &seen)
+    aggregate_files_parallel(sessions_dir, &files, shared, kind, &seen)
 }
 
 fn load_groups_from_directory_with_dedupe(
@@ -242,6 +244,52 @@ fn aggregate_file(
     })
 }
 
+fn aggregate_files_local(
+    sessions_dir: &Path,
+    files: &[PathBuf],
+    shared: &SharedArgs,
+    kind: AgentReportKind,
+) -> Result<BTreeMap<String, CodexGroup>> {
+    Ok(aggregate_files_local_with_seen(sessions_dir, files, shared, kind)?.groups)
+}
+
+fn aggregate_files_local_with_seen(
+    sessions_dir: &Path,
+    files: &[PathBuf],
+    shared: &SharedArgs,
+    kind: AgentReportKind,
+) -> Result<CodexAggregation> {
+    let mut aggregation = CodexAggregation {
+        groups: BTreeMap::new(),
+        seen: FxHashSet::default(),
+    };
+    let timezone = parse_tz(shared.timezone.as_deref()).or_else(|| Some(JiffTimeZone::system()));
+    for file in files {
+        aggregate_file_local(
+            sessions_dir,
+            file,
+            kind,
+            timezone.as_ref(),
+            shared,
+            &mut aggregation,
+        )?;
+    }
+    Ok(aggregation)
+}
+
+fn aggregate_file_local(
+    sessions_dir: &Path,
+    file: &Path,
+    kind: AgentReportKind,
+    timezone: Option<&JiffTimeZone>,
+    shared: &SharedArgs,
+    aggregation: &mut CodexAggregation,
+) -> Result<()> {
+    crate::visit_codex_session_file(sessions_dir, file, |event| {
+        add_event_to_groups_local(&event, kind, timezone, shared, aggregation)
+    })
+}
+
 fn add_event_to_groups(
     event: &CodexTokenUsageEvent,
     kind: AgentReportKind,
@@ -250,14 +298,55 @@ fn add_event_to_groups(
     seen: &CodexDedupeShards,
     groups: &mut BTreeMap<String, CodexGroup>,
 ) -> Result<()> {
-    if !insert_event_key(event, seen) {
-        return Ok(());
-    }
     let Some(model) = event.model.as_deref().filter(|model| !model.is_empty()) else {
         return Ok(());
     };
     let timestamp = parse_ts_timestamp(&event.timestamp)
         .ok_or_else(|| crate::cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
+    if !insert_event_key(event, timestamp, model, seen) {
+        return Ok(());
+    }
+    add_deduped_event_to_groups(event, model, timestamp, kind, timezone, shared, groups)
+}
+
+fn add_event_to_groups_local(
+    event: &CodexTokenUsageEvent,
+    kind: AgentReportKind,
+    timezone: Option<&JiffTimeZone>,
+    shared: &SharedArgs,
+    aggregation: &mut CodexAggregation,
+) -> Result<()> {
+    let Some(model) = event.model.as_deref().filter(|model| !model.is_empty()) else {
+        return Ok(());
+    };
+    let timestamp = parse_ts_timestamp(&event.timestamp)
+        .ok_or_else(|| crate::cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
+    if !aggregation
+        .seen
+        .insert(codex_event_key(event, timestamp, model))
+    {
+        return Ok(());
+    }
+    add_deduped_event_to_groups(
+        event,
+        model,
+        timestamp,
+        kind,
+        timezone,
+        shared,
+        &mut aggregation.groups,
+    )
+}
+
+fn add_deduped_event_to_groups(
+    event: &CodexTokenUsageEvent,
+    model: &str,
+    timestamp: crate::TimestampMs,
+    kind: AgentReportKind,
+    timezone: Option<&JiffTimeZone>,
+    shared: &SharedArgs,
+    groups: &mut BTreeMap<String, CodexGroup>,
+) -> Result<()> {
     let date = format_date_tz(timestamp, timezone);
     if shared.since.is_some() || shared.until.is_some() {
         let date_key = date.replace('-', "");
@@ -314,20 +403,40 @@ fn create_dedupe_shards() -> Vec<Mutex<FxHashSet<CodexEventKey>>> {
         .collect()
 }
 
-fn insert_event_key(event: &CodexTokenUsageEvent, seen: &CodexDedupeShards) -> bool {
-    let key = (
-        CompactString::new(&event.timestamp),
-        event.model.as_deref().map(CompactString::new),
+fn insert_event_key(
+    event: &CodexTokenUsageEvent,
+    timestamp: crate::TimestampMs,
+    model: &str,
+    seen: &CodexDedupeShards,
+) -> bool {
+    let key = codex_event_key(event, timestamp, model);
+    let mut hasher = FxHasher::default();
+    key.hash(&mut hasher);
+    let shard_index = hasher.finish() as usize % seen.len();
+    seen[shard_index].lock().unwrap().insert(key)
+}
+
+fn codex_event_key(
+    event: &CodexTokenUsageEvent,
+    timestamp: crate::TimestampMs,
+    model: &str,
+) -> CodexEventKey {
+    (
+        timestamp,
+        hash_model_name(model),
+        model.len(),
         event.input_tokens,
         event.cached_input_tokens,
         event.output_tokens,
         event.reasoning_output_tokens,
         event.total_tokens,
-    );
+    )
+}
+
+fn hash_model_name(model: &str) -> u64 {
     let mut hasher = FxHasher::default();
-    key.hash(&mut hasher);
-    let shard_index = hasher.finish() as usize % seen.len();
-    seen[shard_index].lock().unwrap().insert(key)
+    model.hash(&mut hasher);
+    hasher.finish()
 }
 
 fn merge_groups(target: &mut BTreeMap<String, CodexGroup>, source: BTreeMap<String, CodexGroup>) {
@@ -546,15 +655,16 @@ pub(crate) fn calculate_codex_model_cost(
         * multiplier
 }
 
-fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
-    let rows = output
-        .get(rows_key(kind))
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    if rows.is_empty() {
+fn print_table_from_groups(
+    groups: &BTreeMap<String, CodexGroup>,
+    kind: AgentReportKind,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+    shared: &SharedArgs,
+) -> Result<()> {
+    if groups.is_empty() {
         eprintln!("No Codex usage data found.");
-        return;
+        return Ok(());
     }
     let first_column = match kind {
         AgentReportKind::Daily => "Date",
@@ -598,64 +708,46 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
         shared,
     )
     .with_date_compaction(true);
-    for row in &rows {
-        let label = row
-            .get(period_key(kind))
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        let models = row
-            .get("models")
-            .and_then(Value::as_object)
-            .map(|models| format_models_multiline(&models.keys().cloned().collect::<Vec<_>>()))
-            .unwrap_or_default();
+    let mut total_input = 0;
+    let mut total_cached = 0;
+    let mut total_output = 0;
+    let mut total_reasoning = 0;
+    let mut total_tokens = 0;
+    let mut total_cost = 0.0;
+    for (label, group) in groups {
+        let input_tokens = non_cached_input_tokens(group.input_tokens, group.cached_input_tokens);
+        let cost = calculate_group_cost(group, pricing, speed);
+        total_input += input_tokens;
+        total_cached += group.cached_input_tokens;
+        total_output += group.output_tokens;
+        total_reasoning += group.reasoning_output_tokens;
+        total_tokens += group.total_tokens;
+        total_cost += cost;
+        let models = format_models_multiline(&group.models.keys().cloned().collect::<Vec<_>>());
         table.push(vec![
-            label.to_string(),
+            label.clone(),
             models,
-            format_number(json_value_u64(row.get("inputTokens"))),
-            format_number(json_value_u64(row.get("outputTokens"))),
-            format_number(json_value_u64(row.get("reasoningOutputTokens"))),
-            format_number(json_value_u64(row.get("cachedInputTokens"))),
-            format_number(json_value_u64(row.get("totalTokens"))),
-            format_currency(row.get("costUSD").and_then(Value::as_f64).unwrap_or(0.0)),
+            format_number(input_tokens),
+            format_number(group.output_tokens),
+            format_number(group.reasoning_output_tokens),
+            format_number(group.cached_input_tokens),
+            format_number(group.total_tokens),
+            format_currency(cost),
         ]);
     }
     table.separator();
-    let totals = output.get("totals").unwrap_or(&Value::Null);
     table.push(vec![
         color(shared, "Total", Color::Yellow),
         String::new(),
-        color(
-            shared,
-            format_number(json_value_u64(totals.get("inputTokens"))),
-            Color::Yellow,
-        ),
-        color(
-            shared,
-            format_number(json_value_u64(totals.get("outputTokens"))),
-            Color::Yellow,
-        ),
-        color(
-            shared,
-            format_number(json_value_u64(totals.get("reasoningOutputTokens"))),
-            Color::Yellow,
-        ),
-        color(
-            shared,
-            format_number(json_value_u64(totals.get("cachedInputTokens"))),
-            Color::Yellow,
-        ),
-        color(
-            shared,
-            format_number(json_value_u64(totals.get("totalTokens"))),
-            Color::Yellow,
-        ),
-        color(
-            shared,
-            format_currency(totals.get("costUSD").and_then(Value::as_f64).unwrap_or(0.0)),
-            Color::Yellow,
-        ),
+        color(shared, format_number(total_input), Color::Yellow),
+        color(shared, format_number(total_output), Color::Yellow),
+        color(shared, format_number(total_reasoning), Color::Yellow),
+        color(shared, format_number(total_cached), Color::Yellow),
+        color(shared, format_number(total_tokens), Color::Yellow),
+        color(shared, format_currency(total_cost), Color::Yellow),
     ]);
-    table.print();
+    table.print()?;
+    Ok(())
 }
 
 #[cfg(test)]

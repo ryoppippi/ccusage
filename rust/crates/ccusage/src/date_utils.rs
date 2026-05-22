@@ -7,7 +7,7 @@ pub(crate) const MILLIS_PER_MINUTE: i64 = 60 * MILLIS_PER_SECOND;
 pub(crate) const MILLIS_PER_HOUR: i64 = 60 * MILLIS_PER_MINUTE;
 pub(crate) const MILLIS_PER_DAY: i64 = 24 * MILLIS_PER_HOUR;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct TimestampMs(i64);
 
 #[derive(Debug, Clone, Copy)]
