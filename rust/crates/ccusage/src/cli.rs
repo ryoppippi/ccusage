@@ -1424,10 +1424,15 @@ fn all_report_help(report: &str) -> String {
         "session" => "Show all detected coding (agent) CLI usage grouped by session",
         _ => unreachable!("all-agent report is prevalidated"),
     };
+    let options = if report == "session" {
+        command_options(&[all_agent_options(), session_options()])
+    } else {
+        all_agent_options().to_string()
+    };
     command_help(
         description,
         &format!("ccusage {report} <OPTIONS>"),
-        all_agent_options(),
+        &options,
     )
 }
 
@@ -2074,6 +2079,13 @@ mod tests {
 
         assert!(help.contains("--color"));
         assert!(help.contains("--no-color"));
+    }
+
+    #[test]
+    fn contextual_root_session_help_lists_id_option() {
+        let help = help_text_for_args(&["ccusage".to_string(), "session".to_string()]);
+
+        assert!(help.contains("--id"));
     }
 
     #[test]
