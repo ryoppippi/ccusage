@@ -368,6 +368,10 @@
 			"default": "80"
 		},
 		{
+			"flags": "-z, --timezone <timezone>",
+			"description": "Timezone for date grouping (IANA)"
+		},
+		{
 			"flags": "--config <config>",
 			"description": "Path to configuration file",
 			"default": "auto-discovery"

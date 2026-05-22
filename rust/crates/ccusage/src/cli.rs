@@ -110,6 +110,7 @@ pub(crate) struct StatuslineArgs {
     pub(crate) refresh_interval: u64,
     pub(crate) context_low_threshold: u8,
     pub(crate) context_medium_threshold: u8,
+    pub(crate) timezone: Option<String>,
     pub(crate) config: Option<PathBuf>,
     pub(crate) debug: bool,
 }
@@ -164,6 +165,7 @@ impl Default for StatuslineArgs {
             refresh_interval: 1,
             context_low_threshold: 50,
             context_medium_threshold: 80,
+            timezone: None,
             config: None,
             debug: false,
         }
@@ -357,6 +359,7 @@ fn parse_command(
                                 "Invalid value for --context-medium-threshold".to_string()
                             })?
                     }
+                    "-z" | "--timezone" => args.timezone = Some(parser.value_for("--timezone")?),
                     "--config" => args.config = Some(PathBuf::from(parser.value_for("--config")?)),
                     "--debug" => args.debug = true,
                     flag => return Err(format!("Unknown statusline option '{flag}'")),
@@ -2358,6 +2361,8 @@ mod tests {
             "ccusage",
             "statusline",
             "--no-cache",
+            "--timezone",
+            "Asia/Tokyo",
             "--visual-burn-rate",
             "emoji-text",
             "--cost-source",
@@ -2368,6 +2373,7 @@ mod tests {
         };
         assert!(args.offline);
         assert!(args.no_cache);
+        assert_eq!(args.timezone.as_deref(), Some("Asia/Tokyo"));
         assert_eq!(args.visual_burn_rate, VisualBurnRate::EmojiText);
         assert_eq!(args.cost_source, CostSource::Both);
     }

@@ -341,6 +341,9 @@ pub(crate) fn apply_config_to_statusline_args(args: &mut StatuslineArgs, config:
         {
             args.context_medium_threshold = threshold;
         }
+        if let Some(timezone) = options.timezone {
+            args.timezone = Some(timezone);
+        }
         if let Some(debug) = options.debug {
             args.debug = debug;
         }
@@ -570,6 +573,7 @@ mod tests {
                         "refreshInterval": 3,
                         "contextLowThreshold": 45,
                         "contextMediumThreshold": 75,
+                        "timezone": "Asia/Tokyo",
                         "debug": true
                     }
                 }
@@ -605,6 +609,7 @@ mod tests {
                         "refreshInterval": 3,
                         "contextLowThreshold": 45,
                         "contextMediumThreshold": 75,
+                        "timezone": "Asia/Tokyo",
                         "debug": true
                     }
                 }
@@ -625,6 +630,7 @@ mod tests {
         assert_eq!(statusline.refresh_interval, 3);
         assert_eq!(statusline.context_low_threshold, 45);
         assert_eq!(statusline.context_medium_threshold, 75);
+        assert_eq!(statusline.timezone.as_deref(), Some("Asia/Tokyo"));
         assert!(statusline.debug);
     }
 
