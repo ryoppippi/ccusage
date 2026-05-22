@@ -17,10 +17,12 @@ use crate::{
     home, progress, CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs,
 };
 
-static TURN_CONTEXT_FINDER: LazyLock<Finder<'static>> =
-    LazyLock::new(|| Finder::new(b"turn_context"));
-static TOKEN_COUNT_FINDER: LazyLock<Finder<'static>> =
-    LazyLock::new(|| Finder::new(b"token_count"));
+static EVENT_MSG_TYPE_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""type":"event_msg""#));
+static TURN_CONTEXT_TYPE_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""type":"turn_context""#));
+static TOKEN_COUNT_TYPE_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""type":"token_count""#));
 static USAGE_FIELD_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""usage":"#));
 static INPUT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
@@ -231,7 +233,7 @@ fn visit_codex_session_entry(
     if entry_type != Some("event_msg") {
         return Ok(());
     }
-    let Some(timestamp) = normalize_codex_timestamp(value.timestamp.as_ref()) else {
+    let Some(timestamp) = codex_session_timestamp(value.timestamp.as_ref()) else {
         return Ok(());
     };
     let Some(payload) = value.payload.as_ref() else {
@@ -334,7 +336,10 @@ fn add_codex_exec_event(
 }
 
 fn codex_line_usage_kind(line: &[u8]) -> Option<CodexLineKind> {
-    if TURN_CONTEXT_FINDER.find(line).is_some() || TOKEN_COUNT_FINDER.find(line).is_some() {
+    if TURN_CONTEXT_TYPE_FINDER.find(line).is_some()
+        || (EVENT_MSG_TYPE_FINDER.find(line).is_some()
+            && TOKEN_COUNT_TYPE_FINDER.find(line).is_some())
+    {
         return Some(CodexLineKind::Session);
     }
     if USAGE_FIELD_FINDER.find(line).is_some()
@@ -344,6 +349,16 @@ fn codex_line_usage_kind(line: &[u8]) -> Option<CodexLineKind> {
         return Some(CodexLineKind::Headless);
     }
     None
+}
+
+fn codex_session_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<String> {
+    match value? {
+        CodexTimestamp::String(text) => {
+            let text = text.trim();
+            (!text.is_empty()).then(|| text.to_string())
+        }
+        CodexTimestamp::Number(_) => normalize_codex_timestamp(value),
+    }
 }
 
 fn parsed_model_is_missing(
@@ -1098,6 +1113,42 @@ mod tests {
         assert_eq!(events[0].input_tokens, 100);
         assert_eq!(events[0].cached_input_tokens, 10);
         assert_eq!(events[0].output_tokens, 50);
+        assert_eq!(events[0].total_tokens, 150);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn loads_headless_usage_with_token_count_text_content() {
+        let dir = temp_dir("headless-token-count-content");
+        let file = dir.join("run.jsonl");
+        fs::write(
+            &file,
+            json!({
+                "type": "turn.completed",
+                "timestamp": "2026-01-02T03:04:05.000Z",
+                "model": "gpt-5.2-codex",
+                "content": "debug token_count payload text",
+                "usage": {
+                    "input_tokens": 120,
+                    "cached_input_tokens": 20,
+                    "output_tokens": 30,
+                    "total_tokens": 150,
+                },
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let events = load_codex_events_from_directory(&dir, true).unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "run");
+        assert_eq!(events[0].timestamp, "2026-01-02T03:04:05.000Z");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[0].input_tokens, 120);
+        assert_eq!(events[0].cached_input_tokens, 20);
+        assert_eq!(events[0].output_tokens, 30);
         assert_eq!(events[0].total_tokens, 150);
 
         fs::remove_dir_all(dir).unwrap();
