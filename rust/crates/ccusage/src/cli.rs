@@ -290,7 +290,7 @@ fn parse_command(
         "daily" => parse_all_command(parser, shared, AgentReportKind::Daily, config),
         "monthly" => parse_all_command(parser, shared, AgentReportKind::Monthly, config),
         "weekly" => parse_all_command(parser, shared, AgentReportKind::Weekly, config),
-        "session" => parse_all_command(parser, shared, AgentReportKind::Session, config),
+        "session" => parse_top_level_session_command(parser, shared, config),
         "blocks" => {
             let mut args = BlocksArgs {
                 shared,
@@ -461,6 +461,39 @@ fn parse_all_command(
     Ok(Command::All(AgentCommandArgs {
         shared,
         kind,
+        pi_path: None,
+        open_claw_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
+fn parse_top_level_session_command(
+    parser: &mut ArgParser,
+    shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let mut args = SessionArgs { shared, id: None };
+    while parser.peek().is_some() {
+        if matches!(parser.peek(), Some("--all")) {
+            parser.next();
+            continue;
+        }
+        if parse_shared_arg_for_command(parser, &mut args.shared)? {
+            continue;
+        }
+        match parser.next_flag()?.as_str() {
+            "-i" | "--id" => args.id = Some(parser.value_for("--id")?),
+            flag => return Err(format!("Unknown session option '{flag}'")),
+        }
+    }
+
+    if args.id.is_some() {
+        return Ok(Command::Session(args));
+    }
+
+    Ok(Command::All(AgentCommandArgs {
+        shared: args.shared,
+        kind: AgentReportKind::Session,
         pi_path: None,
         open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
@@ -1808,6 +1841,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_root_session_as_all_agent_report_without_id() {
+        let cli = parse(&["ccusage", "session", "--json"]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
     fn applies_config_defaults_and_command_options_before_cli_options() {
         let path = temp_config_path("daily");
         fs::write(
@@ -2379,6 +2422,16 @@ mod tests {
         let cli = parse(&["ccusage", "claude", "session", "--json", "--id", "abc"]);
         let Some(Command::Session(args)) = cli.command else {
             panic!("expected claude session command");
+        };
+        assert!(args.shared.json);
+        assert_eq!(args.id.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn parses_top_level_session_id_lookup() {
+        let cli = parse(&["ccusage", "session", "--json", "--id", "abc"]);
+        let Some(Command::Session(args)) = cli.command else {
+            panic!("expected session command");
         };
         assert!(args.shared.json);
         assert_eq!(args.id.as_deref(), Some("abc"));
