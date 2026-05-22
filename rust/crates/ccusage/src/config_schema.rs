@@ -428,6 +428,8 @@ pub(crate) struct StatuslineSpecificOptions {
     pub(crate) context_low_threshold: Option<u64>,
     /// Percentage threshold for medium context warning.
     pub(crate) context_medium_threshold: Option<u64>,
+    /// Timezone for date grouping (IANA).
+    pub(crate) timezone: Option<String>,
     /// Show statusline debug information.
     pub(crate) debug: Option<bool>,
 }
@@ -577,6 +579,7 @@ impl StatuslineSpecificOptions {
             refresh_interval: u64_option(map, "refreshInterval"),
             context_low_threshold: u64_option(map, "contextLowThreshold"),
             context_medium_threshold: u64_option(map, "contextMediumThreshold"),
+            timezone: string_option(map, "timezone"),
             debug: bool_option(map, "debug"),
         }
     }
@@ -970,6 +973,7 @@ mod tests {
                 "noOffline",
                 "offline",
                 "refreshInterval",
+                "timezone",
                 "visualBurnRate",
             ],
         );

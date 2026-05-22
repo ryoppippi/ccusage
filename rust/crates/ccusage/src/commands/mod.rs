@@ -18,14 +18,13 @@ use crate::{
     },
     color,
     fast::FxHashMap,
-    filter_and_sort_summaries, filter_blocks_by_date, format_compact_utc_date, format_currency,
-    format_number, format_remaining_time, format_rfc3339_millis, group_project_output,
-    identify_session_blocks, load_daily_summaries, load_entries, print_active_block_detail,
-    print_blocks_table, print_json_or_jq, print_usage_table, session_summary_json, sort_blocks,
-    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, summary_json,
-    total_usage_tokens, totals_json, utc_now, wants_json, BucketKind, Color, Context, Result,
-    SessionAccumulator, TimestampMs, DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS,
-    MILLIS_PER_DAY, MILLIS_PER_MINUTE,
+    filter_and_sort_summaries, filter_blocks_by_date, format_currency, format_date, format_number,
+    format_remaining_time, format_rfc3339_millis, group_project_output, identify_session_blocks,
+    load_daily_summaries, load_entries, print_active_block_detail, print_blocks_table,
+    print_json_or_jq, print_usage_table, session_summary_json, sort_blocks, sort_summaries,
+    summarize_by_key, summarize_summaries_by_bucket, summary_json, total_usage_tokens, totals_json,
+    utc_now, wants_json, BucketKind, Color, Context, Result, SessionAccumulator, TimestampMs,
+    DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS, MILLIS_PER_DAY, MILLIS_PER_MINUTE,
 };
 
 pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
@@ -412,13 +411,7 @@ fn render_statusline(
         None
     };
 
-    let today = format_compact_utc_date(utc_now());
-    let today_shared = SharedArgs {
-        since: Some(today.clone()),
-        until: Some(today),
-        offline: shared.offline,
-        ..SharedArgs::default()
-    };
+    let today_shared = statusline_today_shared(args, shared, utc_now());
     let today_cost = load_entries(&today_shared, None)
         .map(|entries| {
             entries
@@ -514,6 +507,21 @@ fn render_statusline(
         burn_rate_info,
         context_info.unwrap_or_else(|| "N/A".to_string())
     ))
+}
+
+fn statusline_today_shared(
+    args: &StatuslineArgs,
+    shared: &SharedArgs,
+    now: TimestampMs,
+) -> SharedArgs {
+    let today = format_date(now, args.timezone.as_deref()).replace('-', "");
+    SharedArgs {
+        since: Some(today.clone()),
+        until: Some(today),
+        offline: shared.offline,
+        timezone: args.timezone.clone(),
+        ..SharedArgs::default()
+    }
 }
 
 fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> {
@@ -844,6 +852,25 @@ mod tests {
 
         assert!(matches!(statusline_context_color(60, &args), Color::Yellow));
         assert!(format_statusline_context(120_000, 200_000, &args, &shared).contains("60%"));
+    }
+
+    #[test]
+    fn builds_statusline_today_filter_from_timezone() {
+        let args = StatuslineArgs {
+            timezone: Some("Asia/Tokyo".to_string()),
+            ..StatuslineArgs::default()
+        };
+        let shared = SharedArgs {
+            offline: true,
+            ..SharedArgs::default()
+        };
+        let now = TimestampMs::from_millis(1_779_380_820_000);
+
+        let today_shared = statusline_today_shared(&args, &shared, now);
+
+        assert_eq!(today_shared.since.as_deref(), Some("20260522"));
+        assert_eq!(today_shared.until.as_deref(), Some("20260522"));
+        assert_eq!(today_shared.timezone.as_deref(), Some("Asia/Tokyo"));
     }
 
     #[test]

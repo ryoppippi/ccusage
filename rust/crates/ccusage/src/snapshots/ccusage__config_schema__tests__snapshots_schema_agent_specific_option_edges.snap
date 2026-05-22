@@ -1,5 +1,6 @@
 ---
 source: crates/ccusage/src/config_schema.rs
+assertion_line: 1257
 expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n    definition_properties(&schema, \"ccusage-config\"),\n    \"rootAdditionalProperties\":\n    schema[\"definitions\"][\"ccusage-config\"][\"additionalProperties\"],\n    \"defaults\": schema_node(&schema, &[\"defaults\"]), \"rootDaily\":\n    schema_node(&schema, &[\"commands\", \"daily\"]), \"claudeStatusline\":\n    schema_node(&schema, &[\"claude\", \"commands\", \"statusline\"]),\n    \"codexDefaults\": schema_node(&schema, &[\"codex\", \"defaults\"]),\n    \"opencodeWeekly\":\n    schema_node(&schema, &[\"opencode\", \"commands\", \"weekly\"]), \"piDefaults\":\n    schema_node(&schema, &[\"pi\", \"defaults\"]), \"openclawDefaults\":\n    schema_node(&schema, &[\"openclaw\", \"defaults\"]),\n})"
 ---
 {
@@ -71,6 +72,11 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "markdownDescription": "Statusline refresh interval in seconds.",
         "minimum": 0.0,
         "type": "integer"
+      },
+      "timezone": {
+        "description": "Timezone for date grouping (IANA).",
+        "markdownDescription": "Timezone for date grouping (IANA).",
+        "type": "string"
       },
       "visualBurnRate": {
         "default": "off",

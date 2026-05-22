@@ -973,6 +973,11 @@
 											"minimum": 0.0,
 											"type": "integer"
 										},
+										"timezone": {
+											"description": "Timezone for date grouping (IANA).",
+											"markdownDescription": "Timezone for date grouping (IANA).",
+											"type": "string"
+										},
 										"visualBurnRate": {
 											"default": "off",
 											"description": "Visual burn-rate display mode.",
@@ -2666,6 +2671,11 @@
 									"markdownDescription": "Statusline refresh interval in seconds.",
 									"minimum": 0.0,
 									"type": "integer"
+								},
+								"timezone": {
+									"description": "Timezone for date grouping (IANA).",
+									"markdownDescription": "Timezone for date grouping (IANA).",
+									"type": "string"
 								},
 								"visualBurnRate": {
 									"default": "off",

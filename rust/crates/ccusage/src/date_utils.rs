@@ -242,11 +242,6 @@ pub(crate) fn format_utc_date(timestamp: TimestampMs) -> String {
     format_date_parts(parts.year, parts.month, parts.day)
 }
 
-pub(crate) fn format_compact_utc_date(timestamp: TimestampMs) -> String {
-    let parts = timestamp.utc_parts();
-    format!("{:04}{:02}{:02}", parts.year, parts.month, parts.day)
-}
-
 pub(crate) fn format_naive_date(date: IsoDate) -> String {
     format_date_parts(date.year, date.month, date.day)
 }
