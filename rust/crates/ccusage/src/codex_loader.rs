@@ -1,20 +1,38 @@
 use std::{
+    borrow::Cow,
     env, fs,
+    io::{BufRead, BufReader},
+    marker::PhantomData,
     path::{Path, PathBuf},
+    sync::LazyLock,
     thread,
 };
 
 use compact_str::CompactString;
-use serde_json::Value;
+use memchr::memmem::Finder;
+use serde::Deserialize;
 
 use crate::{
-    chunk_file_indexes_by_size,
-    cli::SharedArgs,
-    cli_error, collect_usage_files,
-    fast::{byte_lines, FxHashSet},
-    home, non_empty_json_string, progress, CodexRawUsage, CodexTokenUsageEvent, Result,
-    TimestampMs,
+    chunk_file_indexes_by_size, cli::SharedArgs, cli_error, collect_usage_files, fast::FxHashSet,
+    home, progress, CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs,
 };
+
+static TURN_CONTEXT_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(b"turn_context"));
+static TOKEN_COUNT_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(b"token_count"));
+static USAGE_FIELD_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""usage":"#));
+static INPUT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""input_tokens":"#));
+static PROMPT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""prompt_tokens":"#));
+
+#[derive(Clone, Copy)]
+enum CodexLineKind {
+    Session,
+    Headless,
+}
 
 pub(crate) fn load_codex_events_from_directory(
     sessions_dir: &Path,
@@ -139,115 +157,145 @@ pub(crate) fn visit_codex_session_file(
     path: &Path,
     mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    let Ok(content) = fs::read(path) else {
+    let Ok(file) = fs::File::open(path) else {
         return Ok(());
     };
+    let mut reader = BufReader::with_capacity(128 * 1024, file);
+    let mut line = Vec::new();
     let session_id = codex_session_id(sessions_dir, path);
     let mut previous_totals: Option<CodexRawUsage> = None;
     let mut current_model: Option<String> = None;
     let mut current_model_is_fallback = false;
     let fallback_timestamp = file_modified_timestamp(path);
 
-    for line in byte_lines(&content) {
-        if !codex_line_may_contain_usage(line) {
-            continue;
+    loop {
+        line.clear();
+        let Ok(bytes_read) = reader.read_until(b'\n', &mut line) else {
+            return Ok(());
+        };
+        if bytes_read == 0 {
+            break;
         }
-        let Ok(value) = serde_json::from_slice::<Value>(line) else {
+        let Some(line_kind) = codex_line_usage_kind(&line) else {
             continue;
         };
-        let entry_type = value.get("type").and_then(Value::as_str);
-        if entry_type == Some("turn_context") {
-            if let Some(model) = codex_model_from_payload(value.get("payload")) {
-                current_model = Some(model);
-                current_model_is_fallback = false;
+        match line_kind {
+            CodexLineKind::Session => {
+                let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(&line) else {
+                    continue;
+                };
+                visit_codex_session_entry(
+                    &session_id,
+                    value,
+                    &mut previous_totals,
+                    &mut current_model,
+                    &mut current_model_is_fallback,
+                    &mut visit,
+                )?;
             }
-            continue;
+            CodexLineKind::Headless => {
+                let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(&line) else {
+                    continue;
+                };
+                add_codex_exec_event(
+                    &session_id,
+                    &value,
+                    &fallback_timestamp,
+                    &mut current_model,
+                    &mut current_model_is_fallback,
+                    &mut visit,
+                )?;
+            }
         }
-        if entry_type != Some("event_msg") {
-            add_codex_exec_event(
-                &session_id,
-                &value,
-                &fallback_timestamp,
-                &mut current_model,
-                &mut current_model_is_fallback,
-                &mut visit,
-            )?;
-            continue;
-        }
-        let Some(timestamp) = value.get("timestamp").and_then(Value::as_str) else {
-            continue;
-        };
-        let Some(payload) = value.get("payload") else {
-            continue;
-        };
-        if payload.get("type").and_then(Value::as_str) != Some("token_count") {
-            continue;
-        }
-        let info = payload.get("info");
-        let total_usage = info.and_then(|info| {
-            info.get("total_token_usage")
-                .and_then(normalize_codex_raw_usage)
-        });
-        let raw_usage = info
-            .and_then(|info| {
-                info.get("last_token_usage")
-                    .and_then(normalize_codex_raw_usage)
-            })
-            .or_else(|| {
-                total_usage
-                    .as_ref()
-                    .map(|usage| subtract_codex_raw_usage(usage, previous_totals.as_ref()))
-            });
-        if let Some(total_usage) = total_usage {
-            previous_totals = Some(total_usage);
-        }
-        let Some(raw_usage) = raw_usage else {
-            continue;
-        };
-        if raw_usage.input_tokens == 0
-            && raw_usage.cached_input_tokens == 0
-            && raw_usage.output_tokens == 0
-            && raw_usage.reasoning_output_tokens == 0
-        {
-            continue;
-        }
-
-        let parsed_model = codex_model_from_payload(Some(payload))
-            .or_else(|| info.and_then(|info| codex_model_from_payload(Some(info))));
-        if let Some(model) = parsed_model.clone() {
-            current_model = Some(model);
-            current_model_is_fallback = false;
-        }
-        let mut is_fallback_model = false;
-        let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
-            is_fallback_model = true;
-            current_model_is_fallback = true;
-            current_model = Some("gpt-5".to_string());
-            current_model.clone()
-        });
-        if parsed_model_is_missing(&model, &current_model, current_model_is_fallback) {
-            is_fallback_model = true;
-        }
-
-        visit(CodexTokenUsageEvent {
-            session_id: session_id.clone(),
-            timestamp: timestamp.to_string(),
-            model,
-            input_tokens: raw_usage.input_tokens,
-            cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
-            output_tokens: raw_usage.output_tokens,
-            reasoning_output_tokens: raw_usage.reasoning_output_tokens,
-            total_tokens: raw_usage.total_tokens,
-            is_fallback_model,
-        })?;
     }
 
     Ok(())
 }
 
+fn visit_codex_session_entry(
+    session_id: &str,
+    value: CodexSessionLogEntry<'_>,
+    previous_totals: &mut Option<CodexRawUsage>,
+    current_model: &mut Option<String>,
+    current_model_is_fallback: &mut bool,
+    visit: &mut impl FnMut(CodexTokenUsageEvent) -> Result<()>,
+) -> Result<()> {
+    let entry_type = value.entry_type.as_deref();
+    if entry_type == Some("turn_context") {
+        if let Some(model) = value.payload.as_ref().and_then(codex_model_from_payload) {
+            *current_model = Some(model);
+            *current_model_is_fallback = false;
+        }
+        return Ok(());
+    }
+    if entry_type != Some("event_msg") {
+        return Ok(());
+    }
+    let Some(timestamp) = value.timestamp.as_ref().and_then(CodexTimestamp::as_str) else {
+        return Ok(());
+    };
+    let Some(payload) = value.payload.as_ref() else {
+        return Ok(());
+    };
+    if payload.payload_type.as_deref() != Some("token_count") {
+        return Ok(());
+    }
+    let info = payload.info.as_ref();
+    let total_usage = info.and_then(|info| info.total_token_usage.as_ref().copied());
+    let raw_usage = info
+        .and_then(|info| info.last_token_usage.as_ref().copied())
+        .or_else(|| {
+            total_usage
+                .as_ref()
+                .map(|usage| subtract_codex_raw_usage(usage, previous_totals.as_ref()))
+        });
+    if let Some(total_usage) = total_usage {
+        *previous_totals = Some(total_usage);
+    }
+    let Some(raw_usage) = raw_usage else {
+        return Ok(());
+    };
+    if raw_usage.input_tokens == 0
+        && raw_usage.cached_input_tokens == 0
+        && raw_usage.output_tokens == 0
+        && raw_usage.reasoning_output_tokens == 0
+    {
+        return Ok(());
+    }
+
+    let parsed_model =
+        codex_model_from_payload(payload).or_else(|| info.and_then(codex_model_from_info));
+    if let Some(model) = parsed_model.clone() {
+        *current_model = Some(model);
+        *current_model_is_fallback = false;
+    }
+    let mut is_fallback_model = false;
+    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
+        is_fallback_model = true;
+        *current_model_is_fallback = true;
+        *current_model = Some("gpt-5".to_string());
+        current_model.clone()
+    });
+    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
+        is_fallback_model = true;
+    }
+
+    visit(CodexTokenUsageEvent {
+        session_id: session_id.to_string(),
+        timestamp: timestamp.to_string(),
+        model,
+        input_tokens: raw_usage.input_tokens,
+        cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
+        output_tokens: raw_usage.output_tokens,
+        reasoning_output_tokens: raw_usage.reasoning_output_tokens,
+        total_tokens: raw_usage.total_tokens,
+        is_fallback_model,
+    })
+}
+
 fn add_codex_exec_event(
     session_id: &str,
-    value: &Value,
+    value: &CodexLogEntry<'_>,
     fallback_timestamp: &str,
     current_model: &mut Option<String>,
     current_model_is_fallback: &mut bool,
@@ -285,12 +333,17 @@ fn add_codex_exec_event(
     })
 }
 
-fn codex_line_may_contain_usage(line: &[u8]) -> bool {
-    memchr::memmem::find(line, b"turn_context").is_some()
-        || memchr::memmem::find(line, b"token_count").is_some()
-        || memchr::memmem::find(line, br#""usage":"#).is_some()
-        || memchr::memmem::find(line, br#""input_tokens":"#).is_some()
-        || memchr::memmem::find(line, br#""prompt_tokens":"#).is_some()
+fn codex_line_usage_kind(line: &[u8]) -> Option<CodexLineKind> {
+    if TURN_CONTEXT_FINDER.find(line).is_some() || TOKEN_COUNT_FINDER.find(line).is_some() {
+        return Some(CodexLineKind::Session);
+    }
+    if USAGE_FIELD_FINDER.find(line).is_some()
+        || INPUT_TOKENS_FIELD_FINDER.find(line).is_some()
+        || PROMPT_TOKENS_FIELD_FINDER.find(line).is_some()
+    {
+        return Some(CodexLineKind::Headless);
+    }
+    None
 }
 
 fn parsed_model_is_missing(
@@ -315,71 +368,139 @@ fn codex_session_id(sessions_dir: &Path, path: &Path) -> String {
     session_id
 }
 
-fn codex_model_from_payload(value: Option<&Value>) -> Option<String> {
-    let value = value?;
-    ["model", "model_name"]
-        .into_iter()
-        .find_map(|key| non_empty_json_string(value.get(key)))
+fn codex_model_from_payload(value: &CodexPayload<'_>) -> Option<String> {
+    codex_model_from_parts(
+        value.model.as_ref(),
+        value.model_name.as_ref(),
+        value.metadata.as_ref(),
+    )
+}
+
+fn codex_model_from_info(value: &CodexInfo<'_>) -> Option<String> {
+    codex_model_from_parts(
+        value.model.as_ref(),
+        value.model_name.as_ref(),
+        value.metadata.as_ref(),
+    )
+}
+
+fn codex_model_from_result(value: &CodexLogEntry<'_>) -> Option<String> {
+    codex_model_from_entry(value)
+        .or_else(|| value.data.as_ref().and_then(codex_model_from_result_fields))
         .or_else(|| {
             value
-                .get("metadata")
-                .and_then(|metadata| non_empty_json_string(metadata.get("model")))
+                .result
+                .as_ref()
+                .and_then(codex_model_from_result_fields)
+        })
+        .or_else(|| {
+            value
+                .response
+                .as_ref()
+                .and_then(codex_model_from_result_fields)
         })
 }
 
-fn codex_model_from_result(value: &Value) -> Option<String> {
-    codex_model_from_payload(Some(value))
-        .or_else(|| codex_model_from_payload(value.get("data")))
-        .or_else(|| codex_model_from_payload(value.get("result")))
-        .or_else(|| codex_model_from_payload(value.get("response")))
+fn codex_model_from_result_fields(value: &CodexResultFields<'_>) -> Option<String> {
+    codex_model_from_parts(
+        value.model.as_ref(),
+        value.model_name.as_ref(),
+        value.metadata.as_ref(),
+    )
 }
 
-fn usage_from_result(value: &Value) -> Option<&Value> {
+fn codex_model_from_entry(value: &CodexLogEntry<'_>) -> Option<String> {
+    codex_model_from_parts(
+        value.model.as_ref(),
+        value.model_name.as_ref(),
+        value.metadata.as_ref(),
+    )
+}
+
+fn codex_model_from_parts(
+    model: Option<&Cow<'_, str>>,
+    model_name: Option<&Cow<'_, str>>,
+    metadata: Option<&CodexModelMetadata<'_>>,
+) -> Option<String> {
+    non_empty_cow_string(model)
+        .or_else(|| non_empty_cow_string(model_name))
+        .or_else(|| metadata.and_then(|metadata| non_empty_cow_string(metadata.model.as_ref())))
+}
+
+fn non_empty_cow_string(value: Option<&Cow<'_, str>>) -> Option<String> {
+    value.and_then(|text| {
+        let text = text.trim();
+        (!text.is_empty()).then(|| text.to_string())
+    })
+}
+
+fn usage_from_result(value: &CodexLogEntry<'_>) -> Option<CodexRawUsage> {
     value
-        .get("usage")
-        .or_else(|| value.get("data").and_then(|data| data.get("usage")))
-        .or_else(|| value.get("result").and_then(|result| result.get("usage")))
+        .usage
+        .as_ref()
+        .copied()
         .or_else(|| {
             value
-                .get("response")
-                .and_then(|response| response.get("usage"))
+                .data
+                .as_ref()
+                .and_then(|data| data.usage.as_ref().copied())
+        })
+        .or_else(|| {
+            value
+                .result
+                .as_ref()
+                .and_then(|result| result.usage.as_ref().copied())
+        })
+        .or_else(|| {
+            value
+                .response
+                .as_ref()
+                .and_then(|response| response.usage.as_ref().copied())
         })
 }
 
-fn codex_timestamp_from_result(value: &Value) -> Option<String> {
-    normalize_codex_timestamp(value.get("timestamp"))
-        .or_else(|| normalize_codex_timestamp(value.get("created_at")))
-        .or_else(|| normalize_codex_timestamp(value.get("createdAt")))
+fn codex_timestamp_from_result(value: &CodexLogEntry<'_>) -> Option<String> {
+    normalize_codex_timestamp(value.timestamp.as_ref())
+        .or_else(|| normalize_codex_timestamp(value.created_at.as_ref()))
+        .or_else(|| normalize_codex_timestamp(value.created_at_camel.as_ref()))
         .or_else(|| {
             value
-                .get("data")
-                .and_then(|data| normalize_codex_timestamp(data.get("timestamp")))
+                .data
+                .as_ref()
+                .and_then(|data| normalize_result_fields_timestamp(data))
         })
         .or_else(|| {
             value
-                .get("result")
-                .and_then(|result| normalize_codex_timestamp(result.get("timestamp")))
+                .result
+                .as_ref()
+                .and_then(|result| normalize_result_fields_timestamp(result))
         })
         .or_else(|| {
             value
-                .get("response")
-                .and_then(|response| normalize_codex_timestamp(response.get("timestamp")))
+                .response
+                .as_ref()
+                .and_then(|response| normalize_result_fields_timestamp(response))
         })
 }
 
-fn normalize_codex_timestamp(value: Option<&Value>) -> Option<String> {
+fn normalize_result_fields_timestamp(value: &CodexResultFields<'_>) -> Option<String> {
+    normalize_codex_timestamp(value.timestamp.as_ref())
+        .or_else(|| normalize_codex_timestamp(value.created_at.as_ref()))
+        .or_else(|| normalize_codex_timestamp(value.created_at_camel.as_ref()))
+}
+
+fn normalize_codex_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<String> {
     match value? {
-        Value::String(text) => {
+        CodexTimestamp::String(text) => {
             let text = text.trim();
             if text.is_empty() {
                 return None;
             }
             crate::parse_ts_timestamp(text).map(crate::format_rfc3339_millis)
         }
-        Value::Number(number) => {
-            let raw = number.as_u64()?;
-            let millis = if raw > 10_000_000_000 {
-                raw
+        CodexTimestamp::Number(raw) => {
+            let millis = if *raw > 10_000_000_000 {
+                *raw
             } else {
                 raw.checked_mul(1_000)?
             };
@@ -387,73 +508,20 @@ fn normalize_codex_timestamp(value: Option<&Value>) -> Option<String> {
                 millis.min(i64::MAX as u64) as i64,
             )))
         }
-        _ => None,
     }
 }
 
-fn normalize_headless_codex_usage(value: &Value) -> Option<CodexRawUsage> {
+fn normalize_headless_codex_usage(value: &CodexLogEntry<'_>) -> Option<CodexRawUsage> {
     let usage = usage_from_result(value)?;
-    let input = json_u64(usage.get("input_tokens"))
-        .or_else(|| json_u64(usage.get("prompt_tokens")))
-        .or_else(|| json_u64(usage.get("input")))
-        .unwrap_or(0);
-    let cached = json_u64(usage.get("cached_input_tokens"))
-        .or_else(|| json_u64(usage.get("cache_read_input_tokens")))
-        .or_else(|| json_u64(usage.get("cached_tokens")))
-        .unwrap_or(0);
-    let output = json_u64(usage.get("output_tokens"))
-        .or_else(|| json_u64(usage.get("completion_tokens")))
-        .or_else(|| json_u64(usage.get("output")))
-        .unwrap_or(0);
-    let reasoning = json_u64(usage.get("reasoning_output_tokens"))
-        .or_else(|| json_u64(usage.get("reasoning_tokens")))
-        .unwrap_or(0);
-    let total = json_u64(usage.get("total_tokens")).unwrap_or(0);
-    if input == 0 && cached == 0 && output == 0 && reasoning == 0 && total == 0 {
+    if usage.input_tokens == 0
+        && usage.cached_input_tokens == 0
+        && usage.output_tokens == 0
+        && usage.reasoning_output_tokens == 0
+        && usage.total_tokens == 0
+    {
         return None;
     }
-    Some(CodexRawUsage {
-        input_tokens: input,
-        cached_input_tokens: cached,
-        output_tokens: output,
-        reasoning_output_tokens: reasoning,
-        total_tokens: if total > 0 {
-            total
-        } else {
-            input + output + reasoning
-        },
-    })
-}
-
-fn normalize_codex_raw_usage(value: &Value) -> Option<CodexRawUsage> {
-    if !value.is_object() {
-        return None;
-    }
-    let input = json_u64(value.get("input_tokens"));
-    let cached = json_u64(value.get("cached_input_tokens"))
-        .or_else(|| json_u64(value.get("cache_read_input_tokens")))
-        .unwrap_or(0);
-    let output = json_u64(value.get("output_tokens"));
-    let reasoning = json_u64(value.get("reasoning_output_tokens"));
-    let total = json_u64(value.get("total_tokens"));
-    let input = input.unwrap_or(0);
-    let output = output.unwrap_or(0);
-    let reasoning = reasoning.unwrap_or(0);
-    Some(CodexRawUsage {
-        input_tokens: input,
-        cached_input_tokens: cached,
-        output_tokens: output,
-        reasoning_output_tokens: reasoning,
-        total_tokens: total.unwrap_or(input + output + reasoning),
-    })
-}
-
-fn json_u64(value: Option<&Value>) -> Option<u64> {
-    match value {
-        Some(Value::Number(number)) => number.as_u64(),
-        Some(Value::String(text)) => text.trim().parse::<u64>().ok(),
-        _ => None,
-    }
+    Some(usage)
 }
 
 fn file_modified_timestamp(path: &Path) -> String {
@@ -506,6 +574,389 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
             event.total_tokens,
         ))
     });
+}
+
+#[derive(Deserialize)]
+struct CodexSessionLogEntry<'a> {
+    #[serde(rename = "type", borrow, default)]
+    entry_type: Option<Cow<'a, str>>,
+    #[serde(borrow, default)]
+    timestamp: Option<CodexTimestamp<'a>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    payload: Option<CodexPayload<'a>>,
+}
+
+#[derive(Deserialize)]
+struct CodexLogEntry<'a> {
+    #[serde(borrow, default)]
+    timestamp: Option<CodexTimestamp<'a>>,
+    #[serde(rename = "created_at", borrow, default)]
+    created_at: Option<CodexTimestamp<'a>>,
+    #[serde(rename = "createdAt", borrow, default)]
+    created_at_camel: Option<CodexTimestamp<'a>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    data: Option<CodexResultFields<'a>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    result: Option<CodexResultFields<'a>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    response: Option<CodexResultFields<'a>>,
+    #[serde(default, deserialize_with = "deserialize_optional_object_lossy")]
+    usage: Option<CodexRawUsage>,
+    #[serde(borrow, default)]
+    model: Option<Cow<'a, str>>,
+    #[serde(rename = "model_name", borrow, default)]
+    model_name: Option<Cow<'a, str>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    metadata: Option<CodexModelMetadata<'a>>,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(untagged)]
+enum CodexTimestamp<'a> {
+    String(Cow<'a, str>),
+    Number(u64),
+}
+
+impl CodexTimestamp<'_> {
+    fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::String(text) => Some(text),
+            Self::Number(_) => None,
+        }
+    }
+}
+
+#[derive(Default, Deserialize)]
+struct CodexPayload<'a> {
+    #[serde(rename = "type", borrow, default)]
+    payload_type: Option<Cow<'a, str>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    info: Option<CodexInfo<'a>>,
+    #[serde(borrow, default)]
+    model: Option<Cow<'a, str>>,
+    #[serde(rename = "model_name", borrow, default)]
+    model_name: Option<Cow<'a, str>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    metadata: Option<CodexModelMetadata<'a>>,
+}
+
+#[derive(Default, Deserialize)]
+struct CodexInfo<'a> {
+    #[serde(default, deserialize_with = "deserialize_optional_object_lossy")]
+    last_token_usage: Option<CodexRawUsage>,
+    #[serde(default, deserialize_with = "deserialize_optional_object_lossy")]
+    total_token_usage: Option<CodexRawUsage>,
+    #[serde(borrow, default)]
+    model: Option<Cow<'a, str>>,
+    #[serde(rename = "model_name", borrow, default)]
+    model_name: Option<Cow<'a, str>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    metadata: Option<CodexModelMetadata<'a>>,
+}
+
+#[derive(Default, Deserialize)]
+struct CodexResultFields<'a> {
+    #[serde(borrow, default)]
+    timestamp: Option<CodexTimestamp<'a>>,
+    #[serde(rename = "created_at", borrow, default)]
+    created_at: Option<CodexTimestamp<'a>>,
+    #[serde(rename = "createdAt", borrow, default)]
+    created_at_camel: Option<CodexTimestamp<'a>>,
+    #[serde(default, deserialize_with = "deserialize_optional_object_lossy")]
+    usage: Option<CodexRawUsage>,
+    #[serde(borrow, default)]
+    model: Option<Cow<'a, str>>,
+    #[serde(rename = "model_name", borrow, default)]
+    model_name: Option<Cow<'a, str>>,
+    #[serde(
+        borrow,
+        default,
+        deserialize_with = "deserialize_optional_object_lossy"
+    )]
+    metadata: Option<CodexModelMetadata<'a>>,
+}
+
+#[derive(Deserialize)]
+struct CodexModelMetadata<'a> {
+    #[serde(borrow, default)]
+    model: Option<Cow<'a, str>>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+struct CodexRawUsageFields {
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    prompt_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    input: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    cached_input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    cache_read_input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    cached_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    output_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    completion_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    output: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    reasoning_output_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    reasoning_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_optional_u64_lossy")]
+    total_tokens: Option<u64>,
+}
+
+impl<'de> Deserialize<'de> for CodexRawUsage {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let fields = CodexRawUsageFields::deserialize(deserializer)?;
+        let input = fields
+            .input_tokens
+            .or(fields.prompt_tokens)
+            .or(fields.input)
+            .unwrap_or(0);
+        let output = fields
+            .output_tokens
+            .or(fields.completion_tokens)
+            .or(fields.output)
+            .unwrap_or(0);
+        let reasoning = fields
+            .reasoning_output_tokens
+            .or(fields.reasoning_tokens)
+            .unwrap_or(0);
+        Ok(Self {
+            input_tokens: input,
+            cached_input_tokens: fields
+                .cached_input_tokens
+                .or(fields.cache_read_input_tokens)
+                .or(fields.cached_tokens)
+                .unwrap_or(0),
+            output_tokens: output,
+            reasoning_output_tokens: reasoning,
+            total_tokens: fields.total_tokens.unwrap_or(input + output + reasoning),
+        })
+    }
+}
+
+fn deserialize_optional_object_lossy<'de, D, T>(
+    deserializer: D,
+) -> std::result::Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    struct OptionalObjectVisitor<T>(PhantomData<T>);
+
+    impl<'de, T> serde::de::Visitor<'de> for OptionalObjectVisitor<T>
+    where
+        T: serde::Deserialize<'de>,
+    {
+        type Value = Option<T>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("an optional object")
+        }
+
+        fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            deserialize_optional_object_lossy(deserializer)
+        }
+
+        fn visit_map<A>(self, map: A) -> std::result::Result<Self::Value, A::Error>
+        where
+            A: serde::de::MapAccess<'de>,
+        {
+            T::deserialize(serde::de::value::MapAccessDeserializer::new(map)).map(Some)
+        }
+
+        fn visit_bool<E>(self, _value: bool) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_i64<E>(self, _value: i64) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_u64<E>(self, _value: u64) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_f64<E>(self, _value: f64) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_str<E>(self, _value: &str) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_seq<A>(self, mut sequence: A) -> std::result::Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>,
+        {
+            while sequence.next_element::<serde::de::IgnoredAny>()?.is_some() {}
+            Ok(None)
+        }
+    }
+
+    deserializer.deserialize_any(OptionalObjectVisitor(PhantomData))
+}
+
+fn deserialize_optional_u64_lossy<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct OptionalU64Visitor;
+
+    impl<'de> serde::de::Visitor<'de> for OptionalU64Visitor {
+        type Value = Option<u64>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("an optional unsigned integer")
+        }
+
+        fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            deserialize_optional_u64_lossy(deserializer)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Some(value))
+        }
+
+        fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(value.trim().parse::<u64>().ok())
+        }
+
+        fn visit_borrowed_str<E>(self, value: &'de str) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            self.visit_str(value)
+        }
+
+        fn visit_string<E>(self, value: String) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            self.visit_str(&value)
+        }
+
+        fn visit_i64<E>(self, _value: i64) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_f64<E>(self, _value: f64) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_bool<E>(self, _value: bool) -> std::result::Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+    }
+
+    deserializer.deserialize_any(OptionalU64Visitor)
 }
 
 #[cfg(test)]

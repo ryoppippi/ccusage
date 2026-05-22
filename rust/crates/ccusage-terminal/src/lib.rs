@@ -1,6 +1,6 @@
 use std::{
     env,
-    io::{self, IsTerminal},
+    io::{self, IsTerminal, Write},
 };
 
 #[cfg(unix)]
@@ -79,8 +79,10 @@ impl SimpleTable {
     }
 
     pub fn print(&self) {
+        let stdout = io::stdout();
+        let mut stdout = stdout.lock();
         for line in self.render_lines() {
-            println!("{line}");
+            let _ = writeln!(stdout, "{line}");
         }
     }
 

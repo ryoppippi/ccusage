@@ -104,7 +104,7 @@ pub(crate) struct LoadedFile {
     pub(crate) entries: Vec<LoadedEntry>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct CodexRawUsage {
     pub(crate) input_tokens: u64,
     pub(crate) cached_input_tokens: u64,
