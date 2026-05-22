@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     env, fs,
+    io::{BufRead, BufReader},
     marker::PhantomData,
     path::{Path, PathBuf},
     sync::LazyLock,
@@ -11,7 +12,6 @@ use compact_str::CompactString;
 use memchr::memmem::Finder;
 use serde::Deserialize;
 
-use crate::fast::byte_lines;
 use crate::{
     chunk_file_indexes_by_size, cli::SharedArgs, cli_error, collect_usage_files, fast::FxHashSet,
     home, progress, CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs,
@@ -159,22 +159,31 @@ pub(crate) fn visit_codex_session_file(
     path: &Path,
     mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    let Ok(content) = fs::read(path) else {
+    let Ok(file) = fs::File::open(path) else {
         return Ok(());
     };
+    let mut reader = BufReader::with_capacity(128 * 1024, file);
+    let mut line = Vec::new();
     let session_id = codex_session_id(sessions_dir, path);
     let mut previous_totals: Option<CodexRawUsage> = None;
     let mut current_model: Option<String> = None;
     let mut current_model_is_fallback = false;
     let fallback_timestamp = file_modified_timestamp(path);
 
-    for line in byte_lines(&content) {
-        let Some(line_kind) = codex_line_usage_kind(line) else {
+    loop {
+        line.clear();
+        let Ok(bytes_read) = reader.read_until(b'\n', &mut line) else {
+            return Ok(());
+        };
+        if bytes_read == 0 {
+            break;
+        }
+        let Some(line_kind) = codex_line_usage_kind(&line) else {
             continue;
         };
         match line_kind {
             CodexLineKind::Session => {
-                let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(line) else {
+                let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(&line) else {
                     continue;
                 };
                 visit_codex_session_entry(
@@ -187,7 +196,7 @@ pub(crate) fn visit_codex_session_file(
                 )?;
             }
             CodexLineKind::Headless => {
-                let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(line) else {
+                let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(&line) else {
                     continue;
                 };
                 add_codex_exec_event(
@@ -768,7 +777,10 @@ impl<'de> Deserialize<'de> for CodexRawUsage {
                 .unwrap_or(0),
             output_tokens: output,
             reasoning_output_tokens: reasoning,
-            total_tokens: fields.total_tokens.unwrap_or(input + output + reasoning),
+            total_tokens: fields
+                .total_tokens
+                .filter(|total| *total > 0 || input + output + reasoning == 0)
+                .unwrap_or(input + output + reasoning),
         })
     }
 }
@@ -1032,6 +1044,18 @@ mod tests {
                     },
                 })
                 .to_string(),
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-01-02T03:06:05.000Z",
+                    "model": "gpt-5.2-codex",
+                    "usage": {
+                        "input_tokens": 9,
+                        "output_tokens": 4,
+                        "reasoning_output_tokens": 1,
+                        "total_tokens": 0,
+                    },
+                })
+                .to_string(),
             ]
             .join("\n"),
         )
@@ -1039,7 +1063,7 @@ mod tests {
 
         let events = load_codex_events_from_directory(&dir, true).unwrap();
 
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 3);
         assert_eq!(events[0].session_id, "run");
         assert_eq!(events[0].timestamp, "2026-01-02T03:04:05.000Z");
         assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
@@ -1053,6 +1077,11 @@ mod tests {
         assert_eq!(events[1].cached_input_tokens, 5);
         assert_eq!(events[1].output_tokens, 12);
         assert_eq!(events[1].total_tokens, 62);
+        assert_eq!(events[2].timestamp, "2026-01-02T03:06:05.000Z");
+        assert_eq!(events[2].input_tokens, 9);
+        assert_eq!(events[2].output_tokens, 4);
+        assert_eq!(events[2].reasoning_output_tokens, 1);
+        assert_eq!(events[2].total_tokens, 14);
 
         fs::remove_dir_all(dir).unwrap();
     }
