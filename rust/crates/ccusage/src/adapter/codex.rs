@@ -18,8 +18,8 @@ use crate::{
     fast::FxHashSet,
     format_currency, format_date_tz, format_models_multiline, format_number, json_float,
     json_value_u64, log_level, parse_ts_timestamp, parse_tz, print_box_title, print_json_or_jq,
-    wants_json, week_start, Align, CodexGroup, CodexModelUsage, CodexTokenUsageEvent, Color,
-    PricingMap, Result, SimpleTable,
+    terminal_width, wants_json, week_start, Align, CodexGroup, CodexModelUsage,
+    CodexTokenUsageEvent, Color, PricingMap, Result, SimpleTable,
 };
 
 type CodexEventKey = (
@@ -597,6 +597,7 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
         ],
         shared,
     )
+    .with_terminal_width(terminal_width())
     .with_date_compaction(true);
     for row in &rows {
         let label = row
