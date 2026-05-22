@@ -115,7 +115,7 @@ fn codex_config_requests_fast_service_tier(content: &str) -> bool {
 
 fn load_groups(shared: &SharedArgs, kind: AgentReportKind) -> Result<BTreeMap<String, CodexGroup>> {
     let paths = crate::codex_usage_paths()?;
-    if paths.len() == 1 {
+    if paths.len() == 1 && !wants_json(shared) {
         return load_groups_from_directory(&paths[0], shared, kind);
     }
     let mut groups = BTreeMap::new();

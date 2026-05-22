@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     env, fs,
-    io::{BufRead, BufReader},
     marker::PhantomData,
     path::{Path, PathBuf},
     sync::LazyLock,
@@ -12,6 +11,7 @@ use compact_str::CompactString;
 use memchr::memmem::Finder;
 use serde::Deserialize;
 
+use crate::fast::byte_lines;
 use crate::{
     chunk_file_indexes_by_size, cli::SharedArgs, cli_error, collect_usage_files, fast::FxHashSet,
     home, progress, CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs,
@@ -159,31 +159,22 @@ pub(crate) fn visit_codex_session_file(
     path: &Path,
     mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    let Ok(file) = fs::File::open(path) else {
+    let Ok(content) = fs::read(path) else {
         return Ok(());
     };
-    let mut reader = BufReader::with_capacity(128 * 1024, file);
-    let mut line = Vec::new();
     let session_id = codex_session_id(sessions_dir, path);
     let mut previous_totals: Option<CodexRawUsage> = None;
     let mut current_model: Option<String> = None;
     let mut current_model_is_fallback = false;
     let fallback_timestamp = file_modified_timestamp(path);
 
-    loop {
-        line.clear();
-        let Ok(bytes_read) = reader.read_until(b'\n', &mut line) else {
-            return Ok(());
-        };
-        if bytes_read == 0 {
-            break;
-        }
-        let Some(line_kind) = codex_line_usage_kind(&line) else {
+    for line in byte_lines(&content) {
+        let Some(line_kind) = codex_line_usage_kind(line) else {
             continue;
         };
         match line_kind {
             CodexLineKind::Session => {
-                let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(&line) else {
+                let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(line) else {
                     continue;
                 };
                 visit_codex_session_entry(
@@ -196,7 +187,7 @@ pub(crate) fn visit_codex_session_file(
                 )?;
             }
             CodexLineKind::Headless => {
-                let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(&line) else {
+                let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(line) else {
                     continue;
                 };
                 add_codex_exec_event(
