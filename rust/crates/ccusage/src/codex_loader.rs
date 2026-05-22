@@ -1,5 +1,6 @@
 use std::{
     env, fs,
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
     thread,
 };
@@ -8,10 +9,7 @@ use compact_str::CompactString;
 use serde_json::Value;
 
 use crate::{
-    chunk_file_indexes_by_size,
-    cli::SharedArgs,
-    cli_error, collect_usage_files,
-    fast::{byte_lines, FxHashSet},
+    chunk_file_indexes_by_size, cli::SharedArgs, cli_error, collect_usage_files, fast::FxHashSet,
     home, non_empty_json_string, progress, CodexRawUsage, CodexTokenUsageEvent, Result,
     TimestampMs,
 };
@@ -137,22 +135,43 @@ fn read_codex_session_file(sessions_dir: &Path, path: &Path) -> Vec<CodexTokenUs
 pub(crate) fn visit_codex_session_file(
     sessions_dir: &Path,
     path: &Path,
-    mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
+    visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    let Ok(content) = fs::read(path) else {
+    let Ok(file) = fs::File::open(path) else {
         return Ok(());
     };
+    let fallback_timestamp = file_modified_timestamp(path);
+    visit_codex_session_reader(
+        sessions_dir,
+        path,
+        BufReader::new(file),
+        &fallback_timestamp,
+        visit,
+    )
+}
+
+fn visit_codex_session_reader(
+    sessions_dir: &Path,
+    path: &Path,
+    mut reader: impl BufRead,
+    fallback_timestamp: &str,
+    mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
+) -> Result<()> {
     let session_id = codex_session_id(sessions_dir, path);
     let mut previous_totals: Option<CodexRawUsage> = None;
     let mut current_model: Option<String> = None;
     let mut current_model_is_fallback = false;
-    let fallback_timestamp = file_modified_timestamp(path);
+    let mut line = Vec::new();
 
-    for line in byte_lines(&content) {
-        if !codex_line_may_contain_usage(line) {
+    loop {
+        line.clear();
+        if reader.read_until(b'\n', &mut line)? == 0 {
+            break;
+        }
+        if !codex_line_may_contain_usage(&line) {
             continue;
         }
-        let Ok(value) = serde_json::from_slice::<Value>(line) else {
+        let Ok(value) = serde_json::from_slice::<Value>(&line) else {
             continue;
         };
         let entry_type = value.get("type").and_then(Value::as_str);
@@ -167,7 +186,7 @@ pub(crate) fn visit_codex_session_file(
             add_codex_exec_event(
                 &session_id,
                 &value,
-                &fallback_timestamp,
+                fallback_timestamp,
                 &mut current_model,
                 &mut current_model_is_fallback,
                 &mut visit,
@@ -640,5 +659,37 @@ mod tests {
         assert_eq!(events[0].total_tokens, 15);
 
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn parses_codex_usage_from_streaming_reader() {
+        let content = [
+            r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"turn_context","payload":{"model":"gpt-5.2-codex"}}"#,
+            r#"{"timestamp":"2026-01-02T00:01:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":42,"cached_input_tokens":10,"output_tokens":7,"reasoning_output_tokens":1,"total_tokens":50}}}}"#,
+        ]
+        .join("\n");
+        let mut events = Vec::new();
+
+        visit_codex_session_reader(
+            Path::new("sessions"),
+            Path::new("sessions/project/session.jsonl"),
+            std::io::Cursor::new(content.into_bytes()),
+            "1970-01-01T00:00:00.000Z",
+            |event| {
+                events.push(event);
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "project/session");
+        assert_eq!(events[0].timestamp, "2026-01-02T00:01:00.000Z");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[0].input_tokens, 42);
+        assert_eq!(events[0].cached_input_tokens, 10);
+        assert_eq!(events[0].output_tokens, 7);
+        assert_eq!(events[0].reasoning_output_tokens, 1);
+        assert_eq!(events[0].total_tokens, 50);
     }
 }
