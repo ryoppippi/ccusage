@@ -597,6 +597,7 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
         ],
         shared,
     )
+    .with_terminal_width(crate::terminal_width())
     .with_date_compaction(true);
     for row in &rows {
         let label = row
