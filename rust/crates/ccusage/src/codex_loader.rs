@@ -231,7 +231,7 @@ fn visit_codex_session_entry(
     if entry_type != Some("event_msg") {
         return Ok(());
     }
-    let Some(timestamp) = value.timestamp.as_ref().and_then(CodexTimestamp::as_str) else {
+    let Some(timestamp) = normalize_codex_timestamp(value.timestamp.as_ref()) else {
         return Ok(());
     };
     let Some(payload) = value.payload.as_ref() else {
@@ -282,7 +282,7 @@ fn visit_codex_session_entry(
 
     visit(CodexTokenUsageEvent {
         session_id: session_id.to_string(),
-        timestamp: timestamp.to_string(),
+        timestamp,
         model,
         input_tokens: raw_usage.input_tokens,
         cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
@@ -635,15 +635,6 @@ struct CodexLogEntry<'a> {
 enum CodexTimestamp<'a> {
     String(Cow<'a, str>),
     Number(u64),
-}
-
-impl CodexTimestamp<'_> {
-    fn as_str(&self) -> Option<&str> {
-        match self {
-            Self::String(text) => Some(text),
-            Self::Number(_) => None,
-        }
-    }
 }
 
 #[derive(Default, Deserialize)]
@@ -1056,6 +1047,58 @@ mod tests {
         assert_eq!(events[1].cached_input_tokens, 5);
         assert_eq!(events[1].output_tokens, 12);
         assert_eq!(events[1].total_tokens, 62);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn loads_session_usage_with_numeric_timestamp() {
+        let dir = temp_dir("numeric-session-timestamp");
+        let file = dir.join("session.jsonl");
+        fs::write(
+            &file,
+            [
+                json!({
+                    "timestamp": "2026-01-02T00:00:00.000Z",
+                    "type": "turn_context",
+                    "payload": {
+                        "model": "gpt-5",
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": 1767312001000_u64,
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 100,
+                                "cached_input_tokens": 10,
+                                "output_tokens": 50,
+                                "reasoning_output_tokens": 0,
+                                "total_tokens": 150,
+                            },
+                            "model": "gpt-5",
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let events = load_codex_events_from_directory(&dir, true).unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "session");
+        assert_eq!(events[0].timestamp, "2026-01-02T00:00:01.000Z");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5"));
+        assert_eq!(events[0].input_tokens, 100);
+        assert_eq!(events[0].cached_input_tokens, 10);
+        assert_eq!(events[0].output_tokens, 50);
+        assert_eq!(events[0].total_tokens, 150);
 
         fs::remove_dir_all(dir).unwrap();
     }
