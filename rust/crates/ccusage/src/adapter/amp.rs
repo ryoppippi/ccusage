@@ -30,8 +30,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     if wants_json(&shared) {
         return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
     }
-    print_table(args.kind, &rows, &shared);
-    Ok(())
+    print_table(args.kind, &rows, &shared)
 }
 
 pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
@@ -285,8 +284,8 @@ pub(crate) fn print_table(
     kind: AgentReportKind,
     rows: &[crate::UsageSummary],
     shared: &crate::cli::SharedArgs,
-) {
-    print_table_for_agent("Amp", kind, rows, shared);
+) -> Result<()> {
+    print_table_for_agent("Amp", kind, rows, shared)
 }
 
 pub(crate) fn print_table_for_agent(
@@ -294,10 +293,10 @@ pub(crate) fn print_table_for_agent(
     kind: AgentReportKind,
     rows: &[crate::UsageSummary],
     shared: &crate::cli::SharedArgs,
-) {
+) -> Result<()> {
     if rows.is_empty() {
         eprintln!("No {agent_name} usage data found.");
-        return;
+        return Ok(());
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
@@ -458,7 +457,8 @@ pub(crate) fn print_table_for_agent(
             ),
         ]);
     }
-    table.print();
+    table.print()?;
+    Ok(())
 }
 
 fn agent_report_label(kind: AgentReportKind) -> &'static str {

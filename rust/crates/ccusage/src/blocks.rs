@@ -7,9 +7,9 @@ use crate::{
     fast::FxHashSet,
     format_currency, format_date, format_models_multiline, format_number, format_rfc3339_millis,
     format_utc_second, hour_12, json_float, local_parts, print_box_title, terminal_width, utc_now,
-    Align, BurnRate, Color, LoadedEntry, Projection, SessionBlock, SimpleTable, TimestampMs,
-    TokenCounts, BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_WARNING_THRESHOLD, MILLIS_PER_HOUR,
-    MILLIS_PER_MINUTE,
+    Align, BurnRate, Color, LoadedEntry, Projection, Result, SessionBlock, SimpleTable,
+    TimestampMs, TokenCounts, BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_WARNING_THRESHOLD,
+    MILLIS_PER_HOUR, MILLIS_PER_MINUTE,
 };
 
 pub(crate) fn identify_session_blocks(
@@ -296,10 +296,10 @@ pub(crate) fn print_blocks_table(
     token_limit: Option<&str>,
     max_tokens: u64,
     shared: &SharedArgs,
-) {
+) -> Result<()> {
     if blocks.is_empty() {
         eprintln!("No Claude usage data found.");
-        return;
+        return Ok(());
     }
     let terminal_width = terminal_width();
     let compact = shared.compact || terminal_width < BLOCKS_COMPACT_WIDTH_THRESHOLD;
@@ -402,7 +402,8 @@ pub(crate) fn print_blocks_table(
             }
         }
     }
-    table.print();
+    table.print()?;
+    Ok(())
 }
 
 pub(crate) fn print_active_block_detail(

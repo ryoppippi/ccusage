@@ -136,10 +136,10 @@ pub(crate) fn print_usage_table(
     shared: &SharedArgs,
     group_projects: bool,
     project_aliases: Option<&str>,
-) {
+) -> Result<()> {
     if rows.is_empty() {
         eprintln!("{}", empty_usage_table_message());
-        return;
+        return Ok(());
     }
     let terminal_width = terminal_width();
     let compact = shared.compact || terminal_width < USAGE_COMPACT_WIDTH_THRESHOLD;
@@ -292,11 +292,12 @@ pub(crate) fn print_usage_table(
         total_row.push(String::new());
     }
     table.push(total_row);
-    table.print();
+    table.print()?;
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");
     }
+    Ok(())
 }
 
 fn empty_usage_table_message() -> &'static str {

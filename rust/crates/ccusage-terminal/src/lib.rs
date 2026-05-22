@@ -78,12 +78,13 @@ impl SimpleTable {
         self.headers.len()
     }
 
-    pub fn print(&self) {
+    pub fn print(&self) -> io::Result<()> {
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
         for line in self.render_lines() {
-            writeln!(stdout, "{line}").expect("failed to write table line");
+            writeln!(stdout, "{line}")?;
         }
+        Ok(())
     }
 
     fn render_lines(&self) -> Vec<String> {

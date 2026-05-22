@@ -64,8 +64,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     if wants_json(&shared) {
         return print_json_or_jq(report_json(&result.rows, args.kind), shared.jq.as_deref());
     }
-    print_table(&result.rows, args.kind, &shared, &result.detected_agents);
-    Ok(())
+    print_table(&result.rows, args.kind, &shared, &result.detected_agents)
 }
 
 fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult> {
@@ -851,11 +850,11 @@ fn print_table(
     kind: AgentReportKind,
     shared: &SharedArgs,
     detected_agents: &[&'static str],
-) {
+) -> Result<()> {
     print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     if rows.is_empty() {
         eprintln!("No usage data found.");
-        return;
+        return Ok(());
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
@@ -949,11 +948,12 @@ fn print_table(
             ),
         ]);
     }
-    table.print();
+    table.print()?;
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");
     }
+    Ok(())
 }
 
 fn all_report_title(

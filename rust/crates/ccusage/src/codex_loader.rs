@@ -11,6 +11,7 @@ use std::{
 use compact_str::CompactString;
 use memchr::memmem::Finder;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::{
     chunk_file_indexes_by_size, cli::SharedArgs, cli_error, collect_usage_files, fast::FxHashSet,
@@ -199,17 +200,25 @@ pub(crate) fn visit_codex_session_file(
                 )?;
             }
             CodexLineKind::Headless => {
-                let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(&line) else {
-                    continue;
+                if let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(&line) {
+                    add_codex_exec_event(
+                        &session_id,
+                        &value,
+                        &fallback_timestamp,
+                        &mut current_model,
+                        &mut current_model_is_fallback,
+                        &mut visit,
+                    )?;
+                } else {
+                    add_codex_exec_event_from_value(
+                        &session_id,
+                        &line,
+                        &fallback_timestamp,
+                        &mut current_model,
+                        &mut current_model_is_fallback,
+                        &mut visit,
+                    )?;
                 };
-                add_codex_exec_event(
-                    &session_id,
-                    &value,
-                    &fallback_timestamp,
-                    &mut current_model,
-                    &mut current_model_is_fallback,
-                    &mut visit,
-                )?;
             }
         }
     }
@@ -310,6 +319,56 @@ fn add_codex_exec_event(
         return Ok(());
     };
     let parsed_model = codex_model_from_result(value);
+    let timestamp =
+        codex_timestamp_from_result(value).unwrap_or_else(|| fallback_timestamp.to_string());
+    visit_codex_exec_usage_event(
+        session_id,
+        raw_usage,
+        parsed_model,
+        timestamp,
+        current_model,
+        current_model_is_fallback,
+        visit,
+    )
+}
+
+fn add_codex_exec_event_from_value(
+    session_id: &str,
+    line: &[u8],
+    fallback_timestamp: &str,
+    current_model: &mut Option<String>,
+    current_model_is_fallback: &mut bool,
+    visit: &mut impl FnMut(CodexTokenUsageEvent) -> Result<()>,
+) -> Result<()> {
+    let Ok(value) = serde_json::from_slice::<Value>(line) else {
+        return Ok(());
+    };
+    let Some(raw_usage) = normalize_headless_codex_usage_value(&value) else {
+        return Ok(());
+    };
+    let parsed_model = codex_model_from_result_value(&value);
+    let timestamp =
+        codex_timestamp_from_result_value(&value).unwrap_or_else(|| fallback_timestamp.to_string());
+    visit_codex_exec_usage_event(
+        session_id,
+        raw_usage,
+        parsed_model,
+        timestamp,
+        current_model,
+        current_model_is_fallback,
+        visit,
+    )
+}
+
+fn visit_codex_exec_usage_event(
+    session_id: &str,
+    raw_usage: CodexRawUsage,
+    parsed_model: Option<String>,
+    timestamp: String,
+    current_model: &mut Option<String>,
+    current_model_is_fallback: &mut bool,
+    visit: &mut impl FnMut(CodexTokenUsageEvent) -> Result<()>,
+) -> Result<()> {
     if let Some(model) = parsed_model.clone() {
         *current_model = Some(model);
         *current_model_is_fallback = false;
@@ -326,8 +385,7 @@ fn add_codex_exec_event(
     }
     visit(CodexTokenUsageEvent {
         session_id: session_id.to_string(),
-        timestamp: codex_timestamp_from_result(value)
-            .unwrap_or_else(|| fallback_timestamp.to_string()),
+        timestamp,
         model,
         input_tokens: raw_usage.input_tokens,
         cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
@@ -340,12 +398,16 @@ fn add_codex_exec_event(
 
 fn codex_line_usage_kind(line: &[u8]) -> Option<CodexLineKind> {
     let has_event_msg = EVENT_MSG_TYPE_FINDER.find(line).is_some();
-    if TURN_CONTEXT_TYPE_FINDER.find(line).is_some()
-        || (has_event_msg && TOKEN_COUNT_TYPE_FINDER.find(line).is_some())
-    {
+    let has_token_count = has_event_msg && TOKEN_COUNT_TYPE_FINDER.find(line).is_some();
+    if TURN_CONTEXT_TYPE_FINDER.find(line).is_some() || has_token_count {
         return Some(CodexLineKind::Session);
     }
-    if has_event_msg || COMPACT_TYPE_FIELD_FINDER.find(line).is_none() {
+    let has_compact_type = COMPACT_TYPE_FIELD_FINDER.find(line).is_some();
+    let has_nested_token_count = !has_event_msg
+        && has_compact_type
+        && line.len() < 64 * 1024
+        && TOKEN_COUNT_TYPE_FINDER.find(line).is_some();
+    if has_event_msg || has_nested_token_count || !has_compact_type {
         let (has_turn_context, has_event_msg, has_token_count) = codex_line_type_flags(line);
         if has_turn_context || (has_event_msg && has_token_count) {
             return Some(CodexLineKind::Session);
@@ -493,8 +555,36 @@ fn codex_model_from_parts(
         .or_else(|| metadata.and_then(|metadata| non_empty_cow_string(metadata.model.as_ref())))
 }
 
+fn codex_model_from_result_value(value: &Value) -> Option<String> {
+    codex_model_from_value_fields(value)
+        .or_else(|| value.get("data").and_then(codex_model_from_value_fields))
+        .or_else(|| value.get("result").and_then(codex_model_from_value_fields))
+        .or_else(|| {
+            value
+                .get("response")
+                .and_then(codex_model_from_value_fields)
+        })
+}
+
+fn codex_model_from_value_fields(value: &Value) -> Option<String> {
+    non_empty_value_string(value.get("model"))
+        .or_else(|| non_empty_value_string(value.get("model_name")))
+        .or_else(|| {
+            value
+                .get("metadata")
+                .and_then(|metadata| non_empty_value_string(metadata.get("model")))
+        })
+}
+
 fn non_empty_cow_string(value: Option<&Cow<'_, str>>) -> Option<String> {
     value.and_then(|text| {
+        let text = text.trim();
+        (!text.is_empty()).then(|| text.to_string())
+    })
+}
+
+fn non_empty_value_string(value: Option<&Value>) -> Option<String> {
+    value.and_then(Value::as_str).and_then(|text| {
         let text = text.trim();
         (!text.is_empty()).then(|| text.to_string())
     })
@@ -525,6 +615,29 @@ fn usage_from_result(value: &CodexLogEntry<'_>) -> Option<CodexRawUsage> {
         })
 }
 
+fn usage_from_result_value(value: &Value) -> Option<CodexRawUsage> {
+    usage_from_value(value.get("usage"))
+        .or_else(|| {
+            value
+                .get("data")
+                .and_then(|data| usage_from_value(data.get("usage")))
+        })
+        .or_else(|| {
+            value
+                .get("result")
+                .and_then(|result| usage_from_value(result.get("usage")))
+        })
+        .or_else(|| {
+            value
+                .get("response")
+                .and_then(|response| usage_from_value(response.get("usage")))
+        })
+}
+
+fn usage_from_value(value: Option<&Value>) -> Option<CodexRawUsage> {
+    serde_json::from_value(value?.clone()).ok()
+}
+
 fn codex_timestamp_from_result(value: &CodexLogEntry<'_>) -> Option<String> {
     normalize_codex_timestamp(value.timestamp.as_ref())
         .or_else(|| normalize_codex_timestamp(value.created_at.as_ref()))
@@ -549,10 +662,31 @@ fn codex_timestamp_from_result(value: &CodexLogEntry<'_>) -> Option<String> {
         })
 }
 
+fn codex_timestamp_from_result_value(value: &Value) -> Option<String> {
+    normalize_value_fields_timestamp(value)
+        .or_else(|| value.get("data").and_then(normalize_value_fields_timestamp))
+        .or_else(|| {
+            value
+                .get("result")
+                .and_then(normalize_value_fields_timestamp)
+        })
+        .or_else(|| {
+            value
+                .get("response")
+                .and_then(normalize_value_fields_timestamp)
+        })
+}
+
 fn normalize_result_fields_timestamp(value: &CodexResultFields<'_>) -> Option<String> {
     normalize_codex_timestamp(value.timestamp.as_ref())
         .or_else(|| normalize_codex_timestamp(value.created_at.as_ref()))
         .or_else(|| normalize_codex_timestamp(value.created_at_camel.as_ref()))
+}
+
+fn normalize_value_fields_timestamp(value: &Value) -> Option<String> {
+    normalize_value_timestamp(value.get("timestamp"))
+        .or_else(|| normalize_value_timestamp(value.get("created_at")))
+        .or_else(|| normalize_value_timestamp(value.get("createdAt")))
 }
 
 fn normalize_codex_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<String> {
@@ -577,8 +711,41 @@ fn normalize_codex_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<Strin
     }
 }
 
+fn normalize_value_timestamp(value: Option<&Value>) -> Option<String> {
+    let value = value?;
+    if let Some(text) = value.as_str() {
+        let text = text.trim();
+        if text.is_empty() {
+            return None;
+        }
+        return crate::parse_ts_timestamp(text).map(crate::format_rfc3339_millis);
+    }
+    let raw = value.as_u64()?;
+    let millis = if raw > 10_000_000_000 {
+        raw
+    } else {
+        raw.checked_mul(1_000)?
+    };
+    Some(crate::format_rfc3339_millis(TimestampMs::from_millis(
+        millis.min(i64::MAX as u64) as i64,
+    )))
+}
+
 fn normalize_headless_codex_usage(value: &CodexLogEntry<'_>) -> Option<CodexRawUsage> {
     let usage = usage_from_result(value)?;
+    if usage.input_tokens == 0
+        && usage.cached_input_tokens == 0
+        && usage.output_tokens == 0
+        && usage.reasoning_output_tokens == 0
+        && usage.total_tokens == 0
+    {
+        return None;
+    }
+    Some(usage)
+}
+
+fn normalize_headless_codex_usage_value(value: &Value) -> Option<CodexRawUsage> {
+    let usage = usage_from_result_value(value)?;
     if usage.input_tokens == 0
         && usage.cached_input_tokens == 0
         && usage.output_tokens == 0
@@ -1198,6 +1365,7 @@ mod tests {
             [
                 r#"{ "timestamp": "2026-01-02T00:00:00.000Z", "type" : "turn_context", "payload": { "model": "gpt-5" } }"#,
                 r#"{ "timestamp": "2026-01-02T00:00:01.000Z", "type" : "event_msg", "payload": { "type" : "token_count", "info": { "total_token_usage": { "input_tokens": 100, "cached_input_tokens": 10, "output_tokens": 50, "total_tokens": 150 }, "model": "gpt-5" } } }"#,
+                r#"{ "timestamp": "2026-01-02T00:00:02.000Z", "type" : "event_msg", "payload": { "type":"token_count", "info": { "total_token_usage": { "input_tokens": 200, "cached_input_tokens": 20, "output_tokens": 75, "total_tokens": 275 }, "model": "gpt-5" } } }"#,
             ]
             .join("\n"),
         )
@@ -1205,12 +1373,54 @@ mod tests {
 
         let events = load_codex_events_from_directory(&dir, true).unwrap();
 
-        assert_eq!(events.len(), 1);
+        assert_eq!(events.len(), 2);
         assert_eq!(events[0].timestamp, "2026-01-02T00:00:01.000Z");
         assert_eq!(events[0].model.as_deref(), Some("gpt-5"));
         assert_eq!(events[0].input_tokens, 100);
         assert_eq!(events[0].cached_input_tokens, 10);
         assert_eq!(events[0].output_tokens, 50);
+        assert_eq!(events[0].total_tokens, 150);
+        assert_eq!(events[1].timestamp, "2026-01-02T00:00:02.000Z");
+        assert_eq!(events[1].input_tokens, 100);
+        assert_eq!(events[1].cached_input_tokens, 10);
+        assert_eq!(events[1].output_tokens, 25);
+        assert_eq!(events[1].total_tokens, 125);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn loads_headless_usage_with_unexpected_noncritical_field_types() {
+        let dir = temp_dir("headless-lossy-fields");
+        let file = dir.join("run.jsonl");
+        fs::write(
+            &file,
+            json!({
+                "type": "turn.completed",
+                "timestamp": false,
+                "model": {
+                    "name": "unexpected"
+                },
+                "usage": {
+                    "input_tokens": 120,
+                    "cached_input_tokens": 20,
+                    "output_tokens": 30,
+                    "total_tokens": 150,
+                },
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let events = load_codex_events_from_directory(&dir, true).unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "run");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5"));
+        assert!(events[0].is_fallback_model);
+        assert_eq!(events[0].input_tokens, 120);
+        assert_eq!(events[0].cached_input_tokens, 20);
+        assert_eq!(events[0].output_tokens, 30);
         assert_eq!(events[0].total_tokens, 150);
 
         fs::remove_dir_all(dir).unwrap();

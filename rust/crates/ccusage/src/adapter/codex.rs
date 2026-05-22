@@ -37,8 +37,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         let output = report_from_groups(&groups, args.kind, &pricing, speed);
         return print_json_or_jq(output, shared.jq.as_deref());
     }
-    print_table_from_groups(&groups, args.kind, &pricing, speed, &shared);
-    Ok(())
+    print_table_from_groups(&groups, args.kind, &pricing, speed, &shared)
 }
 
 #[cfg(test)]
@@ -139,7 +138,8 @@ fn load_groups_from_directory(
     if shared.single_thread {
         return aggregate_files_local(sessions_dir, &files, shared, kind);
     }
-    aggregate_files_parallel_local(sessions_dir, &files, shared, kind)
+    let seen = create_dedupe_shards();
+    aggregate_files_parallel(sessions_dir, &files, shared, kind, &seen)
 }
 
 fn load_groups_from_directory_with_dedupe(
@@ -275,52 +275,6 @@ fn aggregate_files_local_with_seen(
         )?;
     }
     Ok(aggregation)
-}
-
-fn aggregate_files_parallel_local(
-    sessions_dir: &Path,
-    files: &[PathBuf],
-    shared: &SharedArgs,
-    kind: AgentReportKind,
-) -> Result<BTreeMap<String, CodexGroup>> {
-    let worker_count = thread::available_parallelism()
-        .map(usize::from)
-        .unwrap_or(1)
-        .saturating_mul(3)
-        .min(files.len());
-    if worker_count <= 1 {
-        return aggregate_files_local(sessions_dir, files, shared, kind);
-    }
-
-    let chunks = crate::chunk_file_indexes_by_size(files, worker_count);
-    thread::scope(|scope| {
-        let mut handles = Vec::with_capacity(chunks.len());
-        for chunk in chunks {
-            handles.push(scope.spawn(move || {
-                let mut chunk_files = Vec::with_capacity(chunk.len());
-                for index in chunk {
-                    chunk_files.push(files[index].clone());
-                }
-                aggregate_files_local_with_seen(sessions_dir, &chunk_files, shared, kind)
-            }));
-        }
-
-        let mut groups = BTreeMap::new();
-        let mut seen = FxHashSet::default();
-        for handle in handles {
-            let partial = handle
-                .join()
-                .map_err(|_| crate::cli_error("codex worker panicked"))??;
-            for key in partial.seen {
-                if !seen.insert(key) {
-                    let global_seen = create_dedupe_shards();
-                    return aggregate_files(sessions_dir, files, shared, kind, &global_seen);
-                }
-            }
-            merge_groups(&mut groups, partial.groups);
-        }
-        Ok(groups)
-    })
 }
 
 fn aggregate_file_local(
@@ -707,10 +661,10 @@ fn print_table_from_groups(
     pricing: &PricingMap,
     speed: CodexSpeed,
     shared: &SharedArgs,
-) {
+) -> Result<()> {
     if groups.is_empty() {
         eprintln!("No Codex usage data found.");
-        return;
+        return Ok(());
     }
     let first_column = match kind {
         AgentReportKind::Daily => "Date",
@@ -792,7 +746,8 @@ fn print_table_from_groups(
         color(shared, format_number(total_tokens), Color::Yellow),
         color(shared, format_currency(total_cost), Color::Yellow),
     ]);
-    table.print();
+    table.print()?;
+    Ok(())
 }
 
 #[cfg(test)]

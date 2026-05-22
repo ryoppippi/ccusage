@@ -62,7 +62,7 @@ pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
         &shared,
         args.instances,
         args.project_aliases.as_deref(),
-    );
+    )?;
     Ok(())
 }
 
@@ -100,7 +100,7 @@ pub(crate) fn run_bucket(shared: SharedArgs, kind: BucketKind) -> Result<()> {
         BucketKind::Monthly => ("Claude Code Token Usage Report - Monthly", "Month"),
         BucketKind::Weekly => ("Claude Code Token Usage Report - Weekly", "Week"),
     };
-    print_usage_table(title, col, &buckets, &shared, false, None);
+    print_usage_table(title, col, &buckets, &shared, false, None)?;
     Ok(())
 }
 
@@ -136,7 +136,7 @@ pub(crate) fn run_weekly(args: WeeklyArgs) -> Result<()> {
         &shared,
         false,
         None,
-    );
+    )?;
     Ok(())
 }
 
@@ -209,7 +209,7 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
         &session_shared,
         false,
         None,
-    );
+    )?;
     Ok(())
 }
 
@@ -308,7 +308,7 @@ pub(crate) fn run_blocks(args: BlocksArgs) -> Result<()> {
         print_active_block_detail(&blocks[0], args.token_limit.as_deref(), max_tokens, &shared);
         return Ok(());
     }
-    print_blocks_table(&blocks, args.token_limit.as_deref(), max_tokens, &shared);
+    print_blocks_table(&blocks, args.token_limit.as_deref(), max_tokens, &shared)?;
     Ok(())
 }
 
