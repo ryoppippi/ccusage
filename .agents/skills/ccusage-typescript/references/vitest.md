@@ -21,6 +21,35 @@ prefer Rust tests through `ccusage-testing`.
 - Skipped local-data smoke tests are acceptable when real user log directories
   catch schema drift, but they must not fail on clean CI machines.
 
+Read the local fs-fixture README before using less common options or APIs:
+
+```text
+node_modules/.pnpm/fs-fixture@2.8.1/node_modules/fs-fixture/README.md
+```
+
+If the exact pnpm store path changes, locate it with:
+
+```sh
+fd -a README.md node_modules/.pnpm | rg "fs-fixture"
+```
+
+Prefer `await using` so cleanup is automatic:
+
+```ts
+import { createFixture } from 'fs-fixture';
+
+await using fixture = await createFixture({
+	'projects/example/session.jsonl': '{}\n',
+});
+
+const filePath = fixture.getPath('projects/example/session.jsonl');
+```
+
+Use object trees for small inline fixtures. Use template directory input when
+many tests share the same larger fixture shape. Prefer `fixture.getPath(...)`
+over manually joining against `fixture.path`, and use `fixture.writeFile()` or
+`fixture.writeJson()` when a test needs to build data incrementally.
+
 ## Assertions
 
 - Prefer behavior-focused tests over schema-shape tests unless schema

@@ -11,7 +11,6 @@ Use these skills before working in this repository:
 - `ccusage-rust-profile` - native Rust CLI profiling, branch-vs-main speed comparisons, profile reading, and optimization validation.
 - `ccusage-testing` - Rust cargo tests, CLI snapshots, Claude model names, and LiteLLM pricing test rules.
 - `ccusage-typescript` - TypeScript package/tooling work, Vitest tests, Bun scripts, package launchers, schema tooling, and benchmark scripts.
-- `fs-fixture` - disposable filesystem trees for tests with `createFixture()` and local README lookup.
 - `ccusage-agent-sources` - agent adapter log locations, token mappings, cost rules, and CLI behavior.
 - `ccusage-docs` - VitePress docs structure, screenshot placement, accessibility, and markdown linting conventions.
 - `skill-creator` - repo-local skill creation, SKILL.md frontmatter, description trigger quality, and reference layout.
