@@ -42,7 +42,8 @@ See https://vitest.dev/api/test for the full API.
 ```typescript
 import { calculateTotal } from './cart';
 
-describe('calculateTotal', () => {
+describe(calculateTotal, () => {
+	// use the actual function instead of a string: not 'calculateTotal' but calculateTotal
 	it.todo('applies percentage discount');
 	it.todo('applies fixed amount discount');
 	it.todo('never returns a negative total');

@@ -197,7 +197,7 @@ if (import.meta.vitest == null) {
 }
 
 if (import.meta.vitest != null) {
-	describe('resolveCliRuntime', () => {
+	describe(resolveCliRuntime, () => {
 		it('resolves the native package binary for the current supported platform', () => {
 			expect(
 				resolveNativeBinary({

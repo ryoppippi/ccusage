@@ -1696,7 +1696,7 @@ function renderMarkdown(
 }
 
 if (import.meta.vitest != null) {
-	describe('createCcusageCommandFromBin', () => {
+	describe(createCcusageCommandFromBin, () => {
 		it('builds hyperfine command text that benchmarks the published ccusage bin with both Claude and Codex fixture environment variables', () => {
 			const commandText = createCcusageCommandFromBin(
 				'/repo/apps/ccusage/dist/cli.js',
@@ -1744,7 +1744,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('timeCommandArgs', () => {
+	describe(timeCommandArgs, () => {
 		it('wraps peak RSS measurement around argv without a shell command string', () => {
 			const command = createCcusageBenchmarkCommandFromBin(
 				'/tmp/head package/node_modules/ccusage/dist/cli.js',
@@ -1776,7 +1776,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('createHeadCcusageCommand', () => {
+	describe(createHeadCcusageCommand, () => {
 		it('resolves the installed package published bin instead of the package manager shim', async () => {
 			await using fixture = await createFixture({});
 			const packageDir = join(fixture.path, 'node_modules', 'ccusage');
@@ -1864,7 +1864,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('renderFixtureSection', () => {
+	describe(renderFixtureSection, () => {
 		it('renders fixture sizes and throughput so Claude and Codex timings are comparable', () => {
 			const lines = renderFixtureSection(
 				{
@@ -1992,7 +1992,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('renderPackageRunnerComparison', () => {
+	describe(renderPackageRunnerComparison, () => {
 		it('renders cold and warm bunx startup timings separately from execution benchmarks', () => {
 			const markdown = renderPackageRunnerComparison({
 				base: {
@@ -2019,7 +2019,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('renderBunxFixtureSection', () => {
+	describe(renderBunxFixtureSection, () => {
 		it('renders cached bunx execution timings separately from package startup timings', () => {
 			const lines = renderBunxFixtureSection(
 				{
@@ -2061,7 +2061,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('renderRuntimeDiagnosticSection', () => {
+	describe(renderRuntimeDiagnosticSection, () => {
 		it('renders wrapper, installed native, and workspace native measurements together', () => {
 			const markdown = renderRuntimeDiagnosticSection(
 				{
@@ -2110,7 +2110,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('renderMarkdown', () => {
+	describe(renderMarkdown, () => {
 		const emptyFixtureSection = {
 			description: 'Fixture description',
 			fixtureDir: '/fixtures/claude',
@@ -2193,7 +2193,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('parsePeakRssBytes', () => {
+	describe(parsePeakRssBytes, () => {
 		it('parses GNU time verbose maximum resident set size as bytes', () => {
 			expect(
 				parsePeakRssBytes(
