@@ -1,0 +1,70 @@
+{ inputs, ... }:
+let
+  root = ./..;
+in
+{
+  perSystem =
+    {
+      config,
+      system,
+      ...
+    }:
+    let
+      pkgs = import inputs.nixpkgs {
+        inherit system;
+        overlays = [ inputs.rust-overlay.overlays.default ];
+      };
+      rustToolchain = pkgs.rust-bin.fromRustupToolchainFile (root + /rust-toolchain.toml);
+    in
+    {
+      devShells.default = pkgs.mkShell {
+        buildInputs =
+          (with pkgs; [
+            pnpm_11
+            bun
+
+            rustToolchain
+            cargo-edit
+            cargo-insta
+            pkg-config
+            openssl
+            config.treefmt.build.wrapper
+            nixfmt
+            deadnix
+            statix
+            typos
+            typos-lsp
+            oxfmt
+            oxlint
+            prek
+            gitleaks
+            renovate
+            typescript-go
+            jq
+            git
+            gh
+            hyperfine
+            similarity
+            ast-grep
+            ripgrep
+            fd
+            fzf
+            delta
+            dust
+          ])
+          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            pkgs.apple-sdk_15
+          ]
+          ++ config.pre-commit.settings.enabledPackages;
+
+        shellHook = ''
+          # Install dependencies only if node_modules/.pnpm/lock.yaml is older than pnpm-lock.yaml
+          if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
+            echo "📦 Installing dependencies..."
+            pnpm install --frozen-lockfile
+          fi
+          ${config.pre-commit.shellHook}
+        '';
+      };
+    };
+}

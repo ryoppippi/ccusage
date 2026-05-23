@@ -1,3 +1,8 @@
+#!/usr/bin/env nix
+/*
+#! nix shell --inputs-from . nixpkgs#bun -c bun
+*/
+
 import { lstat, mkdir, readdir, readlink, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -96,7 +101,7 @@ for (const { dir, label } of SKILL_TARGETS) {
 
 if (checkMode && hasErrors) {
 	console.error('\n❌ Skills are not in sync!');
-	console.error('Run: bun scripts/sync-skills.ts');
+	console.error('Run: bun ./scripts/sync-skills.ts');
 	process.exit(1);
 } else if (checkMode) {
 	console.log('✅ Skills are in sync!');
