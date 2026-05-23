@@ -1,0 +1,4 @@
+interface:
+  display_name: ccusage Profile
+  short_description: Profile Rust and TypeScript performance and inspect hot paths.
+  default_prompt: Profile a slow ccusage command or package script.

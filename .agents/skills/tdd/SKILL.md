@@ -57,12 +57,10 @@ Prefer running only the tests affected by your changes during the Red-Green-Refa
 
 **Runner-specific guidance** — Read the relevant example file alongside this skill for detailed test modifiers, idioms, and runner-specific tips:
 
-- **Vitest**: See `references/vitest-running-and-modifiers.md` for focused
-  commands and modifiers, and `references/vitest-readability.md` for assertion
-  examples.
-- **Rust (cargo test)**: See `references/rust-running.md` for focused cargo
-  commands and `references/rust-test-examples.md` for attributes, Result tests,
-  and doc tests.
+- **Vitest**: See `references/vitest.md` for focused commands, modifiers, a
+  compact Red-Green-Refactor example, and assertion/readability examples.
+- **Rust (cargo test)**: See `references/rust.md` for focused cargo commands,
+  attributes, Result tests, doc tests, and a compact Red-Green-Refactor example.
 - **Zig (zig test)**: Use `zig test <file> --test-filter <name>` for focused runs
 
 For other runners, adapt the general patterns:

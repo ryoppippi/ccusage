@@ -25,13 +25,7 @@ git log --oneline -10
 
 ## Core Philosophy
 
-**Revertability First**: Each commit must be revertable independently without breaking other functionality. Prefer smaller, granular commits over large groupings. Split by hunks within files, not just entire files.
-
-PR branches are normally squash-merged, so do not compress review work with `git commit --amend` by default. Keep review fixes as small follow-up commits that can be reverted independently. Amend only for unpublished local mistakes or when the user explicitly asks.
-
-Tiny commits are expected. A single review comment, one wording correction, one reference-file extraction, one symlink sync, or one generated formatting pass can each be its own commit when independently revertable.
-
-Tiny does not mean incomplete. For moves, renames, or extractions, one commit must include both sides of the operation: remove or update the old location, add the new location, update references, and sync generated links if required. Never commit only the destination of a move while leaving the source/reference cleanup for a later commit.
+Read `references/commit-guidance.md` for commit-splitting and message rules.
 
 For concrete good and bad examples, read `references/revertable-commits.md`.
 
@@ -59,32 +53,7 @@ Use standard git history commands to understand intent before committing. Prefer
 
 ## Commit Message Format
 
-```text
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
-
-**Body should explain**:
-
-- WHAT changed and WHY
-- Problem context and solution rationale
-- Implementation decisions
-- Potential impacts
-- Wrap at 72 characters
-
-**Subject should name the artifact or behavior changed**:
-
-- Prefer concrete subjects that make sense when read alone in a commit list.
-- Avoid vague review-process subjects such as `chore: address review feedback`,
-  `chore: apply comments`, or `fix: update per CodeRabbit`.
-- Put reviewer context in the body, not the subject. For example, use
-  `docs(skills): clarify reference routing` with a body explaining that it
-  addresses CodeRabbit feedback.
+Read `references/commit-guidance.md` for Conventional Commit message rules.
 
 ## Quality Checks
 
@@ -96,14 +65,9 @@ Use standard git history commands to understand intent before committing. Prefer
 
 ## Key Principles
 
-- Always use clear English for commit messages and keep wording compatible with repository spell-check rules.
 - **Never push to main branch directly** - create a PR instead
-- When in doubt, prefer smaller commits (can squash later, can't easily split)
-- On PR branches, stack small revertable commits instead of amending away review history unless explicitly asked
-- Prefer many tiny commits over a tidy-looking but broad commit; squash merge will clean PR history later
 - Match project's established scope naming and conventions
 - Include issue/PR references when applicable
-- Each commit must pass: "If I revert this, will it break other features?"
 - If the commit is just for applying formatter use `chore(xxx): format` or just `chore: format`
 
 ## Push (if push=true)

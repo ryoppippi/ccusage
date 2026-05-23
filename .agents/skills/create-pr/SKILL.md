@@ -17,7 +17,7 @@ Use this skill when the user asks to create or open a PR, push changes for revie
 
 3. Request and handle AI review.
    Read `references/ai-review.md`.
-   Read `references/gh-review-commands.md` when you need concrete `gh` commands.
+   Read `references/gh-review.md` when you need concrete `gh` commands.
 
 4. Monitor and fix CI.
    Read `references/ci.md`.

@@ -25,7 +25,7 @@ Use this when a PR check fails or the user asks to fix CI. This skill is repo-lo
    gh run view <run-id> --json jobs
    ```
 
-4. Fix the smallest cause that explains the failed check. Use the relevant repo skill for the area being changed, such as `ccusage-testing`, `ccusage-development`, or `ccusage-docs`.
+4. Fix the smallest cause that explains the failed check. Use the relevant repo skill or nearest package guidance for the area being changed, such as `testing`, `development`, or `docs/AGENTS.md`.
 
 5. Validate locally with the narrowest command that reproduces the failure, then run the relevant broader checks. Let git hooks run normally.
 

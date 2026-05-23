@@ -13,7 +13,7 @@ Use this skill when creating or updating repo-local skills under `.agents/skills
 2. Create or update `.agents/skills/<skill-name>/SKILL.md` with YAML frontmatter and concise Markdown instructions.
 3. Keep `SKILL.md` focused on core workflow and navigation. Move detailed examples, APIs, or long checklists into `references/` files linked directly from `SKILL.md`.
 4. Add scripts under `scripts/` only for deterministic or repeated operations that are better executed than rewritten.
-5. Update the root `CLAUDE.md` Skill Routing list when adding a repo-local skill that agents should discover before work.
+5. Update the root `AGENTS.md` Skill Routing list when adding a repo-local skill that agents should discover before work.
 6. Let the Nix dev shell refresh generated local agent skill targets through its shell hook.
 7. Run `pnpm run format` after edits and use the normal repo validation level for the change.
 
@@ -98,3 +98,7 @@ Use reference files when details are conditional:
 ```
 
 Link reference files directly from `SKILL.md` and say when to read each one. Avoid nested reference chains because agents may only preview intermediate files.
+
+Split references by when they are read, not just by heading. If several details
+will almost always be needed together, keep them in one reference file instead
+of forcing agents to open multiple small files.
