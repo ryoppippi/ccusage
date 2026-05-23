@@ -1,0 +1,258 @@
+use std::collections::BTreeMap;
+
+use serde_json::{json, Value};
+
+use crate::{
+    cli::{AgentReportKind, CodexSpeed, SharedArgs},
+    color, format_currency, format_models_multiline, format_number, json_float, print_box_title,
+    Align, CodexGroup, CodexModelUsage, Color, PricingMap, Result, SimpleTable,
+};
+
+pub(super) fn report_from_groups(
+    groups: &BTreeMap<String, CodexGroup>,
+    kind: AgentReportKind,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> Value {
+    let rows = groups
+        .iter()
+        .map(|(period, group)| group_json(period, group, kind, pricing, speed))
+        .collect::<Vec<_>>();
+    let totals = totals_json(groups.values(), pricing, speed);
+    json!({
+        rows_key(kind): rows,
+        "totals": totals,
+    })
+}
+
+fn rows_key(kind: AgentReportKind) -> &'static str {
+    match kind {
+        AgentReportKind::Daily => "daily",
+        AgentReportKind::Weekly => "weekly",
+        AgentReportKind::Monthly => "monthly",
+        AgentReportKind::Session => "sessions",
+    }
+}
+
+fn period_key(kind: AgentReportKind) -> &'static str {
+    match kind {
+        AgentReportKind::Daily => "date",
+        AgentReportKind::Weekly => "week",
+        AgentReportKind::Monthly => "month",
+        AgentReportKind::Session => "sessionId",
+    }
+}
+
+fn group_json(
+    period: &str,
+    group: &CodexGroup,
+    kind: AgentReportKind,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> Value {
+    let cost = calculate_group_cost(group, pricing, speed);
+    let input_tokens = non_cached_input_tokens(group.input_tokens, group.cached_input_tokens);
+    let models = group
+        .models
+        .iter()
+        .map(|(model, usage)| (model.clone(), model_usage_json(usage)))
+        .collect::<BTreeMap<_, _>>();
+    let mut row = json!({
+        period_key(kind): period,
+        "inputTokens": input_tokens,
+        "cachedInputTokens": group.cached_input_tokens,
+        "outputTokens": group.output_tokens,
+        "reasoningOutputTokens": group.reasoning_output_tokens,
+        "totalTokens": group.total_tokens,
+        "costUSD": json_float(cost),
+        "models": models,
+    });
+    if kind == AgentReportKind::Session {
+        row["lastActivity"] = json!(group.last_activity);
+        let separator = period.rfind('/');
+        row["sessionFile"] = json!(separator.map_or(period, |index| &period[index + 1..]));
+        row["directory"] = json!(separator.map_or("", |index| &period[..index]));
+    }
+    row
+}
+
+pub(crate) fn non_cached_input_tokens(input_tokens: u64, cached_input_tokens: u64) -> u64 {
+    input_tokens.saturating_sub(cached_input_tokens)
+}
+
+fn model_usage_json(usage: &CodexModelUsage) -> Value {
+    json!({
+        "inputTokens": non_cached_input_tokens(usage.input_tokens, usage.cached_input_tokens),
+        "cachedInputTokens": usage.cached_input_tokens,
+        "outputTokens": usage.output_tokens,
+        "reasoningOutputTokens": usage.reasoning_output_tokens,
+        "totalTokens": usage.total_tokens,
+        "isFallback": usage.is_fallback,
+    })
+}
+
+fn totals_json<'a>(
+    groups: impl Iterator<Item = &'a CodexGroup>,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> Value {
+    let mut input = 0;
+    let mut cached = 0;
+    let mut output = 0;
+    let mut reasoning = 0;
+    let mut total = 0;
+    let mut cost = 0.0;
+    for group in groups {
+        input += non_cached_input_tokens(group.input_tokens, group.cached_input_tokens);
+        cached += group.cached_input_tokens;
+        output += group.output_tokens;
+        reasoning += group.reasoning_output_tokens;
+        total += group.total_tokens;
+        cost += calculate_group_cost(group, pricing, speed);
+    }
+    json!({
+        "inputTokens": input,
+        "cachedInputTokens": cached,
+        "outputTokens": output,
+        "reasoningOutputTokens": reasoning,
+        "totalTokens": total,
+        "costUSD": json_float(cost),
+    })
+}
+
+pub(crate) fn calculate_codex_model_cost(
+    model: &str,
+    usage: &CodexModelUsage,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> f64 {
+    let Some(pricing) = pricing.find(model) else {
+        return 0.0;
+    };
+    let non_cached_input = usage.input_tokens.saturating_sub(usage.cached_input_tokens);
+    let multiplier = if matches!(speed, CodexSpeed::Fast) {
+        if pricing.fast_multiplier == 1.0 {
+            2.0
+        } else {
+            pricing.fast_multiplier
+        }
+    } else {
+        1.0
+    };
+    let cache_read = if pricing.cache_read_explicit {
+        pricing.cache_read
+    } else {
+        pricing.input
+    };
+    (non_cached_input as f64 * pricing.input
+        + usage.cached_input_tokens as f64 * cache_read
+        + usage.output_tokens as f64 * pricing.output)
+        * multiplier
+}
+
+pub(crate) fn calculate_group_cost(
+    group: &CodexGroup,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> f64 {
+    group
+        .models
+        .iter()
+        .map(|(model, usage)| calculate_codex_model_cost(model, usage, pricing, speed))
+        .sum()
+}
+
+pub(super) fn print_table_from_groups(
+    groups: &BTreeMap<String, CodexGroup>,
+    kind: AgentReportKind,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+    shared: &SharedArgs,
+) -> Result<()> {
+    if groups.is_empty() {
+        eprintln!("No Codex usage data found.");
+        return Ok(());
+    }
+    let first_column = match kind {
+        AgentReportKind::Daily => "Date",
+        AgentReportKind::Weekly => "Week",
+        AgentReportKind::Monthly => "Month",
+        AgentReportKind::Session => "Session",
+    };
+    print_box_title(
+        &format!(
+            "Codex Token Usage Report - {}",
+            match kind {
+                AgentReportKind::Daily => "Daily",
+                AgentReportKind::Weekly => "Weekly",
+                AgentReportKind::Monthly => "Monthly",
+                AgentReportKind::Session => "Session",
+            }
+        ),
+        shared,
+    );
+    let mut table = SimpleTable::new(
+        vec![
+            first_column,
+            "Models",
+            "Input",
+            "Output",
+            "Reasoning",
+            "Cache Read",
+            "Total Tokens",
+            "Cost (USD)",
+        ],
+        vec![
+            Align::Left,
+            Align::Left,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+        ],
+        shared,
+    )
+    .with_date_compaction(true);
+    let mut total_input = 0;
+    let mut total_cached = 0;
+    let mut total_output = 0;
+    let mut total_reasoning = 0;
+    let mut total_tokens = 0;
+    let mut total_cost = 0.0;
+    for (label, group) in groups {
+        let input_tokens = non_cached_input_tokens(group.input_tokens, group.cached_input_tokens);
+        let cost = calculate_group_cost(group, pricing, speed);
+        total_input += input_tokens;
+        total_cached += group.cached_input_tokens;
+        total_output += group.output_tokens;
+        total_reasoning += group.reasoning_output_tokens;
+        total_tokens += group.total_tokens;
+        total_cost += cost;
+        let models = format_models_multiline(&group.models.keys().cloned().collect::<Vec<_>>());
+        table.push(vec![
+            label.clone(),
+            models,
+            format_number(input_tokens),
+            format_number(group.output_tokens),
+            format_number(group.reasoning_output_tokens),
+            format_number(group.cached_input_tokens),
+            format_number(group.total_tokens),
+            format_currency(cost),
+        ]);
+    }
+    table.separator();
+    table.push(vec![
+        color(shared, "Total", Color::Yellow),
+        String::new(),
+        color(shared, format_number(total_input), Color::Yellow),
+        color(shared, format_number(total_output), Color::Yellow),
+        color(shared, format_number(total_reasoning), Color::Yellow),
+        color(shared, format_number(total_cached), Color::Yellow),
+        color(shared, format_number(total_tokens), Color::Yellow),
+        color(shared, format_currency(total_cost), Color::Yellow),
+    ]);
+    table.print()?;
+    Ok(())
+}
