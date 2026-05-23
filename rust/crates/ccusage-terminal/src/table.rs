@@ -139,15 +139,12 @@ impl SimpleTable {
             })
             .collect::<Vec<_>>();
         let total_required = cli_table_required_width(&widths);
-        let first_column_min = if self.compact_dates { 12 } else { 10 };
-        let mut widths =
-            fit_widths_to_terminal(widths, &self.aligns, self.terminal_width, first_column_min);
-        if self.compact_dates && total_required > self.terminal_width {
-            if let Some(width) = widths.first_mut() {
-                *width = (*width).max(10);
-            }
-        }
-        widths
+        let first_column_min = if self.compact_dates && total_required <= self.terminal_width {
+            12
+        } else {
+            10
+        };
+        fit_widths_to_terminal(widths, &self.aligns, self.terminal_width, first_column_min)
     }
 
     fn compact_date_row(&self, row: &[String], widths: &[usize]) -> Vec<String> {
