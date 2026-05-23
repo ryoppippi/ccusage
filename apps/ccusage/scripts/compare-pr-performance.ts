@@ -497,7 +497,7 @@ function timeCommandArgs(command: BenchmarkCommand): string[] | undefined {
 async function measureCommandPeakRssBytes(
 	command: BenchmarkCommand,
 	label: string,
-): Promise<number> {
+): Promise<number | undefined> {
 	const args = timeCommandArgs(command);
 	if (args == null) {
 		throw new Error(`Peak RSS measurement is not supported on ${platform}`);
@@ -513,9 +513,16 @@ async function measureCommandPeakRssBytes(
 	const exitCode = await child.exited;
 	const stderr = await new Response(child.stderr).text();
 	if (exitCode !== 0) {
-		throw new Error(`${label} peak RSS measurement failed: ${stderr}`);
+		await writeProgress(`${label} peak RSS skipped after exit ${exitCode}: ${stderr}`);
+		return undefined;
 	}
-	return parsePeakRssBytes(stderr);
+	try {
+		return parsePeakRssBytes(stderr);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		await writeProgress(`${label} peak RSS skipped: ${message}`);
+		return undefined;
+	}
 }
 
 async function measureCommandMemory(
@@ -530,7 +537,13 @@ async function measureCommandMemory(
 	}
 	const samples: number[] = [];
 	for (let index = 0; index < options.runs; index++) {
-		samples.push(await measureCommandPeakRssBytes(command, options.label));
+		const sample = await measureCommandPeakRssBytes(command, options.label);
+		if (sample != null) {
+			samples.push(sample);
+		}
+	}
+	if (samples.length === 0) {
+		return undefined;
 	}
 	const sorted = [...samples].sort((a, b) => a - b);
 	return {
