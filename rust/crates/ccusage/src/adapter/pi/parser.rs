@@ -1,158 +1,12 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    env, fs,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fs, path::Path, sync::Arc};
 
 use jiff::tz::TimeZone as JiffTimeZone;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::{
-    apply_total_token_fallback, cli::AgentCommandArgs, cli::AgentReportKind, cli::SharedArgs,
-    cli::WeekDay, collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz,
-    json_value_u64, non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table,
-    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, totals_json, wants_json,
-    BucketKind, LoadedEntry, Result, SessionAccumulator, TokenUsageRaw, UsageEntry, UsageMessage,
+    apply_total_token_fallback, format_date_tz, json_value_u64, non_empty_json_string, LoadedEntry,
+    Result, TokenUsageRaw, UsageEntry, UsageMessage,
 };
-
-pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
-    let mut entries = load_entries(&args.shared, args.pi_path.as_deref())?;
-    filter_loaded_entries_by_date(&mut entries, &args.shared);
-    let mut rows = summarize_entries(&entries, args.kind)?;
-    sort_summaries(&mut rows, &args.shared.order, |row| {
-        super::opencode::summary_period(row)
-    });
-    if wants_json(&args.shared) {
-        return print_json_or_jq(
-            report_from_rows(&rows, args.kind),
-            args.shared.jq.as_deref(),
-        );
-    }
-    print_usage_table(
-        "pi-agent Token Usage Report",
-        super::opencode::first_column(args.kind),
-        &rows,
-        &args.shared,
-        false,
-        None,
-    )?;
-    Ok(())
-}
-
-pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
-    let rows_json = rows
-        .iter()
-        .map(|row| super::opencode::agent_summary_json(row, kind, kind == AgentReportKind::Session))
-        .collect::<Vec<_>>();
-    json!({
-        rows_key(kind): rows_json,
-        "totals": if rows.is_empty() { Value::Null } else { totals_json(rows) },
-    })
-}
-
-pub(crate) fn summarize_entries(
-    entries: &[LoadedEntry],
-    kind: AgentReportKind,
-) -> Result<Vec<crate::UsageSummary>> {
-    match kind {
-        AgentReportKind::Daily => summarize_by_key(
-            entries,
-            |entry| entry.date.clone(),
-            |date| (date.to_string(), None),
-        ),
-        AgentReportKind::Monthly => {
-            let daily = summarize_by_key(
-                entries,
-                |entry| entry.date.clone(),
-                |date| (date.to_string(), None),
-            )?;
-            Ok(summarize_summaries_by_bucket(
-                &daily,
-                BucketKind::Monthly,
-                WeekDay::Sunday,
-            ))
-        }
-        AgentReportKind::Session => {
-            let mut groups = BTreeMap::<String, SessionAccumulator>::new();
-            for entry in entries {
-                groups
-                    .entry(entry.session_id.to_string())
-                    .or_default()
-                    .add_entry(entry);
-            }
-            groups
-                .into_values()
-                .map(|group| group.into_summary(None))
-                .collect()
-        }
-        AgentReportKind::Weekly => Ok(Vec::new()),
-    }
-}
-
-fn rows_key(kind: AgentReportKind) -> &'static str {
-    match kind {
-        AgentReportKind::Daily => "daily",
-        AgentReportKind::Weekly => "weekly",
-        AgentReportKind::Monthly => "monthly",
-        AgentReportKind::Session => "sessions",
-    }
-}
-
-pub(crate) fn load_entries(
-    shared: &SharedArgs,
-    custom_path: Option<&str>,
-) -> Result<Vec<LoadedEntry>> {
-    crate::progress::track_usage_load(crate::progress::UsageLoadAgent::Pi, shared.json, || {
-        load_entries_inner(shared, custom_path)
-    })
-}
-
-fn load_entries_inner(shared: &SharedArgs, custom_path: Option<&str>) -> Result<Vec<LoadedEntry>> {
-    let tz = parse_tz(shared.timezone.as_deref());
-    let mut entries = Vec::new();
-    let mut seen = HashSet::new();
-    for path in paths(custom_path)? {
-        let mut files = Vec::new();
-        collect_files_with_extension(&path, "jsonl", &mut files);
-        for file in files {
-            for entry in read_session_file(&file, tz.as_ref())? {
-                let id = entry_id(&entry);
-                if seen.insert(id) {
-                    entries.push(entry);
-                }
-            }
-        }
-    }
-    entries.sort_by_key(|entry| entry.timestamp);
-    Ok(entries)
-}
-
-fn paths(custom_path: Option<&str>) -> Result<Vec<PathBuf>> {
-    if let Some(custom_path) = custom_path.filter(|path| !path.trim().is_empty()) {
-        return Ok(existing_path_list(custom_path));
-    }
-    if let Ok(env_paths) = env::var("PI_AGENT_DIR") {
-        if !env_paths.trim().is_empty() {
-            return Ok(existing_path_list(&env_paths));
-        }
-    }
-
-    let home =
-        crate::home::home_dir().ok_or_else(|| crate::cli_error("home directory is not set"))?;
-    let path = home.join(".pi/agent/sessions");
-    Ok(path.is_dir().then_some(path).into_iter().collect())
-}
-
-fn existing_path_list(raw: &str) -> Vec<PathBuf> {
-    let mut seen = HashSet::new();
-    raw.split(',')
-        .map(str::trim)
-        .filter(|path| !path.is_empty())
-        .map(PathBuf::from)
-        .filter(|path| path.is_dir() && seen.insert(path.clone()))
-        .collect()
-}
 
 pub(crate) fn read_session_file(
     path: &Path,
@@ -274,7 +128,7 @@ fn extract_project(path: &Path) -> String {
     "unknown".to_string()
 }
 
-fn entry_id(entry: &LoadedEntry) -> String {
+pub(super) fn entry_id(entry: &LoadedEntry) -> String {
     [
         "pi",
         entry.project.as_ref(),

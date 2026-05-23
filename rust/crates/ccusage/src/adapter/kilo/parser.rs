@@ -1,0 +1,201 @@
+use std::{path::Path, sync::Arc};
+
+use jiff::tz::TimeZone as JiffTimeZone;
+use serde_json::Value;
+
+use crate::{
+    apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
+    json_value_u64, non_empty_json_string, LoadedEntry, PricingMap, TimestampMs, TokenUsageRaw,
+    UsageEntry, UsageMessage,
+};
+
+pub(super) fn message_value_to_entry(
+    value: &Value,
+    row_id: &str,
+    row_session_id: &str,
+    db_path: &Path,
+    tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+    pricing: &PricingMap,
+) -> Option<LoadedEntry> {
+    if value.get("role").and_then(Value::as_str) != Some("assistant") {
+        return None;
+    }
+    let tokens = value.get("tokens")?;
+    let usage = TokenUsageRaw {
+        input_tokens: json_value_u64(tokens.get("input")),
+        output_tokens: json_value_u64(tokens.get("output")),
+        cache_creation_input_tokens: tokens
+            .get("cache")
+            .map_or(0, |cache| json_value_u64(cache.get("write"))),
+        cache_read_input_tokens: tokens
+            .get("cache")
+            .map_or(0, |cache| json_value_u64(cache.get("read"))),
+        speed: None,
+    };
+    let reasoning_tokens = json_value_u64(tokens.get("reasoning"));
+    let total_tokens = json_value_u64(tokens.get("total"));
+    let (usage, extra_total_tokens) =
+        apply_total_token_fallback(usage, reasoning_tokens, total_tokens);
+    if usage.input_tokens == 0
+        && usage.output_tokens == 0
+        && usage.cache_creation_input_tokens == 0
+        && usage.cache_read_input_tokens == 0
+        && extra_total_tokens == 0
+    {
+        return None;
+    }
+    let model = non_empty_json_string(value.get("modelID"))?;
+    let timestamp = value
+        .get("time")
+        .and_then(|time| time.get("created"))
+        .and_then(Value::as_i64)
+        .and_then(normalize_timestamp)?;
+    let timestamp_text = crate::format_rfc3339_millis(timestamp);
+    let session_id = non_empty_json_string(value.get("session_id"))
+        .unwrap_or_else(|| row_session_id.to_string());
+    let message_id = non_empty_json_string(value.get("id"))
+        .unwrap_or_else(|| format!("{}:{row_id}", db_path.display()));
+    let cost_usd = value.get("cost").and_then(Value::as_f64);
+    let data = UsageEntry {
+        session_id: Some(session_id.clone()),
+        timestamp: timestamp_text,
+        version: None,
+        message: UsageMessage {
+            usage,
+            model: Some(model.clone()),
+            id: Some(message_id),
+        },
+        cost_usd,
+        request_id: None,
+        is_api_error_message: None,
+    };
+    let provider = non_empty_json_string(value.get("providerID"));
+    let cost_data = UsageEntry {
+        message: UsageMessage {
+            usage: TokenUsageRaw {
+                output_tokens: data
+                    .message
+                    .usage
+                    .output_tokens
+                    .saturating_add(extra_total_tokens),
+                ..data.message.usage
+            },
+            ..data.message.clone()
+        },
+        ..data.clone()
+    };
+    let cost = calculate_kilo_cost(&cost_data, provider.as_deref(), mode, pricing);
+    Some(LoadedEntry {
+        date: format_date_tz(timestamp, tz),
+        timestamp,
+        project: Arc::from("kilo"),
+        session_id: Arc::from(session_id),
+        project_path: Arc::from("Kilo"),
+        cost,
+        extra_total_tokens,
+        credits: None,
+        model: Some(model),
+        usage_limit_reset_time: None,
+        message_count: None,
+        data,
+    })
+}
+
+fn normalize_timestamp(value: i64) -> Option<TimestampMs> {
+    if value <= 0 {
+        return None;
+    }
+    let millis = if value < 1_000_000_000_000 {
+        value.checked_mul(1000)?
+    } else {
+        value
+    };
+    Some(TimestampMs::from_millis(millis))
+}
+
+fn calculate_kilo_cost(
+    data: &UsageEntry,
+    provider: Option<&str>,
+    mode: CostMode,
+    pricing: &PricingMap,
+) -> f64 {
+    match mode {
+        CostMode::Display => data.cost_usd.unwrap_or(0.0),
+        CostMode::Auto => data
+            .cost_usd
+            .unwrap_or_else(|| calculate_kilo_cost_from_tokens(data, provider, pricing)),
+        CostMode::Calculate => calculate_kilo_cost_from_tokens(data, provider, pricing),
+    }
+}
+
+fn calculate_kilo_cost_from_tokens(
+    data: &UsageEntry,
+    provider: Option<&str>,
+    pricing: &PricingMap,
+) -> f64 {
+    let Some(model) = data.message.model.as_deref() else {
+        return 0.0;
+    };
+    for candidate in model_candidates(model, provider) {
+        if pricing.find(&candidate).is_some() {
+            return calculate_cost_for_usage(
+                Some(&candidate),
+                data.message.usage,
+                None,
+                CostMode::Calculate,
+                Some(pricing),
+            );
+        }
+    }
+    0.0
+}
+
+fn model_candidates(model: &str, provider: Option<&str>) -> Vec<String> {
+    let mut candidates = vec![model.to_string()];
+    if let Some(provider) = provider
+        .map(normalize_provider)
+        .filter(|provider| provider != "unknown" && provider != "kilo")
+    {
+        candidates.push(format!("{provider}/{model}"));
+    }
+    candidates.sort();
+    candidates.dedup();
+    candidates
+}
+
+fn normalize_provider(provider: &str) -> String {
+    provider.replace('-', "_")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+
+    #[test]
+    fn falls_back_to_total_tokens_when_kilo_parts_are_missing() {
+        let value = serde_json::json!({
+            "id": "msg-1",
+            "role": "assistant",
+            "providerID": "openai",
+            "modelID": "gpt-5",
+            "time": { "created": 1767312000000_i64 },
+            "tokens": { "total": 234 }
+        });
+        let entry = message_value_to_entry(
+            &value,
+            "row-1",
+            "session-a",
+            Path::new("/tmp/kilo.db"),
+            None,
+            CostMode::Auto,
+            &PricingMap::load_embedded(),
+        )
+        .unwrap();
+
+        assert_eq!(entry.data.message.usage.output_tokens, 234);
+        assert_eq!(entry.extra_total_tokens, 0);
+    }
+}

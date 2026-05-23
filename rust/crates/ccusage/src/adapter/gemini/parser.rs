@@ -1,24 +1,14 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env, fs,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
 use jiff::tz::TimeZone as JiffTimeZone;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 
 use crate::{
-    adapter::opencode,
-    apply_total_token_fallback, calculate_cost_for_usage,
-    cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
-    collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz,
-    non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
-    summarize_by_key, summarize_summaries_by_bucket, totals_json, wants_json, BucketKind,
-    LoadedEntry, PricingMap, Result, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
+    apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
+    non_empty_json_string, LoadedEntry, PricingMap, Result, TimestampMs, TokenUsageRaw, UsageEntry,
+    UsageMessage,
 };
 
-const GEMINI_DATA_DIR_ENV: &str = "GEMINI_DATA_DIR";
 const DEFAULT_MODEL: &str = "unknown";
 const PROVIDER_PREFIXES: [&str; 4] = ["google", "gemini", "vertex_ai", "openrouter/google"];
 
@@ -33,8 +23,8 @@ struct GeminiTokens {
 }
 
 #[derive(Debug, Clone)]
-struct GeminiUsageEvent {
-    timestamp: TimestampMs,
+pub(super) struct GeminiUsageEvent {
+    pub(super) timestamp: TimestampMs,
     timestamp_text: String,
     session_id: String,
     model: String,
@@ -46,149 +36,7 @@ struct GeminiUsageEvent {
     message_id: Option<String>,
 }
 
-pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
-    let shared = args.shared;
-    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
-    let mut entries = load_entries(&shared, &pricing)?;
-    filter_loaded_entries_by_date(&mut entries, &shared);
-    let mut rows = summarize_entries(&entries, args.kind)?;
-    sort_summaries(&mut rows, &shared.order, |row| {
-        opencode::summary_period(row)
-    });
-    if wants_json(&shared) {
-        return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
-    }
-    print_usage_table(
-        "Gemini CLI Token Usage Report",
-        opencode::first_column(args.kind),
-        &rows,
-        &shared,
-        false,
-        None,
-    )?;
-    Ok(())
-}
-
-pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
-    let rows_json = rows
-        .iter()
-        .map(|row| opencode::agent_summary_json(row, kind, false))
-        .collect::<Vec<_>>();
-    json!({
-        rows_key(kind): rows_json,
-        "totals": totals_json(rows),
-    })
-}
-
-pub(crate) fn summarize_entries(
-    entries: &[LoadedEntry],
-    kind: AgentReportKind,
-) -> Result<Vec<crate::UsageSummary>> {
-    match kind {
-        AgentReportKind::Daily => summarize_by_key(
-            entries,
-            |entry| entry.date.clone(),
-            |date| (date.to_string(), None),
-        ),
-        AgentReportKind::Monthly => {
-            let daily = summarize_entries(entries, AgentReportKind::Daily)?;
-            Ok(summarize_summaries_by_bucket(
-                &daily,
-                BucketKind::Monthly,
-                WeekDay::Sunday,
-            ))
-        }
-        AgentReportKind::Session => summarize_by_key(
-            entries,
-            |entry| entry.session_id.to_string(),
-            |session_id| (session_id.to_string(), None),
-        )
-        .map(|mut rows| {
-            for row in &mut rows {
-                row.session_id = row.date.take();
-            }
-            rows
-        }),
-        AgentReportKind::Weekly => Ok(Vec::new()),
-    }
-}
-
-fn rows_key(kind: AgentReportKind) -> &'static str {
-    match kind {
-        AgentReportKind::Daily => "daily",
-        AgentReportKind::Weekly => "weekly",
-        AgentReportKind::Monthly => "monthly",
-        AgentReportKind::Session => "sessions",
-    }
-}
-
-pub(crate) fn load_entries(
-    shared: &crate::cli::SharedArgs,
-    pricing: &PricingMap,
-) -> Result<Vec<LoadedEntry>> {
-    crate::progress::track_usage_load(crate::progress::UsageLoadAgent::Gemini, shared.json, || {
-        load_entries_inner(shared, pricing)
-    })
-}
-
-fn load_entries_inner(
-    shared: &crate::cli::SharedArgs,
-    pricing: &PricingMap,
-) -> Result<Vec<LoadedEntry>> {
-    let tz = parse_tz(shared.timezone.as_deref());
-    let mut events = Vec::new();
-    for file in discover_log_files()? {
-        if file.extension().and_then(|extension| extension.to_str()) == Some("jsonl") {
-            events.extend(parse_jsonl_file(&file)?);
-        } else {
-            events.extend(parse_json_file(&file)?);
-        }
-    }
-    events.sort_by_key(|event| event.timestamp);
-    Ok(events
-        .into_iter()
-        .map(|event| event_to_loaded(event, tz.as_ref(), shared.mode, pricing))
-        .collect())
-}
-
-fn paths() -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    let mut seen = HashSet::new();
-    if let Ok(env_paths) = env::var(GEMINI_DATA_DIR_ENV) {
-        for raw in env_paths
-            .split(',')
-            .map(str::trim)
-            .filter(|path| !path.is_empty())
-        {
-            let path = PathBuf::from(raw);
-            if path.is_dir() && seen.insert(path.clone()) {
-                paths.push(path);
-            }
-        }
-        return Ok(paths);
-    }
-
-    if let Some(home) = crate::home::home_dir() {
-        let path = home.join(".gemini").join("tmp");
-        if path.is_dir() && seen.insert(path.clone()) {
-            paths.push(path);
-        }
-    }
-    Ok(paths)
-}
-
-fn discover_log_files() -> Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    for path in paths()? {
-        collect_files_with_extension(&path, "json", &mut files);
-        collect_files_with_extension(&path, "jsonl", &mut files);
-    }
-    files.sort();
-    files.dedup();
-    Ok(files)
-}
-
-fn parse_json_file(path: &Path) -> Result<Vec<GeminiUsageEvent>> {
+pub(super) fn parse_json_file(path: &Path) -> Result<Vec<GeminiUsageEvent>> {
     let fallback_timestamp = file_modified_timestamp(path);
     let content = fs::read_to_string(path)?;
     let Ok(value) = serde_json::from_str::<Value>(&content) else {
@@ -234,7 +82,7 @@ fn parse_json_file(path: &Path) -> Result<Vec<GeminiUsageEvent>> {
     ))
 }
 
-fn parse_jsonl_file(path: &Path) -> Result<Vec<GeminiUsageEvent>> {
+pub(super) fn parse_jsonl_file(path: &Path) -> Result<Vec<GeminiUsageEvent>> {
     let fallback_timestamp = file_modified_timestamp(path);
     let mut session_id = path
         .file_stem()
@@ -484,7 +332,7 @@ fn file_modified_timestamp(path: &Path) -> TimestampMs {
         .unwrap_or(TimestampMs::UNIX_EPOCH)
 }
 
-fn event_to_loaded(
+pub(super) fn event_to_loaded(
     event: GeminiUsageEvent,
     tz: Option<&JiffTimeZone>,
     mode: CostMode,
@@ -573,79 +421,7 @@ fn model_candidates(model: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs, path::PathBuf, sync::Mutex};
-
     use super::*;
-
-    static GEMINI_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
-
-    fn temp_gemini_dir(name: &str) -> PathBuf {
-        let mut path = env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("ccusage-gemini-{name}-{nanos}"));
-        path
-    }
-
-    #[test]
-    fn discovers_json_and_jsonl_logs() {
-        let _guard = GEMINI_DATA_DIR_LOCK.lock().unwrap();
-        let gemini_dir = temp_gemini_dir("discover");
-        fs::create_dir_all(gemini_dir.join("chats")).unwrap();
-        fs::write(gemini_dir.join("chats/a.json"), "{}").unwrap();
-        fs::write(gemini_dir.join("chats/b.jsonl"), "{}\n").unwrap();
-        fs::write(gemini_dir.join("chats/ignore.txt"), "no").unwrap();
-        env::set_var(GEMINI_DATA_DIR_ENV, &gemini_dir);
-        let files = discover_log_files().unwrap();
-        env::remove_var(GEMINI_DATA_DIR_ENV);
-        fs::remove_dir_all(&gemini_dir).unwrap();
-
-        assert_eq!(
-            files,
-            vec![
-                gemini_dir.join("chats/a.json"),
-                gemini_dir.join("chats/b.jsonl")
-            ]
-        );
-    }
-
-    #[test]
-    fn loads_jsonl_token_events_and_separates_cached_input() {
-        let _guard = GEMINI_DATA_DIR_LOCK.lock().unwrap();
-        let gemini_dir = temp_gemini_dir("jsonl");
-        fs::create_dir_all(gemini_dir.join("project/chats")).unwrap();
-        fs::write(
-            gemini_dir.join("project/chats/session-a.jsonl"),
-            [
-                r#"{"sessionId":"session-a","projectHash":"project-a","startTime":"2026-05-17T11:07:00.000Z"}"#,
-                r#"{"id":"msg-a","timestamp":"2026-05-17T11:07:32.000Z","type":"gemini","model":"gemini-3-flash-preview","tokens":{"input":15327,"output":23,"cached":11526,"thoughts":919,"tool":7,"total":16276}}"#,
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-        env::set_var(GEMINI_DATA_DIR_ENV, &gemini_dir);
-        let shared = crate::cli::SharedArgs {
-            timezone: Some("UTC".to_string()),
-            ..crate::cli::SharedArgs::default()
-        };
-        let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
-        env::remove_var(GEMINI_DATA_DIR_ENV);
-        fs::remove_dir_all(&gemini_dir).unwrap();
-
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].date, "2026-05-17");
-        assert_eq!(entries[0].session_id.as_ref(), "session-a");
-        assert_eq!(entries[0].model.as_deref(), Some("gemini-3-flash-preview"));
-        assert_eq!(entries[0].data.message.usage.input_tokens, 3_808);
-        assert_eq!(entries[0].data.message.usage.output_tokens, 23);
-        assert_eq!(
-            entries[0].data.message.usage.cache_read_input_tokens,
-            11_526
-        );
-        assert_eq!(entries[0].extra_total_tokens, 919);
-    }
 
     #[test]
     fn falls_back_to_total_tokens_when_gemini_parts_are_missing() {

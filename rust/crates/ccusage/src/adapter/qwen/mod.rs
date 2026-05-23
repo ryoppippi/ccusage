@@ -1,14 +1,16 @@
+mod loader;
 mod parser;
 mod paths;
-
-use serde_json::{json, Value};
+mod report;
 
 use crate::{
-    cli::{AgentCommandArgs, AgentReportKind, SharedArgs, WeekDay},
-    filter_loaded_entries_by_date, print_json_or_jq, print_usage_table, sort_summaries,
-    summarize_by_key, summarize_summaries_by_bucket, totals_json, wants_json, BucketKind,
-    LoadedEntry, Result, SessionAccumulator,
+    cli::{AgentCommandArgs, AgentReportKind, SharedArgs},
+    filter_loaded_entries_by_date, print_json_or_jq, print_usage_table, sort_summaries, wants_json,
+    Result,
 };
+
+pub(crate) use loader::load_entries;
+pub(crate) use report::{report_from_rows, summarize_entries};
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let mut entries = load_entries(&args.shared)?;
@@ -39,67 +41,6 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         None,
     )?;
     Ok(())
-}
-
-pub(crate) fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
-    crate::progress::track_usage_load(crate::progress::UsageLoadAgent::Qwen, shared.json, || {
-        parser::load_entries(shared)
-    })
-}
-
-pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
-    let rows_json = rows
-        .iter()
-        .map(|row| super::opencode::agent_summary_json(row, kind, kind == AgentReportKind::Session))
-        .collect::<Vec<_>>();
-    json!({
-        rows_key(kind): rows_json,
-        "totals": if rows.is_empty() { Value::Null } else { totals_json(rows) },
-    })
-}
-
-pub(crate) fn summarize_entries(
-    entries: &[LoadedEntry],
-    kind: AgentReportKind,
-) -> Result<Vec<crate::UsageSummary>> {
-    match kind {
-        AgentReportKind::Daily => summarize_by_key(
-            entries,
-            |entry| entry.date.clone(),
-            |date| (date.to_string(), None),
-        ),
-        AgentReportKind::Monthly => {
-            let daily = summarize_entries(entries, AgentReportKind::Daily)?;
-            Ok(summarize_summaries_by_bucket(
-                &daily,
-                BucketKind::Monthly,
-                WeekDay::Sunday,
-            ))
-        }
-        AgentReportKind::Session => {
-            let mut groups = std::collections::BTreeMap::<String, SessionAccumulator>::new();
-            for entry in entries {
-                groups
-                    .entry(entry.session_id.to_string())
-                    .or_default()
-                    .add_entry(entry);
-            }
-            groups
-                .into_values()
-                .map(|group| group.into_summary(None))
-                .collect()
-        }
-        AgentReportKind::Weekly => Ok(Vec::new()),
-    }
-}
-
-fn rows_key(kind: AgentReportKind) -> &'static str {
-    match kind {
-        AgentReportKind::Daily => "daily",
-        AgentReportKind::Weekly => "weekly",
-        AgentReportKind::Monthly => "monthly",
-        AgentReportKind::Session => "sessions",
-    }
 }
 
 fn filter_session_summaries(rows: &mut Vec<crate::UsageSummary>, shared: &SharedArgs) {
