@@ -3,7 +3,6 @@ use std::{fmt, io};
 mod adapter;
 mod blocks;
 mod cli;
-mod codex_loader;
 mod commands;
 mod config;
 mod config_schema;
@@ -28,7 +27,6 @@ pub(crate) use blocks::{
     block_json, calculate_burn_rate, filter_blocks_by_date, format_remaining_time,
     identify_session_blocks, print_active_block_detail, print_blocks_table, sort_blocks,
 };
-pub(crate) use codex_loader::{codex_usage_paths, load_codex_events, visit_codex_session_file};
 pub(crate) use cost::{calculate_cost, calculate_cost_for_usage};
 pub(crate) use date_utils::*;
 pub(crate) use logger::{debug_log, log_level};
@@ -600,7 +598,7 @@ mod tests {
         )
         .unwrap();
 
-        let events = codex_loader::load_codex_events_from_directory(&sessions_dir, true).unwrap();
+        let events = adapter::codex::load_codex_events_from_directory(&sessions_dir, true).unwrap();
         fs::remove_dir_all(&codex_dir).unwrap();
 
         assert_eq!(events.len(), 1);
@@ -638,9 +636,9 @@ mod tests {
         .unwrap();
 
         let single_thread_events =
-            codex_loader::load_codex_events_from_directory(&sessions_dir, true).unwrap();
+            adapter::codex::load_codex_events_from_directory(&sessions_dir, true).unwrap();
         let parallel_events =
-            codex_loader::load_codex_events_from_directory(&sessions_dir, false).unwrap();
+            adapter::codex::load_codex_events_from_directory(&sessions_dir, false).unwrap();
         fs::remove_dir_all(&codex_dir).unwrap();
 
         assert_eq!(parallel_events.len(), 2);

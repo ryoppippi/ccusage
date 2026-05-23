@@ -321,7 +321,7 @@ fn load_codex_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut events = crate::load_codex_events(shared)?;
+    let mut events = codex::load_codex_events(shared)?;
     let detected = !events.is_empty();
     codex::filter_events_by_date(&mut events, shared)?;
     let groups = codex::aggregate_events(&events, kind, shared.timezone.as_deref())?;
