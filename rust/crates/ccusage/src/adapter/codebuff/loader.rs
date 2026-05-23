@@ -92,6 +92,25 @@ mod tests {
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+    struct EnvDirGuard {
+        key: &'static str,
+        dir: PathBuf,
+    }
+
+    impl EnvDirGuard {
+        fn set(key: &'static str, dir: PathBuf) -> Self {
+            env::set_var(key, &dir);
+            Self { key, dir }
+        }
+    }
+
+    impl Drop for EnvDirGuard {
+        fn drop(&mut self) {
+            env::remove_var(self.key);
+            let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+
     fn temp_dir(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -114,7 +133,7 @@ mod tests {
             ]"#,
         )
         .unwrap();
-        env::set_var(CODEBUFF_DATA_DIR_ENV, &dir);
+        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, dir.clone());
 
         let pricing = PricingMap::load_embedded();
         let shared = SharedArgs {
@@ -122,8 +141,6 @@ mod tests {
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, &pricing).unwrap();
-        env::remove_var(CODEBUFF_DATA_DIR_ENV);
-        fs::remove_dir_all(&dir).unwrap();
 
         let channel = dir.file_name().unwrap().to_str().unwrap();
         assert_eq!(entries.len(), 1);
@@ -158,12 +175,10 @@ mod tests {
             ]"#,
         )
         .unwrap();
-        env::set_var(CODEBUFF_DATA_DIR_ENV, &dir);
+        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, dir);
 
         let pricing = PricingMap::load_embedded();
         let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();
-        env::remove_var(CODEBUFF_DATA_DIR_ENV);
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(

@@ -49,10 +49,31 @@ mod tests {
     use std::{
         env, fs,
         path::{Path, PathBuf},
+        sync::Mutex,
         time::{SystemTime, UNIX_EPOCH},
     };
 
     use super::*;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvDirGuard {
+        dir: PathBuf,
+    }
+
+    impl EnvDirGuard {
+        fn set(dir: PathBuf) -> Self {
+            env::set_var(GOOSE_PATH_ROOT_ENV, &dir);
+            Self { dir }
+        }
+    }
+
+    impl Drop for EnvDirGuard {
+        fn drop(&mut self) {
+            env::remove_var(GOOSE_PATH_ROOT_ENV);
+            let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
 
     fn temp_dir(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -64,16 +85,15 @@ mod tests {
 
     #[test]
     fn discovers_goose_path_root_database() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let dir = temp_dir("path-root");
         let db_dir = dir.join("data/sessions");
         fs::create_dir_all(&db_dir).unwrap();
         let db_path = db_dir.join(GOOSE_DB_FILE_NAME);
         fs::write(&db_path, "").unwrap();
-        env::set_var(GOOSE_PATH_ROOT_ENV, &dir);
+        let _cleanup = EnvDirGuard::set(dir);
 
         let paths = goose_db_paths().unwrap();
-        env::remove_var(GOOSE_PATH_ROOT_ENV);
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(paths.len(), 1);
         assert!(paths[0].ends_with(Path::new("data/sessions/sessions.db")));
