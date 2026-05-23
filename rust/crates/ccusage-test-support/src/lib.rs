@@ -23,6 +23,7 @@ impl Fixture {
         self.dir.path()
     }
 
+    #[must_use]
     pub fn path(&self, path: impl AsRef<Path>) -> PathBuf {
         self.dir.path().join(path)
     }
@@ -31,6 +32,7 @@ impl Fixture {
         self.dir.child(path)
     }
 
+    #[must_use]
     pub fn write_file(&self, path: impl AsRef<Path>, contents: impl AsRef<str>) -> PathBuf {
         let child = self.child(path);
         if let Some(parent) = child.path().parent() {
@@ -42,6 +44,7 @@ impl Fixture {
         child.path().to_path_buf()
     }
 
+    #[must_use]
     pub fn create_dir_all(&self, path: impl AsRef<Path>) -> PathBuf {
         let child = self.child(path);
         child
@@ -62,7 +65,7 @@ macro_rules! fs_fixture {
     ({ $($path:literal : $contents:expr),* $(,)? }) => {{
         let fixture = $crate::Fixture::new();
         $(
-            fixture.write_file($path, $contents);
+            let _ = fixture.write_file($path, $contents);
         )*
         fixture
     }};
@@ -89,7 +92,7 @@ mod tests {
     #[test]
     fn creates_incremental_fixture_tree() {
         let fixture = Fixture::new();
-        fixture.write_file("projects/example/session/chat.jsonl", "{}\n");
+        let _ = fixture.write_file("projects/example/session/chat.jsonl", "{}\n");
 
         assert!(fixture
             .path("projects/example/session/chat.jsonl")

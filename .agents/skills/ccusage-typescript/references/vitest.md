@@ -21,13 +21,8 @@ prefer Rust tests through `ccusage-testing`.
 - Skipped local-data smoke tests are acceptable when real user log directories
   catch schema drift, but they must not fail on clean CI machines.
 
-Read the local fs-fixture README before using less common options or APIs:
-
-```text
-node_modules/.pnpm/fs-fixture@2.8.1/node_modules/fs-fixture/README.md
-```
-
-If the exact pnpm store path changes, locate it with:
+Locate and read the local fs-fixture README before using less common options or
+APIs:
 
 ```sh
 fd -a README.md node_modules/.pnpm | rg "fs-fixture"
