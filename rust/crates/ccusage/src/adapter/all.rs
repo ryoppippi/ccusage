@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use crate::{
     adapter::{
-        amp, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
+        amp, claude, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
         opencode, pi, qwen,
     },
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
@@ -300,7 +300,7 @@ fn load_summary_agent_rows(
 }
 
 fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
-    let mut entries = crate::load_entries(shared, None)?;
+    let mut entries = claude::load_entries(shared, None)?;
     let detected = !entries.is_empty();
     let summaries = if kind == AgentReportKind::Session {
         let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
