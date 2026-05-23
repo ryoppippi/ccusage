@@ -11,6 +11,12 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use rustc_hash::FxHasher;
 use serde_json::{json, Value};
 
+mod loader;
+
+pub(crate) use loader::load_codex_events;
+#[cfg(test)]
+pub(crate) use loader::load_codex_events_from_directory;
+
 use crate::{
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
     color,
@@ -113,7 +119,7 @@ fn codex_config_requests_fast_service_tier(content: &str) -> bool {
 }
 
 fn load_groups(shared: &SharedArgs, kind: AgentReportKind) -> Result<BTreeMap<String, CodexGroup>> {
-    let paths = crate::codex_usage_paths()?;
+    let paths = loader::codex_usage_paths()?;
     if paths.len() == 1 && !wants_json(shared) {
         return load_groups_from_directory(&paths[0], shared, kind);
     }
@@ -239,7 +245,7 @@ fn aggregate_file(
     seen: &CodexDedupeShards,
     groups: &mut BTreeMap<String, CodexGroup>,
 ) -> Result<()> {
-    crate::visit_codex_session_file(sessions_dir, file, |event| {
+    loader::visit_codex_session_file(sessions_dir, file, |event| {
         add_event_to_groups(&event, kind, timezone, shared, seen, groups)
     })
 }
@@ -285,7 +291,7 @@ fn aggregate_file_local(
     shared: &SharedArgs,
     aggregation: &mut CodexAggregation,
 ) -> Result<()> {
-    crate::visit_codex_session_file(sessions_dir, file, |event| {
+    loader::visit_codex_session_file(sessions_dir, file, |event| {
         add_event_to_groups_local(&event, kind, timezone, shared, aggregation)
     })
 }
