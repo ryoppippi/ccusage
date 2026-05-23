@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ccusage", "crates/ccusage-terminal"]
+members = ["crates/ccusage", "crates/ccusage-terminal", "crates/ccusage-test-support"]
 resolver = "2"
 
 [profile.release]

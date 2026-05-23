@@ -1,0 +1,8 @@
+[package]
+name = "ccusage-test-support"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+assert_fs = "1"
