@@ -18,7 +18,7 @@ in
       };
       rustToolchain = pkgs.rust-bin.fromRustupToolchainFile (root + /rust-toolchain.toml);
       craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
-      ccusage = import ./../default.nix {
+      ccusage = import ../default.nix {
         inherit
           craneLib
           inputs

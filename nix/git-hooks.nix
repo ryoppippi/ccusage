@@ -131,6 +131,7 @@ in
               name = "treefmt";
               entry = lib.getExe config.treefmt.build.wrapper;
               files = ".*";
+              pass_filenames = true;
               stages = [ "pre-commit" ];
               priority = 10;
             };
