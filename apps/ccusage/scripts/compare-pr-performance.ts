@@ -14,10 +14,17 @@ type CommandMeasurement = {
 	samples: number;
 };
 
+type MemoryMeasurement = {
+	peakRssBytes: number;
+	samples: number;
+};
+
 type CommandResult = {
 	base: CommandMeasurement;
+	baseMemory?: MemoryMeasurement;
 	command: string;
 	head: CommandMeasurement;
+	headMemory?: MemoryMeasurement;
 };
 
 type SizeComparison = {
@@ -52,6 +59,7 @@ type FixtureComparison = SampleOptions & {
 	description: string;
 	fixtureDir: string;
 	fixtureStats: FixtureStats;
+	memoryRuns: number;
 	results: CommandResult[];
 	title: string;
 };
@@ -302,6 +310,30 @@ function formatDataSize(bytes: number): string {
 	return `${(bytes / 1024 / 1024).toFixed(2)} MiB`;
 }
 
+function formatMemorySize(bytes: number): string {
+	if (bytes >= 1024 * 1024 * 1024) {
+		return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
+	}
+	if (bytes >= 1024 * 1024) {
+		return `${(bytes / 1024 / 1024).toFixed(2)} MiB`;
+	}
+	return `${(bytes / 1024).toFixed(2)} KiB`;
+}
+
+function formatOptionalMemory(measurement: MemoryMeasurement | undefined): string {
+	return measurement == null ? '-' : formatMemorySize(measurement.peakRssBytes);
+}
+
+function formatMemoryRatio(
+	baseMemory: MemoryMeasurement | undefined,
+	headMemory: MemoryMeasurement | undefined,
+): string {
+	if (baseMemory == null || headMemory == null || baseMemory.peakRssBytes === 0) {
+		return '-';
+	}
+	return `${(headMemory.peakRssBytes / baseMemory.peakRssBytes).toFixed(2)}x`;
+}
+
 function measurementFromMilliseconds(times: number[]): CommandMeasurement {
 	if (times.length === 0) {
 		throw new Error('Cannot summarize zero measurements');
@@ -432,6 +464,66 @@ function formatSha(sha: string): string {
 function packageUrlSha(packageUrl: string): string {
 	const match = packageUrl.match(/@([0-9a-f]{7,40})(?:$|[/?#])/i);
 	return match == null ? packageUrl : formatSha(match[1]!);
+}
+
+function parsePeakRssBytes(stderr: string): number {
+	const linuxMatch = stderr.match(/Maximum resident set size \(kbytes\):\s*(\d+)/i);
+	if (linuxMatch != null) {
+		return Number(linuxMatch[1]) * 1024;
+	}
+	const darwinMatch = stderr.match(/^\s*(\d+)\s+maximum resident set size$/im);
+	if (darwinMatch != null) {
+		return Number(darwinMatch[1]);
+	}
+	throw new Error('Could not parse peak RSS from time output');
+}
+
+function timeCommandArgs(commandText: string): string[] | undefined {
+	if (platform === 'linux') {
+		return ['/usr/bin/time', '-v', 'sh', '-c', `exec ${commandText} >/dev/null`];
+	}
+	if (platform === 'darwin') {
+		return ['/usr/bin/time', '-l', 'sh', '-c', `exec ${commandText} >/dev/null`];
+	}
+	return undefined;
+}
+
+async function measureCommandPeakRssBytes(commandText: string, label: string): Promise<number> {
+	const args = timeCommandArgs(commandText);
+	if (args == null) {
+		throw new Error(`Peak RSS measurement is not supported on ${platform}`);
+	}
+	const child = Bun.spawn(args, {
+		stderr: 'pipe',
+		stdout: 'ignore',
+	});
+	const exitCode = await child.exited;
+	const stderr = await new Response(child.stderr).text();
+	if (exitCode !== 0) {
+		throw new Error(`${label} peak RSS measurement failed: ${stderr}`);
+	}
+	return parsePeakRssBytes(stderr);
+}
+
+async function measureCommandMemory(
+	commandText: string,
+	options: {
+		label: string;
+		runs: number;
+	},
+): Promise<MemoryMeasurement | undefined> {
+	if (options.runs === 0) {
+		return undefined;
+	}
+	const samples: number[] = [];
+	for (let index = 0; index < options.runs; index++) {
+		samples.push(await measureCommandPeakRssBytes(commandText, options.label));
+	}
+	const sorted = [...samples].sort((a, b) => a - b);
+	return {
+		peakRssBytes: sorted[Math.floor(sorted.length / 2)]!,
+		samples: sorted.length,
+	};
 }
 
 /**
@@ -702,6 +794,7 @@ async function compareCommand(
 		headDir: string;
 		headNativeBinEntry?: string;
 		headRuntime: HeadRuntime;
+		memoryRuns: number;
 		runs: number;
 		warmup: number;
 	},
@@ -764,14 +857,24 @@ async function compareCommand(
 	}
 	const base = measurementFromHyperfine(baseResult);
 	const head = measurementFromHyperfine(headResult);
+	const baseMemory = await measureCommandMemory(baseCommand, {
+		label: `${options.fixtureTitle} / ${command} base`,
+		runs: options.memoryRuns,
+	});
+	const headMemory = await measureCommandMemory(headCommand, {
+		label: `${options.fixtureTitle} / ${command} PR`,
+		runs: options.memoryRuns,
+	});
 	await writeProgress(
 		`${options.fixtureTitle} / ${command} done: base ${formatDuration(base.median)}, PR ${formatDuration(head.median)}`,
 	);
 
 	return {
 		base,
+		baseMemory,
 		command,
 		head,
+		headMemory,
 	};
 }
 
@@ -785,6 +888,7 @@ async function compareBunxCommand(
 		fixtureDir: string;
 		headCacheDir: string;
 		headPackageUrl: string;
+		memoryRuns: number;
 		runs: number;
 		warmup: number;
 	},
@@ -848,14 +952,24 @@ async function compareBunxCommand(
 	}
 	const base = measurementFromHyperfine(baseResult);
 	const head = measurementFromHyperfine(headResult);
+	const baseMemory = await measureCommandMemory(baseCommand, {
+		label: `${options.fixtureTitle} / bunx ${command} base`,
+		runs: options.memoryRuns,
+	});
+	const headMemory = await measureCommandMemory(headCommand, {
+		label: `${options.fixtureTitle} / bunx ${command} PR`,
+		runs: options.memoryRuns,
+	});
 	await writeProgress(
 		`${options.fixtureTitle} / bunx ${command} done: base ${formatDuration(base.median)}, PR ${formatDuration(head.median)}`,
 	);
 
 	return {
 		base,
+		baseMemory,
 		command,
 		head,
+		headMemory,
 	};
 }
 
@@ -878,6 +992,7 @@ async function compareFixture(options: {
 	headDir: string;
 	headNativeBinEntry?: string;
 	headRuntime: HeadRuntime;
+	memoryRuns: number;
 	runs: number;
 	title: string;
 	warmup: number;
@@ -907,6 +1022,7 @@ async function compareFixture(options: {
 		description: options.description,
 		fixtureDir: options.fixtureDir,
 		fixtureStats,
+		memoryRuns: options.memoryRuns,
 		results,
 		runs: options.runs,
 		title: options.title,
@@ -923,6 +1039,7 @@ async function compareBunxFixture(options: {
 	fixtureDir: string;
 	headCacheDir: string;
 	headPackageUrl: string;
+	memoryRuns: number;
 	runs: number;
 	title: string;
 	warmup: number;
@@ -954,6 +1071,7 @@ async function compareBunxFixture(options: {
 		fixtureDir: options.fixtureDir,
 		fixtureStats,
 		headPackageUrl: options.headPackageUrl,
+		memoryRuns: options.memoryRuns,
 		results,
 		runs: options.runs,
 		title: options.title,
@@ -1163,6 +1281,9 @@ export function renderFixtureSection(
 		headRuntimeDescription?: string;
 	},
 ): string[] {
+	const hasMemory = section.results.some(
+		(result) => result.baseMemory != null || result.headMemory != null,
+	);
 	const baseRuntimeDescription =
 		options.baseRuntimeDescription ??
 		'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`';
@@ -1181,17 +1302,42 @@ export function renderFixtureSection(
 			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)})`
 			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)}), Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\` (${formatFixtureStats(section.codexFixtureStats ?? section.fixtureStats)})`,
 		`${runtimeText} Both run \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
+		...(hasMemory
+			? [
+					`Peak RSS is measured separately with \`/usr/bin/time\` using \`${section.memoryRuns}\` runs. Lower RSS ratios are better.`,
+				]
+			: []),
 		'',
-		'| Command | Input | Base median | PR median | PR vs base | Base throughput | PR throughput |',
-		'| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+		hasMemory
+			? '| Command | Input | Base median | PR median | PR vs base | Base peak RSS | PR peak RSS | PR/base RSS | Base throughput | PR throughput |'
+			: '| Command | Input | Base median | PR median | PR vs base | Base throughput | PR throughput |',
+		hasMemory
+			? '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
+			: '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
 	];
 
 	for (const result of section.results) {
 		const speedup = result.base.median / result.head.median;
 		const fixtureStats = fixtureStatsForCommand(section, result.command);
-		lines.push(
-			`| \`${result.command} --offline --json\` | ${formatDataSize(fixtureStats.bytes)} | ${formatDuration(result.base.median)} | ${formatDuration(result.head.median)} | ${speedup.toFixed(2)}x | ${formatThroughput(fixtureStats.bytes, result.base.median)} | ${formatThroughput(fixtureStats.bytes, result.head.median)} |`,
-		);
+		const timeColumns = [
+			`\`${result.command} --offline --json\``,
+			formatDataSize(fixtureStats.bytes),
+			formatDuration(result.base.median),
+			formatDuration(result.head.median),
+			`${speedup.toFixed(2)}x`,
+		];
+		const memoryColumns = hasMemory
+			? [
+					formatOptionalMemory(result.baseMemory),
+					formatOptionalMemory(result.headMemory),
+					formatMemoryRatio(result.baseMemory, result.headMemory),
+				]
+			: [];
+		const throughputColumns = [
+			formatThroughput(fixtureStats.bytes, result.base.median),
+			formatThroughput(fixtureStats.bytes, result.head.median),
+		];
+		lines.push(`| ${[...timeColumns, ...memoryColumns, ...throughputColumns].join(' | ')} |`);
 	}
 
 	return lines;
@@ -1233,6 +1379,9 @@ export function renderBunxFixtureSection(
 		headDir: string;
 	},
 ): string[] {
+	const hasMemory = section.results.some(
+		(result) => result.baseMemory != null || result.headMemory != null,
+	);
 	const lines = [
 		`## ${section.title}`,
 		'',
@@ -1242,17 +1391,42 @@ export function renderBunxFixtureSection(
 			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)})`
 			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)}), Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\` (${formatFixtureStats(section.codexFixtureStats ?? section.fixtureStats)})`,
 		`Base package: \`${packageUrlSha(section.basePackageUrl)}\`; PR package: \`${packageUrlSha(section.headPackageUrl)}\`. Both run through \`bunx -p <pkg.pr.new URL> ccusage\` using the warmed Bun install cache from package runner startup, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
+		...(hasMemory
+			? [
+					`Peak RSS is measured separately with \`/usr/bin/time\` using \`${section.memoryRuns}\` runs. Lower RSS ratios are better.`,
+				]
+			: []),
 		'',
-		'| Command | Input | Base median | PR median | PR vs base | Base throughput | PR throughput |',
-		'| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+		hasMemory
+			? '| Command | Input | Base median | PR median | PR vs base | Base peak RSS | PR peak RSS | PR/base RSS | Base throughput | PR throughput |'
+			: '| Command | Input | Base median | PR median | PR vs base | Base throughput | PR throughput |',
+		hasMemory
+			? '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
+			: '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
 	];
 
 	for (const result of section.results) {
 		const speedup = result.base.median / result.head.median;
 		const fixtureStats = fixtureStatsForCommand(section, result.command);
-		lines.push(
-			`| \`bunx -p <pkg> ccusage ${result.command} --offline --json\` | ${formatDataSize(fixtureStats.bytes)} | ${formatDuration(result.base.median)} | ${formatDuration(result.head.median)} | ${speedup.toFixed(2)}x | ${formatThroughput(fixtureStats.bytes, result.base.median)} | ${formatThroughput(fixtureStats.bytes, result.head.median)} |`,
-		);
+		const timeColumns = [
+			`\`bunx -p <pkg> ccusage ${result.command} --offline --json\``,
+			formatDataSize(fixtureStats.bytes),
+			formatDuration(result.base.median),
+			formatDuration(result.head.median),
+			`${speedup.toFixed(2)}x`,
+		];
+		const memoryColumns = hasMemory
+			? [
+					formatOptionalMemory(result.baseMemory),
+					formatOptionalMemory(result.headMemory),
+					formatMemoryRatio(result.baseMemory, result.headMemory),
+				]
+			: [];
+		const throughputColumns = [
+			formatThroughput(fixtureStats.bytes, result.base.median),
+			formatThroughput(fixtureStats.bytes, result.head.median),
+		];
+		lines.push(`| ${[...timeColumns, ...memoryColumns, ...throughputColumns].join(' | ')} |`);
 	}
 
 	return lines;
@@ -1514,6 +1688,7 @@ if (import.meta.vitest != null) {
 						bytes: 1024 * 1024 * 1024,
 						files: 400,
 					},
+					memoryRuns: 0,
 					results: [
 						{
 							base: { max: 2000, median: 2000, min: 2000, samples: 1 },
@@ -1541,6 +1716,41 @@ if (import.meta.vitest != null) {
 			expect(lines.join('\n')).toContain('1.00 GiB/s');
 		});
 
+		it('renders peak RSS measurements when memory samples are available', () => {
+			const lines = renderFixtureSection(
+				{
+					description: 'Fixture description',
+					fixtureDir: '/fixtures/claude',
+					fixtureStats: {
+						bytes: 1024 * 1024 * 1024,
+						files: 400,
+					},
+					memoryRuns: 1,
+					results: [
+						{
+							base: { max: 2000, median: 2000, min: 2000, samples: 1 },
+							baseMemory: { peakRssBytes: 128 * 1024 * 1024, samples: 1 },
+							command: 'claude',
+							head: { max: 1000, median: 1000, min: 1000, samples: 1 },
+							headMemory: { peakRssBytes: 96 * 1024 * 1024, samples: 1 },
+						},
+					],
+					runs: 1,
+					title: 'Large fixture',
+					warmup: 0,
+				},
+				{ headDir: '/repo', headRuntime: 'rust' },
+			);
+			const markdown = lines.join('\n');
+
+			expect(markdown).toContain('Base peak RSS');
+			expect(markdown).toContain('PR peak RSS');
+			expect(markdown).toContain('PR/base RSS');
+			expect(markdown).toContain(
+				'| `claude --offline --json` | 1.00 GiB | 2.000s | 1.000s | 2.00x | 128.00 MiB | 96.00 MiB | 0.75x |',
+			);
+		});
+
 		it('describes the Rust PR runtime when the head benchmark uses the native binary', () => {
 			const lines = renderFixtureSection(
 				{
@@ -1550,6 +1760,7 @@ if (import.meta.vitest != null) {
 						bytes: 1024,
 						files: 1,
 					},
+					memoryRuns: 0,
 					results: [],
 					runs: 1,
 					title: 'Rust fixture',
@@ -1572,6 +1783,7 @@ if (import.meta.vitest != null) {
 						bytes: 1024,
 						files: 1,
 					},
+					memoryRuns: 0,
 					results: [],
 					runs: 1,
 					title: 'Package fixture',
@@ -1633,6 +1845,7 @@ if (import.meta.vitest != null) {
 						files: 400,
 					},
 					headPackageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@abcdef0123456789',
+					memoryRuns: 0,
 					results: [
 						{
 							base: { max: 2000, median: 2000, min: 2000, samples: 1 },
@@ -1714,6 +1927,7 @@ if (import.meta.vitest != null) {
 				bytes: 1024,
 				files: 1,
 			},
+			memoryRuns: 0,
 			results: [],
 			runs: 1,
 			title: 'Fixture',
@@ -1785,6 +1999,20 @@ if (import.meta.vitest != null) {
 			expect(markdown).toContain(
 				'| installed native package binary | 2.00 KiB | 1.00 KiB | -1.00 KiB | 2.00x |',
 			);
+		});
+	});
+
+	describe('parsePeakRssBytes', () => {
+		it('parses GNU time verbose maximum resident set size as bytes', () => {
+			expect(
+				parsePeakRssBytes(
+					'Command being timed: "ccusage"\nMaximum resident set size (kbytes): 131072\n',
+				),
+			).toBe(128 * 1024 * 1024);
+		});
+
+		it('parses macOS time maximum resident set size as bytes', () => {
+			expect(parsePeakRssBytes('  134217728  maximum resident set size\n')).toBe(128 * 1024 * 1024);
 		});
 	});
 }
@@ -1873,6 +2101,11 @@ const command = define({
 			default: 0,
 			description: 'Explicit warmup runs before each large-fixture command',
 		},
+		memoryRuns: {
+			type: 'number',
+			default: 1,
+			description: 'Peak RSS samples per measured command; use 0 to skip memory measurement',
+		},
 		headPackageUrl: {
 			type: 'string',
 			description: 'PR/head pkg.pr.new ccusage package URL used for package-runner startup timing',
@@ -1892,6 +2125,9 @@ const command = define({
 		assertSampleOptions({ runs: ctx.values.runs, warmup: ctx.values.warmup }, '');
 		assertSampleOptions({ runs: ctx.values.largeRuns, warmup: ctx.values.largeWarmup }, 'large-');
 		assertSampleOptions({ runs: ctx.values.packageRunnerRuns, warmup: 0 }, 'package-runner-');
+		if (!Number.isInteger(ctx.values.memoryRuns) || ctx.values.memoryRuns < 0) {
+			throw new Error('--memory-runs must be a non-negative integer');
+		}
 		if (ctx.values.baseDir == null && ctx.values.basePackageUrl == null) {
 			throw new Error('Either --base-dir or --base-package-url is required');
 		}
@@ -1951,6 +2187,7 @@ const command = define({
 					? undefined
 					: 'PR runs the published `ccusage` package from `pkg.pr.new`, installed before measurement',
 			headSha: gitSha(resolve(ctx.values.headDir)),
+			memoryRuns: ctx.values.memoryRuns,
 			runs: ctx.values.runs,
 			warmup: ctx.values.warmup,
 		};
@@ -2032,6 +2269,7 @@ const command = define({
 							fixtureDir: resolve(ctx.values.largeFixtureDir),
 							headCacheDir: headBunxCacheDir,
 							headPackageUrl: options.headPackageUrl,
+							memoryRuns: options.memoryRuns,
 							runs: ctx.values.largeRuns,
 							title: 'Cached bunx execution performance',
 							warmup: ctx.values.largeWarmup,
