@@ -190,6 +190,8 @@ nix build github:ryoppippi/ccusage
 
 Nix builds embed the LiteLLM pricing file from the locked `litellm` flake input, so sandboxed builds do not fetch pricing at build time. To update the locked pricing snapshot:
 
+Non-Nix Cargo builds read the same locked LiteLLM revision from `flake.lock` and fetch the pricing file from that revision at build time.
+
 ```bash
 nix flake update litellm
 nix flake check

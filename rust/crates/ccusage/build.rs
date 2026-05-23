@@ -3,8 +3,8 @@ use std::{env, fs, path::PathBuf};
 use serde_json::{Map, Value};
 
 const CLI_HELP_JSON: &str = "src/cli-help.json";
-const LITELLM_PRICING_URL: &str =
-    "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+const FLAKE_LOCK_JSON: &str = "../../../flake.lock";
+const LITELLM_PRICING_JSON: &str = "model_prices_and_context_window.json";
 const OUT_PRICING_JSON: &str = "litellm-pricing.json";
 const PRICING_JSON_PATH_ENV: &str = "CCUSAGE_PRICING_JSON_PATH";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
@@ -21,6 +21,7 @@ fn main() {
         println!("cargo:rerun-if-changed={}", path.display());
         fs::read_to_string(path).expect("read pricing snapshot from CCUSAGE_PRICING_JSON_PATH")
     } else {
+        println!("cargo:rerun-if-changed={FLAKE_LOCK_JSON}");
         fetch_pricing_json().expect("fetch LiteLLM pricing for embed")
     };
     let pricing_json = compact_pricing_json(&pricing_json).expect("compact LiteLLM pricing JSON");
@@ -126,7 +127,7 @@ fn rust_string_literal(value: &str) -> String {
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
-    let response = minreq::get(LITELLM_PRICING_URL)
+    let response = minreq::get(litellm_pricing_url()?)
         .with_timeout(PRICING_FETCH_TIMEOUT_SECONDS)
         .send()
         .map_err(|error| std::io::Error::other(error.to_string()))?;
@@ -140,6 +141,36 @@ fn fetch_pricing_json() -> std::io::Result<String> {
         .as_str()
         .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()))?
         .to_string())
+}
+
+fn litellm_pricing_url() -> std::io::Result<String> {
+    let flake_lock = fs::read_to_string(FLAKE_LOCK_JSON)?;
+    let Value::Object(root) = serde_json::from_str::<Value>(&flake_lock)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()))?
+    else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "flake.lock must be a JSON object",
+        ));
+    };
+    let locked = root
+        .get("nodes")
+        .and_then(|nodes| nodes.get("litellm"))
+        .and_then(|litellm| litellm.get("locked"))
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "flake.lock is missing nodes.litellm.locked",
+            )
+        })?;
+    let owner = string_field(locked, "owner");
+    let repo = string_field(locked, "repo");
+    let rev = string_field(locked, "rev");
+
+    Ok(format!(
+        "https://raw.githubusercontent.com/{owner}/{repo}/{rev}/{LITELLM_PRICING_JSON}"
+    ))
 }
 
 fn compact_pricing_json(json: &str) -> Option<String> {

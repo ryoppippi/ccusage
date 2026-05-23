@@ -52,9 +52,16 @@ TypeScript uses build/macro-time pricing snapshots. Rust should not rely on a ma
 
 When changing pricing:
 
-- Prefer a `build.rs` step that fetches LiteLLM `model_prices_and_context_window.json` into `OUT_DIR`.
-- Keep a checked-in fallback snapshot so offline builds and network failures still work.
-- Load the generated build-time snapshot first, then fallback pricing, then runtime fetch when not `--offline`.
+- Use the `litellm` flake input as the canonical pinned pricing revision for
+  embedded pricing.
+- For Nix builds, pass the locked LiteLLM `model_prices_and_context_window.json`
+  to `build.rs` through `CCUSAGE_PRICING_JSON_PATH`.
+- For non-Nix Cargo builds, have `build.rs` read the same `litellm` revision from
+  `flake.lock` and fetch that pinned raw JSON at build time.
+- Do not check generated LiteLLM pricing snapshots into the repository.
+- Keep pricing JSON filtering and compacting in `build.rs` so runtime code loads
+  the generated build-time snapshot first, then built-in model overrides, then
+  runtime fetch when not `--offline`.
 - Add tests for embedded/offline pricing and context limits.
 
 ## Validation
