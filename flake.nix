@@ -48,10 +48,6 @@
             type = "app";
             program = package;
           };
-          update-pricing-fallback = {
-            type = "app";
-            program = nixpkgs.lib.getExe self.packages.${system}.update-pricing-fallback;
-          };
         });
 
       packages = forAllSystems (system: pkgs:
@@ -64,8 +60,7 @@
             filter = path: type:
               (craneLib.filterCargoSources path type)
               || pkgs.lib.hasSuffix "/cli-help.json" path
-              || pkgs.lib.hasSuffix "/fast-multiplier-overrides.json" path
-              || pkgs.lib.hasSuffix "/litellm-pricing-fallback.json" path;
+              || pkgs.lib.hasSuffix "/fast-multiplier-overrides.json" path;
           };
           repoSrc = mkRepoSrc pkgs;
           commonArgs = {
@@ -140,33 +135,9 @@
               });
             }
           );
-          update-pricing-fallback = pkgs.writeShellApplication {
-            name = "update-pricing-fallback";
-            runtimeInputs = with pkgs; [ coreutils git jq oxfmt ];
-            text = ''
-              repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-              target="$repo_root/rust/crates/ccusage/src/litellm-pricing-fallback.json"
-              if [ ! -f "$target" ]; then
-                echo "fallback pricing file not found: $target" >&2
-                exit 1
-              fi
-              tmp="$(mktemp "$repo_root/rust/crates/ccusage/src/litellm-pricing-fallback.XXXXXX.json")"
-              jq --tab -f ${./nix/pricing-fallback.jq} ${litellm-pricing} > "$tmp"
-              oxfmt --config ${./.oxfmtrc.json} --write "$tmp"
-              mv "$tmp" "$target"
-            '';
-          };
-          pricing-fallback-sync = pkgs.runCommand "pricing-fallback-sync" {
-            nativeBuildInputs = with pkgs; [ diffutils jq oxfmt ];
-          } ''
-            jq --tab -f ${./nix/pricing-fallback.jq} ${litellm-pricing} > generated.json
-            oxfmt --config ${./.oxfmtrc.json} --write generated.json
-            diff -u ${./rust/crates/ccusage/src/litellm-pricing-fallback.json} generated.json
-            touch $out
-          '';
         in {
           default = ccusage;
-          inherit ccusage ccusage-clippy ccusage-fmt pricing-fallback-sync update-pricing-fallback;
+          inherit ccusage ccusage-clippy ccusage-fmt;
         } // staticCcusage);
 
       checks = forAllSystems (system: pkgs:
@@ -187,7 +158,6 @@
           inherit (self.packages.${system}) ccusage;
           inherit (self.packages.${system}) ccusage-clippy;
           inherit (self.packages.${system}) ccusage-fmt;
-          inherit (self.packages.${system}) pricing-fallback-sync;
           oxfmt = mkRepoCheck "oxfmt-check" [ pkgs.oxfmt ] ''
             oxfmt --check .
           '';
