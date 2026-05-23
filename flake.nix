@@ -210,10 +210,12 @@
           buildInputs = with pkgs; [
             # Package manager
             pnpm_11
+            bun
 
             # Development tools
             rustToolchain
             cargo-edit
+            cargo-insta
             pkg-config
             openssl
             typos
