@@ -18,7 +18,6 @@ jobs:
       - name: Update LiteLLM pricing input
         run: |
           nix flake update litellm
-          nix run .#update-pricing-fallback
           nix flake check
       - name: Create pull request
         env:
@@ -34,12 +33,12 @@ jobs:
 
           branch="automation/litellm-pricing"
           git checkout -B "$branch"
-          git add flake.lock rust/crates/ccusage/src/litellm-pricing-fallback.json
+          git add flake.lock
           git commit -m "chore(pricing): update LiteLLM snapshot"
           git push --force-with-lease origin "$branch"
 
           body="$(printf '%s\n' \
-            'Updates the locked LiteLLM pricing input and refreshes the non-Nix Cargo fallback pricing JSON.' \
+            'Updates the locked LiteLLM pricing input used by Nix builds.' \
             '' \
             'Validation:' \
             '- nix flake check')"

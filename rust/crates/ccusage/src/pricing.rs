@@ -7,7 +7,6 @@ use crate::fast::FxHashMap;
 const BUILD_TIME_PRICING_JSON: &str =
     include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
 const FAST_MULTIPLIER_OVERRIDES_JSON: &str = include_str!("fast-multiplier-overrides.json");
-const FALLBACK_PRICING_JSON: &str = include_str!("litellm-pricing-fallback.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
@@ -84,8 +83,7 @@ impl PricingMap {
         let mut map = Self::default();
         let fast_multiplier_overrides = FastMultiplierOverrides::load();
         map.load_json_with_overrides(BUILD_TIME_PRICING_JSON, &fast_multiplier_overrides);
-        map.load_json_with_overrides(FALLBACK_PRICING_JSON, &fast_multiplier_overrides);
-        map.put_fallback_pricing(&fast_multiplier_overrides);
+        map.put_builtin_pricing(&fast_multiplier_overrides);
         map
     }
 
@@ -205,7 +203,7 @@ impl PricingMap {
         self.entries.len()
     }
 
-    fn put_fallback_pricing(&mut self, fast_multiplier_overrides: &FastMultiplierOverrides) {
+    fn put_builtin_pricing(&mut self, fast_multiplier_overrides: &FastMultiplierOverrides) {
         self.entries.insert(
             "claude-opus-4-5".to_string(),
             Pricing {
@@ -571,7 +569,7 @@ fn fetch_pricing_json() -> std::io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Pricing, PricingMap, BUILD_TIME_PRICING_JSON, FALLBACK_PRICING_JSON};
+    use super::{Pricing, PricingMap, BUILD_TIME_PRICING_JSON};
 
     #[test]
     fn loads_embedded_claude_pricing() {
@@ -803,9 +801,7 @@ mod tests {
     #[test]
     fn embedded_build_time_pricing_is_compact() {
         assert!(BUILD_TIME_PRICING_JSON.len() < 200_000);
-        assert!(FALLBACK_PRICING_JSON.len() < 100_000);
         assert!(!BUILD_TIME_PRICING_JSON.contains("\"source\""));
-        assert!(!FALLBACK_PRICING_JSON.contains("\"source\""));
         assert!(!BUILD_TIME_PRICING_JSON.contains("vertex_ai/"));
         assert!(BUILD_TIME_PRICING_JSON.contains("claude-sonnet-4-20250514"));
     }
