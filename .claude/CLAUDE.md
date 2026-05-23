@@ -2,8 +2,4 @@
 
 `.claude/skills` is generated from `.agents/skills` by the Nix development environment.
 
-Edit skills under `.agents/skills`, then enter the Nix dev shell with nix-direnv or run:
-
-```sh
-nix run .#sync-agent-skills
-```
+See `nix/agent-skills.nix` for the local-only agent-skills-nix wiring. Skill sync is handled by the Nix dev-shell hook, not by git hooks.

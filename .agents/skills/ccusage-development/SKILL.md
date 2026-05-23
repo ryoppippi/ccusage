@@ -69,13 +69,13 @@ Tools are managed by `flake.nix` and `package.json`. Use `comma` or `nix run` fo
 
 ## Post-Change Workflow
 
-After code changes, run formatting first because it mutates files:
+After code changes, run formatting first when formatting may apply because it mutates files:
 
 ```sh
 pnpm run format
 ```
 
-Then run typecheck and tests. These may run in parallel if desired:
+Git hooks and CI cover the standard validation path. Run typecheck and tests manually when the change touches behavior, types, package code, or when hooks/CI do not cover the edited files:
 
 ```sh
 pnpm typecheck

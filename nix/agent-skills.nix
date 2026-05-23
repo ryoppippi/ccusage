@@ -31,7 +31,7 @@
       localTargets = {
         claude = agentLib.defaultLocalTargets.claude // {
           enable = true;
-          structure = "copy-tree";
+          structure = "link";
         };
       };
       installLocal = agentLib.mkLocalInstallScript {
@@ -42,6 +42,13 @@
         name = "sync-agent-skills";
         runtimeInputs = [ installLocal ];
         text = ''
+          root="''${AGENT_SKILLS_ROOT:-$PWD}"
+          target="$root/.claude/skills"
+          if [ -d "$target" ] && [ ! -L "$target" ]; then
+            echo "$target already exists as a directory." >&2
+            echo "Remove it before syncing Nix-managed agent skills." >&2
+            exit 1
+          fi
           exec skills-install-local "$@"
         '';
       };
