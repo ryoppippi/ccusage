@@ -5,9 +5,11 @@ description: Guides ccusage Rust and Vitest tests. Use when adding or fixing car
 
 # ccusage Testing
 
-Use the `tdd` skill for logic changes and general test readability rules,
-including the guidance to avoid over-DRYing tests when duplication improves
-clarity. This skill routes ccusage-specific Rust and Vitest test rules.
+Use the `tdd` skill for logic changes, Red-Green-Refactor workflow, focused
+runner commands, Rust test syntax, and general test readability rules. This
+skill owns ccusage-specific Rust and Vitest test rules: fixtures, adapter
+coverage, pricing/model behavior, CLI output, schema artifacts, and package
+tooling.
 
 ## Shared Rules
 
@@ -25,14 +27,6 @@ clarity. This skill routes ccusage-specific Rust and Vitest test rules.
 
 ## Rust Tests
 
-Use `direnv exec .` when the current shell does not already expose the Rust toolchain:
-
-```sh
-direnv exec . cargo test --manifest-path rust/Cargo.toml --workspace
-direnv exec . cargo test --manifest-path rust/Cargo.toml --workspace <test_name>
-direnv exec . cargo test --manifest-path rust/Cargo.toml --workspace -- --ignored
-```
-
 For repo-wide validation, prefer the package script because it runs Vitest and Rust tests together:
 
 ```sh
@@ -45,8 +39,8 @@ unrelated tests in `main.rs`.
 
 Read `references/rust.md` for fixture-backed parser, path discovery, SQLite
 loading, dedupe, aggregation, pricing, CLI output parity, model, and readability
-rules. For focused cargo commands and Rust syntax examples, read
-`../tdd/references/rust.md`.
+rules. For focused cargo commands, Red-Green-Refactor examples, Rust test
+attributes, and syntax examples, read `../tdd/references/rust.md`.
 
 ## Vitest Tests
 
