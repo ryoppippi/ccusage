@@ -101,7 +101,12 @@ jobs:
             cargo-${{ runner.os }}-${{ runner.arch }}-
       - name: Build Linux static binary
         if: matrix.platform == 'linux'
-        run: nix build .#ccusage-static
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            NIX_CONFIG="access-tokens =" nix build .#ccusage-static
+          else
+            nix build .#ccusage-static
+          fi
       - name: Verify Linux binary is static
         if: matrix.platform == 'linux'
         shell: bash
