@@ -139,9 +139,7 @@ impl SimpleTable {
             })
             .collect::<Vec<_>>();
         let total_required = cli_table_required_width(&widths);
-        let first_column_min = if self.compact_dates && total_required > self.terminal_width {
-            10
-        } else if self.compact_dates {
+        let first_column_min = if self.compact_dates && total_required <= self.terminal_width {
             12
         } else {
             10
