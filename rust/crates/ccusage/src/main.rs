@@ -2,7 +2,6 @@ use std::{fmt, io};
 
 mod adapter;
 mod blocks;
-mod claude_loader;
 mod cli;
 mod codex_loader;
 mod commands;
@@ -21,13 +20,13 @@ mod summary;
 mod types;
 mod utils;
 
+pub(crate) use adapter::claude::{
+    chunk_file_indexes_by_size, collect_files_with_extension, collect_usage_files,
+    filter_loaded_entries_by_date, load_daily_summaries, load_entries,
+};
 pub(crate) use blocks::{
     block_json, calculate_burn_rate, filter_blocks_by_date, format_remaining_time,
     identify_session_blocks, print_active_block_detail, print_blocks_table, sort_blocks,
-};
-pub(crate) use claude_loader::{
-    chunk_file_indexes_by_size, collect_files_with_extension, collect_usage_files,
-    filter_loaded_entries_by_date, load_daily_summaries, load_entries,
 };
 pub(crate) use codex_loader::{codex_usage_paths, load_codex_events, visit_codex_session_file};
 pub(crate) use cost::{calculate_cost, calculate_cost_for_usage};
@@ -272,7 +271,7 @@ mod tests {
         fs::write(&subagent_file, "").unwrap();
         fs::write(&parent_file, "").unwrap();
 
-        let files = claude_loader::usage_files(&[dir.clone()], None);
+        let files = adapter::claude::usage_files(&[dir.clone()], None);
         fs::remove_dir_all(dir).unwrap();
 
         assert_eq!(files, vec![parent_file, subagent_file]);
@@ -303,16 +302,16 @@ mod tests {
 
     #[test]
     fn extracts_compact_jsonl_timestamp() {
-        let timestamp = claude_loader::timestamp_from_line(
+        let timestamp = adapter::claude::timestamp_from_line(
             r#"{"timestamp":"2026-05-11T12:34:56.789Z","message":{}}"#,
         )
         .unwrap();
 
         assert_eq!(format_rfc3339_millis(timestamp), "2026-05-11T12:34:56.789Z");
-        assert!(
-            claude_loader::timestamp_from_line(r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#)
-                .is_none()
-        );
+        assert!(adapter::claude::timestamp_from_line(
+            r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#
+        )
+        .is_none());
     }
 
     #[test]
@@ -1024,14 +1023,15 @@ mod tests {
     #[test]
     fn extracts_usage_limit_reset_time_from_raw_line() {
         let line = r#"{"timestamp":"2025-01-10T10:00:00.000Z","isApiErrorMessage":true,"message":{"content":[{"text":"Claude AI usage limit reached|1736503200 remaining"}],"usage":{"input_tokens":0,"output_tokens":0}}}"#;
-        let reset_time = claude_loader::usage_limit_reset_time_from_line(line, Some(true)).unwrap();
+        let reset_time =
+            adapter::claude::usage_limit_reset_time_from_line(line, Some(true)).unwrap();
 
         assert_eq!(
             format_rfc3339_millis(reset_time),
             "2025-01-10T10:00:00.000Z"
         );
-        assert!(claude_loader::usage_limit_reset_time_from_line(line, Some(false)).is_none());
-        assert!(claude_loader::usage_limit_reset_time_from_line(
+        assert!(adapter::claude::usage_limit_reset_time_from_line(line, Some(false)).is_none());
+        assert!(adapter::claude::usage_limit_reset_time_from_line(
             r#"{"message":{"content":[{"text":"Claude AI usage limit reached|0"}]}}"#,
             Some(true)
         )
