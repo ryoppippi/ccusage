@@ -164,13 +164,29 @@ fn litellm_pricing_url() -> std::io::Result<String> {
                 "flake.lock is missing nodes.litellm.locked",
             )
         })?;
-    let owner = string_field(locked, "owner");
-    let repo = string_field(locked, "repo");
-    let rev = string_field(locked, "rev");
+    let owner = required_flake_lock_string_field(locked, "owner")?;
+    let repo = required_flake_lock_string_field(locked, "repo")?;
+    let rev = required_flake_lock_string_field(locked, "rev")?;
 
     Ok(format!(
         "https://raw.githubusercontent.com/{owner}/{repo}/{rev}/{LITELLM_PRICING_JSON}"
     ))
+}
+
+fn required_flake_lock_string_field(
+    object: &Map<String, Value>,
+    field: &str,
+) -> std::io::Result<String> {
+    object
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("flake.lock nodes.litellm.locked.{field} must be a string"),
+            )
+        })
 }
 
 fn compact_pricing_json(json: &str) -> Option<String> {
