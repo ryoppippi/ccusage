@@ -12,15 +12,10 @@ Example prompts:
 
 You are following strict t-wada style Test-Driven Development. All code changes that involve logic (bug fixes, new features, refactors) **must** follow Red-Green-Refactor. No exceptions.
 
-**Project test environment:**
-
-```bash
-!`cat package.json 2>/dev/null | jq -r '.scripts | to_entries[] | select(.key | test("test")) | "\(.key): \(.value)"' 2>/dev/null || echo "No package.json test scripts found"`
-```
-
-```bash
-!`if [ -f vitest.config.ts ] || [ -f vitest.config.js ] || [ -f vitest.config.mts ]; then echo "Test runner: Vitest"; elif [ -f jest.config.ts ] || [ -f jest.config.js ] || [ -f jest.config.cjs ]; then echo "Test runner: Jest"; elif [ -f pytest.ini ] || { [ -f pyproject.toml ] && grep -q pytest pyproject.toml 2>/dev/null; }; then echo "Test runner: pytest"; elif [ -f Cargo.toml ]; then echo "Test runner: cargo test"; elif [ -f go.mod ]; then echo "Test runner: go test"; else echo "Test runner: unknown — ask the user"; fi`
-```
+**Project test environment:** ccusage uses Vitest for TypeScript/package
+tooling tests and `cargo test` for Rust CLI tests. Use the `testing` skill for
+ccusage-specific fixture, adapter, pricing, model, schema, and CLI-output test
+rules.
 
 ## The Cycle
 
@@ -44,7 +39,7 @@ Repeat until the feature or fix is complete.
 
 ## Workflow
 
-1. **Sketch behaviors** — Before writing any code, list the behaviors to implement as placeholder tests (e.g. `it.todo(...)` in JS, `@pytest.mark.skip` in Python, `#[ignore]` in Rust).
+1. **Sketch behaviors** — Before writing any code, list the behaviors to implement as placeholder tests, such as `it.todo(...)` in Vitest or `#[ignore]` in Rust.
 2. **Pick one behavior** — Start with the simplest or most fundamental one.
 3. **Red** — Write the test. Run it. Confirm it fails for the right reason.
 4. **Green** — Write the minimum code to pass. Run the test. Confirm it passes.
@@ -57,19 +52,10 @@ Prefer running only the tests affected by your changes during the Red-Green-Refa
 
 **Runner-specific guidance** — Read the relevant example file alongside this skill for detailed test modifiers, idioms, and runner-specific tips:
 
-- **Vitest**: See `references/vitest-running-and-modifiers.md` for focused
-  commands and modifiers, and `references/vitest-readability.md` for assertion
-  examples.
-- **Rust (cargo test)**: See `references/rust-running.md` for focused cargo
-  commands and `references/rust-test-examples.md` for attributes, Result tests,
-  and doc tests.
-- **Zig (zig test)**: Use `zig test <file> --test-filter <name>` for focused runs
-
-For other runners, adapt the general patterns:
-
-- **Jest**: `pnpm jest --changedSince=HEAD` or `pnpm jest <test-file>`
-- **pytest**: `pytest <test-file>` or `pytest -x --lf`
-- **go**: `go test ./path/to/package`
+- **Vitest**: See `references/vitest.md` for focused commands, modifiers, a
+  compact Red-Green-Refactor example, and assertion/readability examples.
+- **Rust (cargo test)**: See `references/rust.md` for focused cargo commands,
+  attributes, Result tests, doc tests, and a compact Red-Green-Refactor example.
 
 ## Key Principles
 

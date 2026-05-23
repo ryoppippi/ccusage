@@ -24,7 +24,7 @@ Poll PR comments, reviews, and inline threads before declaring the PR ready.
 
 Use GraphQL review threads when resolution state or inline context matters.
 
-Read `gh-review-commands.md` for concrete `gh` commands to request review, list comments, reply to inline review comments, add top-level PR comments, update your own comments, and query review threads.
+Read `gh-review.md` for concrete `gh` commands to request review, list comments, reply to inline review comments, add top-level PR comments, update your own comments, and query review threads.
 
 ## Respond
 
@@ -39,11 +39,11 @@ For actionable feedback:
 5. Reply in the specific thread with the relevant bot mentioned at the start, what changed, and which validation passed.
 
 Reply to inline review comments through the pull request review comment reply
-endpoint shown in `gh-review-commands.md`.
+endpoint shown in `gh-review.md`.
 
 For Cubic comments, use `@cubic-dev-ai` in the reply body instead.
 
 If reviewer bots do not rerun automatically after a push, add another top-level
-PR comment using the request-review command from `gh-review-commands.md`.
+PR comment using the request-review command from `gh-review.md`.
 
 Do not wait forever. If a reviewer bot does not respond after a reasonable polling window, leave the latest request visible on the PR and report that review is still pending.

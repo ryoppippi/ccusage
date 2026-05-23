@@ -1,7 +1,70 @@
 # Open PR
 
-Read only the focused reference needed for the current PR step:
+## Push
 
-- `open-pr-push.md` - push a branch and handle pre-push hook failures.
-- `open-pr-body.md` - choose the right PR body detail level.
-- `open-pr-gh.md` - create PRs with `gh pr create` and safe body-file input.
+Push the branch normally:
+
+```sh
+git push -u origin <branch-name>
+```
+
+Let pre-push hooks run. If hooks fail, fix the issue in a new small commit and
+push again.
+
+## Body
+
+Match PR body detail to change complexity.
+
+For simple or focused changes, use 2-4 sentences that state what changed and
+why.
+
+For complex changes, include only useful sections:
+
+- Summary
+- What Changed
+- Why
+- Testing
+- Related Issues
+
+Include "Testing" only for validation that was actually run. Skip it for
+documentation-only changes when no meaningful validation was needed.
+
+## gh Usage
+
+Create the PR with `gh pr create`.
+
+Pass multi-line PR bodies through stdin with `--body-file -`. Do not embed `\n`
+escape sequences inside a quoted `--body` argument because shell quoting can
+preserve them literally.
+
+Good:
+
+```sh
+gh pr create --title "docs(skills): add create-pr workflow" --body-file - <<'EOF'
+Adds a repo-local create-pr skill and documents the PR review loop.
+
+Testing:
+- pnpm run format
+EOF
+```
+
+For fish, prefer piping `printf` into `--body-file -` instead of using a
+heredoc:
+
+```fish
+printf "%s\n" \
+	"Adds a repo-local create-pr skill and documents the PR review loop." \
+	"" \
+	"Testing:" \
+	"- pnpm run format" \
+	| gh pr create --title "docs(skills): add create-pr workflow" --body-file -
+```
+
+Bad:
+
+```sh
+gh pr create --title "docs(skills): add create-pr workflow" --body "Adds skill.\n\nTesting:\n- pnpm run format"
+```
+
+Open the PR in the browser with `gh pr view --web` when that helps the user or
+local workflow.
