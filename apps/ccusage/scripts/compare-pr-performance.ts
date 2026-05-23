@@ -19,6 +19,12 @@ type MemoryMeasurement = {
 	samples: number;
 };
 
+type BenchmarkCommand = {
+	args: string[];
+	env: Record<string, string>;
+	text: string;
+};
+
 type CommandResult = {
 	base: CommandMeasurement;
 	baseMemory?: MemoryMeasurement;
@@ -478,22 +484,29 @@ function parsePeakRssBytes(stderr: string): number {
 	throw new Error('Could not parse peak RSS from time output');
 }
 
-function timeCommandArgs(commandText: string): string[] | undefined {
+function timeCommandArgs(command: BenchmarkCommand): string[] | undefined {
 	if (platform === 'linux') {
-		return ['/usr/bin/time', '-v', 'sh', '-c', `exec ${commandText} >/dev/null`];
+		return ['/usr/bin/time', '-v', ...command.args];
 	}
 	if (platform === 'darwin') {
-		return ['/usr/bin/time', '-l', 'sh', '-c', `exec ${commandText} >/dev/null`];
+		return ['/usr/bin/time', '-l', ...command.args];
 	}
 	return undefined;
 }
 
-async function measureCommandPeakRssBytes(commandText: string, label: string): Promise<number> {
-	const args = timeCommandArgs(commandText);
+async function measureCommandPeakRssBytes(
+	command: BenchmarkCommand,
+	label: string,
+): Promise<number> {
+	const args = timeCommandArgs(command);
 	if (args == null) {
 		throw new Error(`Peak RSS measurement is not supported on ${platform}`);
 	}
 	const child = Bun.spawn(args, {
+		env: {
+			...process.env,
+			...command.env,
+		},
 		stderr: 'pipe',
 		stdout: 'ignore',
 	});
@@ -506,7 +519,7 @@ async function measureCommandPeakRssBytes(commandText: string, label: string): P
 }
 
 async function measureCommandMemory(
-	commandText: string,
+	command: BenchmarkCommand,
 	options: {
 		label: string;
 		runs: number;
@@ -517,12 +530,26 @@ async function measureCommandMemory(
 	}
 	const samples: number[] = [];
 	for (let index = 0; index < options.runs; index++) {
-		samples.push(await measureCommandPeakRssBytes(commandText, options.label));
+		samples.push(await measureCommandPeakRssBytes(command, options.label));
 	}
 	const sorted = [...samples].sort((a, b) => a - b);
 	return {
 		peakRssBytes: sorted[Math.floor(sorted.length / 2)]!,
 		samples: sorted.length,
+	};
+}
+
+function ccusageBenchmarkEnv(
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+): Record<string, string> {
+	return {
+		CLAUDE_CONFIG_DIR: fixtureDir,
+		...(codexFixtureDir == null ? {} : { CODEX_HOME: codexFixtureDir }),
+		COLUMNS: '200',
+		LOG_LEVEL: '0',
+		NO_COLOR: '1',
+		TZ: 'UTC',
 	};
 }
 
@@ -557,6 +584,19 @@ export function createCcusageCommandFromBin(
 	].join(' ');
 }
 
+function createCcusageBenchmarkCommandFromBin(
+	binEntry: string,
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+	command: string,
+): BenchmarkCommand {
+	return {
+		args: [execPath, '-b', binEntry, command, '--offline', '--json'],
+		env: ccusageBenchmarkEnv(fixtureDir, codexFixtureDir),
+		text: createCcusageCommandFromBin(binEntry, fixtureDir, codexFixtureDir, command),
+	};
+}
+
 export function createCcusageCommandFromRustBinary(
 	binEntry: string,
 	fixtureDir: string,
@@ -576,6 +616,19 @@ export function createCcusageCommandFromRustBinary(
 		'--offline',
 		'--json',
 	].join(' ');
+}
+
+function createCcusageBenchmarkCommandFromRustBinary(
+	binEntry: string,
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+	command: string,
+): BenchmarkCommand {
+	return {
+		args: [binEntry, command, '--offline', '--json'],
+		env: ccusageBenchmarkEnv(fixtureDir, codexFixtureDir),
+		text: createCcusageCommandFromRustBinary(binEntry, fixtureDir, codexFixtureDir, command),
+	};
 }
 
 function createBunxStartupCommand(packageUrl: string): string[] {
@@ -607,6 +660,29 @@ export function createCcusageCommandFromBunxPackage(
 		'--offline',
 		'--json',
 	].join(' ');
+}
+
+function createCcusageBenchmarkCommandFromBunxPackage(
+	packageUrl: string,
+	cacheDir: string,
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+	command: string,
+): BenchmarkCommand {
+	return {
+		args: [execPath, 'x', '-p', packageUrl, 'ccusage', command, '--offline', '--json'],
+		env: {
+			BUN_INSTALL_CACHE_DIR: cacheDir,
+			...ccusageBenchmarkEnv(fixtureDir, codexFixtureDir),
+		},
+		text: createCcusageCommandFromBunxPackage(
+			packageUrl,
+			cacheDir,
+			fixtureDir,
+			codexFixtureDir,
+			command,
+		),
+	};
 }
 
 async function measureCommandMilliseconds({
@@ -736,6 +812,29 @@ export async function createCcusageCommand(
 	);
 }
 
+async function createCcusageBenchmarkCommand(
+	repoDir: string,
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+	command: string,
+	runtime: HeadRuntime = 'package',
+): Promise<BenchmarkCommand> {
+	if (runtime === 'rust') {
+		return createCcusageBenchmarkCommandFromRustBinary(
+			rustBinaryEntry(repoDir),
+			fixtureDir,
+			codexFixtureDir,
+			command,
+		);
+	}
+	return createCcusageBenchmarkCommandFromBin(
+		await packageBinEntry(repoDir),
+		fixtureDir,
+		codexFixtureDir,
+		command,
+	);
+}
+
 export async function createHeadCcusageCommand(options: {
 	command: string;
 	codexFixtureDir?: string;
@@ -762,6 +861,40 @@ export async function createHeadCcusageCommand(options: {
 		);
 	}
 	return createCcusageCommand(
+		options.headDir,
+		options.fixtureDir,
+		options.codexFixtureDir,
+		options.command,
+		options.headRuntime,
+	);
+}
+
+async function createHeadCcusageBenchmarkCommand(options: {
+	command: string;
+	codexFixtureDir?: string;
+	fixtureDir: string;
+	headBinEntry?: string;
+	headDir: string;
+	headNativeBinEntry?: string;
+	headRuntime: HeadRuntime;
+}): Promise<BenchmarkCommand> {
+	if (options.headRuntime === 'package' && options.headBinEntry != null) {
+		return createCcusageBenchmarkCommandFromBin(
+			options.headBinEntry,
+			options.fixtureDir,
+			options.codexFixtureDir,
+			options.command,
+		);
+	}
+	if (options.headRuntime === 'rust' && options.headNativeBinEntry != null) {
+		return createCcusageBenchmarkCommandFromRustBinary(
+			options.headNativeBinEntry,
+			options.fixtureDir,
+			options.codexFixtureDir,
+			options.command,
+		);
+	}
+	return createCcusageBenchmarkCommand(
 		options.headDir,
 		options.fixtureDir,
 		options.codexFixtureDir,
@@ -802,13 +935,13 @@ async function compareCommand(
 	await writeProgress(`${options.fixtureTitle} / ${command} started`);
 	await using fixture = await createFixture({});
 	const exportPath = join(fixture.path, 'hyperfine.json');
-	const baseCommand = createCcusageCommandFromBin(
+	const baseCommand = createCcusageBenchmarkCommandFromBin(
 		options.baseBinEntry,
 		options.fixtureDir,
 		options.codexFixtureDir,
 		command,
 	);
-	const headCommand = await createHeadCcusageCommand({
+	const headCommand = await createHeadCcusageBenchmarkCommand({
 		command,
 		codexFixtureDir: options.codexFixtureDir,
 		fixtureDir: options.fixtureDir,
@@ -838,8 +971,8 @@ async function compareCommand(
 			'base',
 			'--command-name',
 			'PR',
-			baseCommand,
-			headCommand,
+			baseCommand.text,
+			headCommand.text,
 		],
 		{
 			stderr: 'inherit',
@@ -896,14 +1029,14 @@ async function compareBunxCommand(
 	await writeProgress(`${options.fixtureTitle} / bunx ${command} started`);
 	await using fixture = await createFixture({});
 	const exportPath = join(fixture.path, 'hyperfine.json');
-	const baseCommand = createCcusageCommandFromBunxPackage(
+	const baseCommand = createCcusageBenchmarkCommandFromBunxPackage(
 		options.basePackageUrl,
 		options.baseCacheDir,
 		options.fixtureDir,
 		options.codexFixtureDir,
 		command,
 	);
-	const headCommand = createCcusageCommandFromBunxPackage(
+	const headCommand = createCcusageBenchmarkCommandFromBunxPackage(
 		options.headPackageUrl,
 		options.headCacheDir,
 		options.fixtureDir,
@@ -931,8 +1064,8 @@ async function compareBunxCommand(
 			'base',
 			'--command-name',
 			'PR',
-			baseCommand,
-			headCommand,
+			baseCommand.text,
+			headCommand.text,
 		],
 		{
 			stderr: 'inherit',
@@ -1582,6 +1715,37 @@ if (import.meta.vitest != null) {
 			expect(commandText).toContain(
 				' x -p https://pkg.pr.new/ryoppippi/ccusage@abcdef0 ccusage codex --offline --json',
 			);
+		});
+	});
+
+	describe('timeCommandArgs', () => {
+		it('wraps peak RSS measurement around argv without a shell command string', () => {
+			const command = createCcusageBenchmarkCommandFromBin(
+				'/tmp/head package/node_modules/ccusage/dist/cli.js',
+				'/fixtures/claude',
+				'/fixtures/codex',
+				'codex session',
+			);
+
+			const args = timeCommandArgs(command);
+			if (args == null) {
+				return;
+			}
+
+			expect(args).not.toContain('sh');
+			expect(args).not.toContain('-c');
+			expect(args.slice(-6)).toEqual([
+				execPath,
+				'-b',
+				'/tmp/head package/node_modules/ccusage/dist/cli.js',
+				'codex session',
+				'--offline',
+				'--json',
+			]);
+			expect(command.env).toMatchObject({
+				CLAUDE_CONFIG_DIR: '/fixtures/claude',
+				CODEX_HOME: '/fixtures/codex',
+			});
 		});
 	});
 
