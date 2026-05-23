@@ -1,6 +1,8 @@
-use std::{env, fs, path::PathBuf};
+use std::fs;
 
 use crate::cli::CodexSpeed;
+
+use super::paths;
 
 pub(crate) fn resolve_codex_speed(requested: CodexSpeed) -> CodexSpeed {
     match requested {
@@ -23,24 +25,48 @@ fn detect_codex_fast_service_tier() -> bool {
     })
 }
 
-fn codex_home_paths() -> Vec<PathBuf> {
-    if let Ok(paths) = env::var("CODEX_HOME") {
-        return paths
-            .split(',')
-            .map(str::trim)
-            .filter(|path| !path.is_empty())
-            .map(PathBuf::from)
-            .collect();
-    }
-    crate::home::home_dir()
-        .map(|home| vec![home.join(".codex")])
-        .unwrap_or_default()
+fn codex_home_paths() -> Vec<std::path::PathBuf> {
+    paths::codex_home_paths().unwrap_or_default()
 }
 
 fn codex_config_requests_fast_service_tier(content: &str) -> bool {
     content.lines().any(|line| {
         let setting = line.split('#').next().unwrap_or_default().trim();
-        setting.starts_with("service_tier")
-            && (setting.contains("fast") || setting.contains("priority"))
+        let Some((key, value)) = setting.split_once('=') else {
+            return false;
+        };
+        if key.trim() != "service_tier" {
+            return false;
+        }
+        let value = value.trim().trim_matches(['"', '\'']);
+        matches!(value, "fast" | "priority")
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::codex_config_requests_fast_service_tier;
+
+    #[test]
+    fn detects_explicit_fast_service_tier_values() {
+        assert!(codex_config_requests_fast_service_tier(
+            r#"service_tier = "fast""#,
+        ));
+        assert!(codex_config_requests_fast_service_tier(
+            r#"service_tier = 'priority' # use higher tier"#,
+        ));
+    }
+
+    #[test]
+    fn ignores_unrelated_or_substring_service_tier_values() {
+        assert!(!codex_config_requests_fast_service_tier(
+            r#"service_tier_override = "fast""#,
+        ));
+        assert!(!codex_config_requests_fast_service_tier(
+            r#"service_tier = "breakfast""#,
+        ));
+        assert!(!codex_config_requests_fast_service_tier(
+            r#"service_tier = "standard""#,
+        ));
+    }
 }

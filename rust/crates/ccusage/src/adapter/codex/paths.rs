@@ -18,7 +18,7 @@ pub(super) fn codex_usage_paths() -> Result<Vec<PathBuf>> {
     Ok(paths)
 }
 
-fn codex_home_paths() -> Result<Vec<PathBuf>> {
+pub(super) fn codex_home_paths() -> Result<Vec<PathBuf>> {
     if let Ok(env_paths) = env::var("CODEX_HOME") {
         return Ok(env_paths
             .split(',')
