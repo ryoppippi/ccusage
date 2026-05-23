@@ -51,15 +51,20 @@ pub(super) fn collect_session_files(root: &Path) -> Result<Vec<PathBuf>> {
 fn collect_session_files_inner(path: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     for entry in fs::read_dir(path)? {
         let entry = entry?;
+        let file_type = entry.file_type()?;
         let path = entry.path();
-        if path.is_dir() {
+        if file_type.is_symlink() {
+            continue;
+        }
+        if file_type.is_dir() {
             collect_session_files_inner(&path, files)?;
             continue;
         }
-        if path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(is_openclaw_session_file)
+        if file_type.is_file()
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(is_openclaw_session_file)
         {
             files.push(path);
         }

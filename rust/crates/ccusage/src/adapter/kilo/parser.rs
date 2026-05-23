@@ -159,8 +159,8 @@ fn model_candidates(model: &str, provider: Option<&str>) -> Vec<String> {
     {
         candidates.push(format!("{provider}/{model}"));
     }
-    candidates.sort();
-    candidates.dedup();
+    let mut seen = std::collections::HashSet::new();
+    candidates.retain(|candidate| seen.insert(candidate.clone()));
     candidates
 }
 

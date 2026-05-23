@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs, path::Path};
+use std::{collections::HashSet, fs, io, path::Path};
 
 use serde_json::Value;
 
@@ -28,12 +28,17 @@ pub(super) struct DroidTokenUsage {
 }
 
 pub(super) fn load_settings_file(path: &Path) -> Result<Option<DroidEntry>> {
-    let Ok(content) = fs::read_to_string(path) else {
-        return Ok(None);
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
     };
-    let Ok(value) = serde_json::from_str::<Value>(&content) else {
-        return Ok(None);
-    };
+    let value = serde_json::from_str::<Value>(&content).map_err(|error| {
+        crate::cli_error(format!(
+            "failed to parse Droid settings {}: {error}",
+            path.display()
+        ))
+    })?;
     let Some(settings) = value.as_object() else {
         return Ok(None);
     };

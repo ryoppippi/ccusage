@@ -39,7 +39,8 @@ pub(super) fn parse_session_file(
     let mut current_model = None::<String>;
     let mut current_provider = None::<String>;
     let mut entries = Vec::new();
-    for line in reader.lines().map_while(std::result::Result::ok) {
+    for line in reader.lines() {
+        let line = line?;
         if !line.contains("\"model_change\"")
             && !line.contains("\"model-snapshot\"")
             && !line.contains("\"usage\"")
