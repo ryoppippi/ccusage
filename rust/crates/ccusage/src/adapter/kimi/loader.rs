@@ -38,7 +38,26 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
 mod tests {
     use std::{env, fs, path::PathBuf};
 
+    use super::super::paths::KIMI_DATA_DIR_ENV;
     use super::*;
+
+    struct EnvDirGuard {
+        dir: PathBuf,
+    }
+
+    impl EnvDirGuard {
+        fn set(dir: PathBuf) -> Self {
+            env::set_var(KIMI_DATA_DIR_ENV, &dir);
+            Self { dir }
+        }
+    }
+
+    impl Drop for EnvDirGuard {
+        fn drop(&mut self) {
+            env::remove_var(KIMI_DATA_DIR_ENV);
+            let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
 
     fn temp_kimi_dir(name: &str) -> PathBuf {
         let mut path = env::temp_dir();
@@ -66,14 +85,12 @@ mod tests {
             .join("\n"),
         )
         .unwrap();
-        env::set_var(super::super::paths::KIMI_DATA_DIR_ENV, &kimi_dir);
+        let _cleanup = EnvDirGuard::set(kimi_dir);
         let shared = SharedArgs {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
-        env::remove_var(super::super::paths::KIMI_DATA_DIR_ENV);
-        fs::remove_dir_all(&kimi_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-02-13");
@@ -102,10 +119,8 @@ mod tests {
             .join("\n"),
         )
         .unwrap();
-        env::set_var(super::super::paths::KIMI_DATA_DIR_ENV, &kimi_dir);
+        let _cleanup = EnvDirGuard::set(kimi_dir);
         let entries = load_entries(&SharedArgs::default(), &PricingMap::load_embedded()).unwrap();
-        env::remove_var(super::super::paths::KIMI_DATA_DIR_ENV);
-        fs::remove_dir_all(&kimi_dir).unwrap();
 
         assert!(entries.is_empty());
     }

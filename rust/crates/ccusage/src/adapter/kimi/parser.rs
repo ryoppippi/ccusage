@@ -230,9 +230,9 @@ fn calculate_kimi_cost(
 
 fn model_candidates(model: &str) -> Vec<String> {
     let mut candidates = vec![
-        model.to_string(),
         format!("{DEFAULT_PROVIDER}/{model}"),
         format!("kimi/{model}"),
+        model.to_string(),
     ];
     let mut seen = std::collections::HashSet::new();
     candidates.retain(|candidate| seen.insert(candidate.clone()));

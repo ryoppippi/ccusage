@@ -408,12 +408,13 @@ fn calculate_gemini_cost(
 }
 
 fn model_candidates(model: &str) -> Vec<String> {
-    let mut candidates = vec![model.to_string()];
+    let mut candidates = Vec::with_capacity(PROVIDER_PREFIXES.len() + 1);
     candidates.extend(
         PROVIDER_PREFIXES
             .iter()
             .map(|prefix| format!("{prefix}/{model}")),
     );
+    candidates.push(model.to_string());
     let mut seen = std::collections::HashSet::new();
     candidates.retain(|candidate| seen.insert(candidate.clone()));
     candidates

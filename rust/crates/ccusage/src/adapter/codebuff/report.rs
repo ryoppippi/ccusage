@@ -20,6 +20,7 @@ pub(crate) fn report_from_rows(rows: &[UsageSummary], kind: AgentReportKind) -> 
 pub(super) fn summary_period(row: &UsageSummary) -> &str {
     row.date
         .as_deref()
+        .or(row.week.as_deref())
         .or(row.month.as_deref())
         .or(row.session_id.as_deref())
         .unwrap_or("")

@@ -152,13 +152,14 @@ fn calculate_kilo_cost_from_tokens(
 }
 
 fn model_candidates(model: &str, provider: Option<&str>) -> Vec<String> {
-    let mut candidates = vec![model.to_string()];
+    let mut candidates = Vec::with_capacity(2);
     if let Some(provider) = provider
         .map(normalize_provider)
         .filter(|provider| provider != "unknown" && provider != "kilo")
     {
         candidates.push(format!("{provider}/{model}"));
     }
+    candidates.push(model.to_string());
     let mut seen = std::collections::HashSet::new();
     candidates.retain(|candidate| seen.insert(candidate.clone()));
     candidates
