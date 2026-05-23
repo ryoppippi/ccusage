@@ -4,6 +4,7 @@ version = "20.0.4"
 edition = "2021"
 
 [dependencies]
+terminal_size = "0.4.4"
 unicode-width = "0.2.2"
 
 [dev-dependencies]

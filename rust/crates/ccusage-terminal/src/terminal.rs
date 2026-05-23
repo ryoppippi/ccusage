@@ -1,59 +1,44 @@
-use std::{
-    env,
-    io::{self, IsTerminal},
-};
-
-#[cfg(unix)]
-use std::os::fd::AsRawFd;
+use std::env;
 
 pub(crate) const DEFAULT_TERMINAL_WIDTH: usize = 120;
 
-#[cfg(all(unix, target_os = "macos"))]
-const TIOCGWINSZ: usize = 0x4008_7468;
-#[cfg(all(unix, target_os = "linux"))]
-const TIOCGWINSZ: usize = 0x5413;
-
 pub fn terminal_width() -> usize {
-    env::var("COLUMNS")
-        .ok()
+    select_terminal_width(env::var("COLUMNS").ok().as_deref(), terminal_size_width())
+}
+
+fn terminal_size_width() -> Option<usize> {
+    terminal_size::terminal_size().map(|(terminal_size::Width(width), _)| width as usize)
+}
+
+fn select_terminal_width(columns: Option<&str>, detected_width: Option<usize>) -> usize {
+    columns
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|width| *width > 0)
-        .or_else(terminal_width_from_ioctl)
+        .or_else(|| detected_width.filter(|width| *width > 0))
         .unwrap_or(DEFAULT_TERMINAL_WIDTH)
 }
 
-#[cfg(unix)]
-fn terminal_width_from_ioctl() -> Option<usize> {
-    if !io::stdout().is_terminal() {
-        return None;
-    }
-    #[repr(C)]
-    struct Winsize {
-        rows: u16,
-        cols: u16,
-        xpixel: u16,
-        ypixel: u16,
-    }
-    let mut size = Winsize {
-        rows: 0,
-        cols: 0,
-        xpixel: 0,
-        ypixel: 0,
-    };
-    let rc = unsafe { ioctl(io::stdout().as_raw_fd(), TIOCGWINSZ, &mut size) };
-    if rc == 0 && size.cols > 0 {
-        Some(size.cols as usize)
-    } else {
-        None
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[cfg(not(unix))]
-fn terminal_width_from_ioctl() -> Option<usize> {
-    None
-}
+    #[test]
+    fn uses_columns_before_detected_width() {
+        assert_eq!(select_terminal_width(Some("80"), Some(100)), 80);
+    }
 
-#[cfg(unix)]
-extern "C" {
-    fn ioctl(fd: i32, request: usize, ...) -> i32;
+    #[test]
+    fn ignores_invalid_columns() {
+        assert_eq!(select_terminal_width(Some("wide"), Some(100)), 100);
+    }
+
+    #[test]
+    fn uses_default_width_when_no_width_is_available() {
+        assert_eq!(select_terminal_width(None, None), DEFAULT_TERMINAL_WIDTH);
+    }
+
+    #[test]
+    fn ignores_zero_detected_width() {
+        assert_eq!(select_terminal_width(None, Some(0)), DEFAULT_TERMINAL_WIDTH);
+    }
 }
