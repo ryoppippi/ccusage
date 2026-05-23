@@ -1,5 +1,5 @@
 ---
-source: crates/ccusage/src/adapter/codex.rs
+source: crates/ccusage/src/adapter/codex/mod.rs
 expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, AgentReportKind::Daily, Some(\"UTC\"), &pricing,\n    CodexSpeed::Standard,).unwrap(), \"weekly\":\n    report_json(&events, AgentReportKind::Weekly, Some(\"UTC\"), &pricing,\n    CodexSpeed::Standard,).unwrap(), \"monthly\":\n    report_json(&events, AgentReportKind::Monthly, Some(\"UTC\"), &pricing,\n    CodexSpeed::Standard,).unwrap(), \"sessionFast\":\n    report_json(&events, AgentReportKind::Session, Some(\"UTC\"), &pricing,\n    CodexSpeed::Fast,).unwrap(),\n})"
 ---
 {
