@@ -51,7 +51,14 @@ pub(crate) fn summarize_entries(
             }
             rows
         }),
-        AgentReportKind::Weekly => Ok(Vec::new()),
+        AgentReportKind::Weekly => {
+            let daily = summarize_entries(entries, AgentReportKind::Daily)?;
+            Ok(summarize_summaries_by_bucket(
+                &daily,
+                BucketKind::Weekly,
+                WeekDay::Sunday,
+            ))
+        }
     }
 }
 
