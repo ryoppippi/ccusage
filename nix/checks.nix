@@ -27,11 +27,15 @@ in
           path: _type:
           let
             rel = pkgs.lib.removePrefix "${toString root}/" (toString path);
+            ignoredDirs = [
+              "node_modules"
+              "target"
+              "dist"
+              "coverage"
+            ];
+            pathParts = pkgs.lib.splitString "/" rel;
           in
-          !(pkgs.lib.hasPrefix "node_modules/" rel)
-          && !(pkgs.lib.hasPrefix "target/" rel)
-          && !(pkgs.lib.hasPrefix "dist/" rel)
-          && !(pkgs.lib.hasPrefix "coverage/" rel);
+          !(pkgs.lib.any (dir: builtins.elem dir pathParts) ignoredDirs);
       };
       ccusage-clippy = craneLib.cargoClippy (
         commonArgs
