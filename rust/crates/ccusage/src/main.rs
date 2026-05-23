@@ -164,6 +164,7 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
+    use ccusage_test_support::{fs_fixture, Fixture};
     use serde_json::json;
 
     use super::*;
@@ -222,8 +223,7 @@ mod tests {
 
     #[test]
     fn balances_file_chunks_by_size() {
-        let dir = temp_claude_dir("chunks");
-        fs::create_dir_all(&dir).unwrap();
+        let fixture = Fixture::new();
         let files = [
             ("large-a.jsonl", 100),
             ("small-a.jsonl", 1),
@@ -231,11 +231,7 @@ mod tests {
             ("large-b.jsonl", 100),
         ]
         .into_iter()
-        .map(|(name, size)| {
-            let path = dir.join(name);
-            fs::write(&path, "x".repeat(size)).unwrap();
-            path
-        })
+        .map(|(name, size)| fixture.write_file(name, "x".repeat(size)))
         .collect::<Vec<_>>();
 
         let chunks = chunk_file_indexes_by_size(&files, 2);
@@ -254,23 +250,18 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(chunk_sizes, vec![101, 101]);
-
-        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn sorts_usage_files_like_typescript_path_strings() {
-        let dir = temp_claude_dir("usage-file-sort");
-        let session_dir = dir.join("projects/project1/session-a");
-        let subagent_dir = session_dir.join("subagents");
-        fs::create_dir_all(&subagent_dir).unwrap();
-        let parent_file = dir.join("projects/project1/session-a.jsonl");
-        let subagent_file = subagent_dir.join("agent-a.jsonl");
-        fs::write(&subagent_file, "").unwrap();
-        fs::write(&parent_file, "").unwrap();
+        let fixture = fs_fixture!({
+            "projects/project1/session-a.jsonl": "",
+            "projects/project1/session-a/subagents/agent-a.jsonl": "",
+        });
+        let parent_file = fixture.path("projects/project1/session-a.jsonl");
+        let subagent_file = fixture.path("projects/project1/session-a/subagents/agent-a.jsonl");
 
-        let files = adapter::claude::usage_files(&[dir.clone()], None);
-        fs::remove_dir_all(dir).unwrap();
+        let files = adapter::claude::usage_files(&[fixture.root().to_path_buf()], None);
 
         assert_eq!(files, vec![parent_file, subagent_file]);
     }
