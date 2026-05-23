@@ -21,8 +21,6 @@
 		"release": "pnpm bumpp -r",
 		"postrelease": "git checkout ./**/package.json package.json",
 		"sync:rust-version": "cargo set-version --manifest-path rust/Cargo.toml --workspace \"$npm_package_version\"",
-		"sync:skills": "bun scripts/sync-skills.ts",
-		"sync:skills:check": "bun scripts/sync-skills.ts --check",
 		"test": "pnpm --parallel --aggregate-output /^test:parallel:/",
 		"test:parallel:rust": "pnpm run test:rust",
 		"test:parallel:vitest": "pnpm run test:vitest",

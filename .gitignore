@@ -43,3 +43,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .direnv
 !.envrc
 .pre-commit-config.yaml
+
+# generated local agent skills
+.claude/skills/

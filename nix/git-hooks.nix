@@ -19,7 +19,6 @@ in
         overlays = [ inputs.rust-overlay.overlays.default ];
       };
       rustToolchain = pkgs.rust-bin.fromRustupToolchainFile (root + /rust-toolchain.toml);
-      syncSkillsNix = import ./sync-skills.nix { inherit pkgs; };
       checkConfigSchema = pkgs.writeShellApplication {
         name = "ccusage-hook-check-config-schema";
         runtimeInputs = [
@@ -85,27 +84,6 @@ in
           src = root;
           package = pkgs.prek;
           hooks = {
-            sync-skills = {
-              enable = true;
-              name = "sync skills";
-              entry = lib.getExe syncSkillsNix;
-              files = "^\\.agents/skills/|^\\.claude/skills/";
-              pass_filenames = false;
-              stages = [ "pre-commit" ];
-              priority = 0;
-            };
-            sync-skills-check = {
-              enable = true;
-              name = "sync skills check";
-              entry = "${lib.getExe syncSkillsNix} --check";
-              files = "^\\.agents/skills/|^\\.claude/skills/";
-              pass_filenames = false;
-              stages = [
-                "pre-commit"
-                "pre-push"
-              ];
-              priority = 1;
-            };
             config-schema = {
               enable = true;
               name = "config schema";

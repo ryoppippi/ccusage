@@ -21,21 +21,15 @@ in
         commonArgs
         version
         ;
-      repoSrc = pkgs.lib.cleanSourceWith {
-        src = root;
-        filter =
-          path: _type:
-          let
-            rel = pkgs.lib.removePrefix "${toString root}/" (toString path);
-            ignoredDirs = [
-              "node_modules"
-              "target"
-              "dist"
-              "coverage"
-            ];
-            pathParts = pkgs.lib.splitString "/" rel;
-          in
-          !(pkgs.lib.any (dir: builtins.elem dir pathParts) ignoredDirs);
+      nixFilter = inputs.nix-filter.lib;
+      repoSrc = nixFilter {
+        root = inputs.self;
+        exclude = [
+          (nixFilter.matchName "node_modules")
+          (nixFilter.matchName "target")
+          (nixFilter.matchName "dist")
+          (nixFilter.matchName "coverage")
+        ];
       };
       ccusage-clippy = craneLib.cargoClippy (
         commonArgs

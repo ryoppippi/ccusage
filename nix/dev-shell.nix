@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, lib, ... }:
 let
   root = ./..;
 in
@@ -63,6 +63,7 @@ in
             echo "📦 Installing dependencies..."
             pnpm install --frozen-lockfile
           fi
+          ${lib.getExe config.packages.syncAgentSkills}
           ${config.pre-commit.shellHook}
         '';
       };

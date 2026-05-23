@@ -149,9 +149,9 @@ Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 ## Development
 
 <details>
-<summary>Nix-based contributor setup</summary>
+<summary>Contributor setup</summary>
 
-Use the Nix flake development environment. Install [Nix](https://nixos.org/) with the `nix-command` and `flakes` experimental features enabled, then use [nix-direnv](https://github.com/nix-community/nix-direnv) so the repository dev shell loads automatically when you enter the directory:
+Contributor setup requires the Nix flake development environment with [nix-direnv](https://github.com/nix-community/nix-direnv). Install [Nix](https://nixos.org/) with the `nix-command` and `flakes` experimental features enabled, then let nix-direnv load the dev shell automatically when you enter the directory:
 
 ```sh
 # Clone the repository
@@ -162,13 +162,7 @@ cd ccusage
 direnv allow
 ```
 
-The dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, and project utilities from `flake.nix`. It also installs package dependencies from `pnpm-lock.yaml` when needed.
-
-If you do not use direnv, enter the shell manually:
-
-```sh
-nix develop
-```
+The dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, generated local agent skills, and project utilities from `flake.nix`. It also installs package dependencies from `pnpm-lock.yaml` when needed.
 
 Run the usual checks from inside the Nix environment:
 

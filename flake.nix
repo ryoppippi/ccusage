@@ -5,6 +5,10 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     crane.url = "github:ipetkov/crane";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    agent-skills = {
+      url = "github:Kyure-A/agent-skills-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     git-hooks = {
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -13,6 +17,7 @@
       url = "github:BerriAI/litellm";
       flake = false;
     };
+    nix-filter.url = "github:numtide/nix-filter";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -36,6 +41,7 @@
       imports = [
         inputs.treefmt-nix.flakeModule
         inputs.git-hooks.flakeModule
+        ./nix/agent-skills.nix
         ./nix/treefmt.nix
         ./nix/git-hooks.nix
         ./nix/packages.nix
