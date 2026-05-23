@@ -1,3 +1,5 @@
+use unicode_width::UnicodeWidthChar;
+
 pub(crate) fn visible_width(value: &str) -> usize {
     let bytes = value.as_bytes();
     let mut width = 0;
@@ -28,11 +30,7 @@ pub(crate) fn contains_ansi(value: &str) -> bool {
 }
 
 pub(crate) fn char_display_width(ch: char) -> usize {
-    if ch.is_ascii() {
-        1
-    } else {
-        2
-    }
+    UnicodeWidthChar::width_cjk(ch).unwrap_or(0)
 }
 
 pub(crate) fn visible_width_max_line(value: &str) -> usize {
@@ -41,4 +39,15 @@ pub(crate) fn visible_width_max_line(value: &str) -> usize {
 
 pub(crate) fn visible_width_sum(value: &str) -> usize {
     value.lines().map(visible_width).sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn visible_width_handles_combining_marks_and_cjk() {
+        assert_eq!(visible_width("e\u{0301}"), 1);
+        assert_eq!(visible_width("表"), 2);
+    }
 }
