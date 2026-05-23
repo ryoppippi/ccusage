@@ -553,6 +553,10 @@ function ccusageBenchmarkEnv(
 	};
 }
 
+function ccusageCommandArgs(command: string): string[] {
+	return command.split(' ').filter((part) => part.length > 0);
+}
+
 /**
  * Builds the ccusage command that hyperfine will benchmark.
  *
@@ -591,7 +595,7 @@ function createCcusageBenchmarkCommandFromBin(
 	command: string,
 ): BenchmarkCommand {
 	return {
-		args: [execPath, '-b', binEntry, command, '--offline', '--json'],
+		args: [execPath, '-b', binEntry, ...ccusageCommandArgs(command), '--offline', '--json'],
 		env: ccusageBenchmarkEnv(fixtureDir, codexFixtureDir),
 		text: createCcusageCommandFromBin(binEntry, fixtureDir, codexFixtureDir, command),
 	};
@@ -625,7 +629,7 @@ function createCcusageBenchmarkCommandFromRustBinary(
 	command: string,
 ): BenchmarkCommand {
 	return {
-		args: [binEntry, command, '--offline', '--json'],
+		args: [binEntry, ...ccusageCommandArgs(command), '--offline', '--json'],
 		env: ccusageBenchmarkEnv(fixtureDir, codexFixtureDir),
 		text: createCcusageCommandFromRustBinary(binEntry, fixtureDir, codexFixtureDir, command),
 	};
@@ -670,7 +674,16 @@ function createCcusageBenchmarkCommandFromBunxPackage(
 	command: string,
 ): BenchmarkCommand {
 	return {
-		args: [execPath, 'x', '-p', packageUrl, 'ccusage', command, '--offline', '--json'],
+		args: [
+			execPath,
+			'x',
+			'-p',
+			packageUrl,
+			'ccusage',
+			...ccusageCommandArgs(command),
+			'--offline',
+			'--json',
+		],
 		env: {
 			BUN_INSTALL_CACHE_DIR: cacheDir,
 			...ccusageBenchmarkEnv(fixtureDir, codexFixtureDir),
@@ -1734,11 +1747,12 @@ if (import.meta.vitest != null) {
 
 			expect(args).not.toContain('sh');
 			expect(args).not.toContain('-c');
-			expect(args.slice(-6)).toEqual([
+			expect(args.slice(-7)).toEqual([
 				execPath,
 				'-b',
 				'/tmp/head package/node_modules/ccusage/dist/cli.js',
-				'codex session',
+				'codex',
+				'session',
 				'--offline',
 				'--json',
 			]);
