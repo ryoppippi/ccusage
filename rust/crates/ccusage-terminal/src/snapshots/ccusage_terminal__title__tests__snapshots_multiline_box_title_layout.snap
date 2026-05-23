@@ -1,5 +1,6 @@
 ---
-source: crates/ccusage-terminal/src/lib.rs
+source: crates/ccusage-terminal/src/title.rs
+assertion_line: 80
 expression: "lines.join(\"\\n\")"
 ---
 
