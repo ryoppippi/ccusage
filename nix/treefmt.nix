@@ -62,6 +62,7 @@ in
           rustfmt = {
             enable = true;
             edition = "2021";
+            package = rustToolchain;
           };
           statix.enable = true;
           typos = {
