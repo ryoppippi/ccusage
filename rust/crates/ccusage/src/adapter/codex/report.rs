@@ -214,6 +214,7 @@ pub(super) fn print_table_from_groups(
         ],
         shared,
     )
+    .with_terminal_width(crate::terminal_width())
     .with_date_compaction(true);
     let mut total_input = 0;
     let mut total_cached = 0;
