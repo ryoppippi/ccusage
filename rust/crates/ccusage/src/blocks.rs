@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 
 use crate::{
     am_pm,
-    cli::{SharedArgs, SortOrder},
+    cli::{normalize_date_bound, SharedArgs, SortOrder},
     color,
     fast::FxHashSet,
     format_currency, format_date, format_models_multiline, format_number, format_rfc3339_millis,
@@ -128,10 +128,12 @@ pub(crate) fn filter_blocks_by_date(blocks: &mut Vec<SessionBlock>, shared: &Sha
     if shared.since.is_none() && shared.until.is_none() {
         return;
     }
+    let since = shared.since.as_deref().map(normalize_date_bound);
+    let until = shared.until.as_deref().map(normalize_date_bound);
     blocks.retain(|block| {
         let date = format_date(block.start_time, shared.timezone.as_deref()).replace('-', "");
-        shared.since.as_ref().is_none_or(|since| &date >= since)
-            && shared.until.as_ref().is_none_or(|until| &date <= until)
+        since.as_ref().is_none_or(|bound| &date >= bound)
+            && until.as_ref().is_none_or(|bound| &date <= bound)
     });
 }
 

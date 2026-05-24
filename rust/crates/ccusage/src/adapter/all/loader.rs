@@ -7,7 +7,7 @@ use crate::{
         amp, claude, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
         opencode, pi, qwen,
     },
-    cli::{AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
+    cli::{normalize_date_bound, AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
     filter_loaded_entries_by_date, json_float, summarize_by_key, summarize_summaries_by_bucket,
     BucketKind, CodexGroup, LoadedEntry, ModelBreakdown, PricingMap, Result, SessionAccumulator,
     UsageSummary,
@@ -497,14 +497,16 @@ fn summarize_entry_sessions(
 
 fn filter_session_summaries(rows: &mut Vec<UsageSummary>, shared: &SharedArgs) {
     if shared.since.is_some() || shared.until.is_some() {
+        let since = shared.since.as_deref().map(normalize_date_bound);
+        let until = shared.until.as_deref().map(normalize_date_bound);
         rows.retain(|row| {
             let date = row
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
                 .replace('-', "");
-            shared.since.as_ref().is_none_or(|since| &date >= since)
-                && shared.until.as_ref().is_none_or(|until| &date <= until)
+            since.as_ref().is_none_or(|bound| &date >= bound)
+                && until.as_ref().is_none_or(|bound| &date <= bound)
         });
     }
 }

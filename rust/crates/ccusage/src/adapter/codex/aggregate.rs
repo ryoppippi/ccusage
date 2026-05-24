@@ -10,7 +10,7 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use rustc_hash::FxHasher;
 
 use crate::{
-    cli::{AgentReportKind, SharedArgs, WeekDay},
+    cli::{normalize_date_bound, AgentReportKind, SharedArgs, WeekDay},
     fast::FxHashSet,
     format_date_tz, parse_ts_timestamp, parse_tz, wants_json, week_start, CodexGroup,
     CodexTokenUsageEvent, Result,
@@ -266,9 +266,11 @@ fn add_deduped_event_to_groups(
 ) -> Result<()> {
     let date = format_date_tz(timestamp, timezone);
     if shared.since.is_some() || shared.until.is_some() {
+        let since = shared.since.as_deref().map(normalize_date_bound);
+        let until = shared.until.as_deref().map(normalize_date_bound);
         let date_key = date.replace('-', "");
-        if shared.since.as_ref().is_some_and(|since| &date_key < since)
-            || shared.until.as_ref().is_some_and(|until| &date_key > until)
+        if since.as_ref().is_some_and(|bound| &date_key < bound)
+            || until.as_ref().is_some_and(|bound| &date_key > bound)
         {
             return Ok(());
         }
@@ -419,14 +421,16 @@ pub(crate) fn filter_events_by_date(
         return Ok(());
     }
     let timezone = parse_tz(shared.timezone.as_deref()).or_else(|| Some(JiffTimeZone::system()));
+    let since = shared.since.as_deref().map(normalize_date_bound);
+    let until = shared.until.as_deref().map(normalize_date_bound);
     let mut kept = Vec::with_capacity(events.len());
     for event in events.drain(..) {
         let timestamp = parse_ts_timestamp(&event.timestamp).ok_or_else(|| {
             crate::cli_error(format!("Invalid Codex timestamp: {}", event.timestamp))
         })?;
         let date = format_date_tz(timestamp, timezone.as_ref()).replace('-', "");
-        if shared.since.as_ref().is_none_or(|since| &date >= since)
-            && shared.until.as_ref().is_none_or(|until| &date <= until)
+        if since.as_ref().is_none_or(|bound| &date >= bound)
+            && until.as_ref().is_none_or(|bound| &date <= bound)
         {
             kept.push(event);
         }
