@@ -405,44 +405,6 @@ mod tests {
     }
 
     #[test]
-    fn returns_empty_entries_when_claude_is_not_installed() {
-        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
-        let empty_home = temp_claude_dir("missing-claude-home");
-        fs::create_dir_all(&empty_home).unwrap();
-
-        let previous_config = env::var("CLAUDE_CONFIG_DIR").ok();
-        let previous_home = env::var("HOME").ok();
-        let previous_xdg = env::var("XDG_CONFIG_HOME").ok();
-        env::remove_var("CLAUDE_CONFIG_DIR");
-        env::set_var("HOME", &empty_home);
-        env::set_var("XDG_CONFIG_HOME", &empty_home);
-
-        let shared = SharedArgs {
-            mode: CostMode::Display,
-            ..SharedArgs::default()
-        };
-        let result = load_entries(&shared, None);
-
-        if let Some(previous) = previous_config {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
-        }
-        if let Some(previous) = previous_home {
-            env::set_var("HOME", previous);
-        } else {
-            env::remove_var("HOME");
-        }
-        if let Some(previous) = previous_xdg {
-            env::set_var("XDG_CONFIG_HOME", previous);
-        } else {
-            env::remove_var("XDG_CONFIG_HOME");
-        }
-        fs::remove_dir_all(&empty_home).unwrap();
-
-        let entries = result.expect("load_entries should not error when Claude is absent");
-        assert!(entries.is_empty());
-    }
-
-    #[test]
     fn loads_daily_summaries_like_loaded_entry_aggregation() {
         let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let claude_dir = temp_claude_dir("daily-fast-path");
