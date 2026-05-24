@@ -59,6 +59,10 @@ in
         programs = {
           deadnix.enable = true;
           nixfmt.enable = true;
+          rustfmt = {
+            enable = true;
+            edition = "2021";
+          };
           statix.enable = true;
           typos = {
             enable = true;
@@ -98,15 +102,7 @@ in
             ];
             priority = 5;
           };
-          rustfmt = {
-            command = lib.getExe' rustToolchain "rustfmt";
-            options = [
-              "--edition"
-              "2021"
-            ];
-            includes = [ "*.rs" ];
-            priority = 6;
-          };
+          rustfmt.priority = 6;
         };
       };
     };
