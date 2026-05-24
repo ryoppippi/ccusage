@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    cli::{normalize_date_bound, SharedArgs, SortOrder, WeekDay},
+    cli::{SharedArgs, SortOrder, WeekDay},
     cli_error,
     fast::{FxHashMap, FxHashSet},
     format_date, format_naive_date, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
@@ -259,12 +259,10 @@ pub(crate) fn filter_and_sort_summaries<F>(
     F: Fn(&UsageSummary) -> &str,
 {
     if shared.since.is_some() || shared.until.is_some() {
-        let since = shared.since.as_deref().map(normalize_date_bound);
-        let until = shared.until.as_deref().map(normalize_date_bound);
         rows.retain(|row| {
             let date = date_fn(row).replace('-', "");
-            since.as_ref().is_none_or(|bound| &date >= bound)
-                && until.as_ref().is_none_or(|bound| &date <= bound)
+            shared.since.as_ref().is_none_or(|since| &date >= since)
+                && shared.until.as_ref().is_none_or(|until| &date <= until)
         });
     }
     sort_summaries(rows, &shared.order, date_fn);
@@ -486,8 +484,8 @@ mod tests {
             }),
         ];
         let shared = SharedArgs {
-            since: Some("2026-01-02".to_string()),
-            until: Some("2026-01-10".to_string()),
+            since: Some("20260102".to_string()),
+            until: Some("20260110".to_string()),
             order: SortOrder::Desc,
             ..SharedArgs::default()
         };

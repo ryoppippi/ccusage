@@ -15,7 +15,7 @@ use rustc_hash::FxHasher;
 
 use crate::{
     calculate_cost,
-    cli::{normalize_date_bound, CostMode, SharedArgs},
+    cli::{CostMode, SharedArgs},
     debug_log,
     fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
     format_date_tz, log_level, parse_ts_timestamp, parse_tz, progress, LoadedEntry, LoadedFile,
@@ -121,12 +121,10 @@ pub(crate) fn filter_loaded_entries_by_date(entries: &mut Vec<LoadedEntry>, shar
     if shared.since.is_none() && shared.until.is_none() {
         return;
     }
-    let since = shared.since.as_deref().map(normalize_date_bound);
-    let until = shared.until.as_deref().map(normalize_date_bound);
     entries.retain(|entry| {
         let date = entry.date.replace('-', "");
-        since.as_ref().is_none_or(|bound| &date >= bound)
-            && until.as_ref().is_none_or(|bound| &date <= bound)
+        shared.since.as_ref().is_none_or(|since| &date >= since)
+            && shared.until.as_ref().is_none_or(|until| &date <= until)
     });
 }
 

@@ -13,8 +13,8 @@ use crate::pricing::PricingMap;
 use crate::{
     block_json, calculate_burn_rate,
     cli::{
-        normalize_date_bound, BlocksArgs, CostSource, DailyArgs, SessionArgs, SharedArgs,
-        SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
+        BlocksArgs, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder, StatuslineArgs,
+        VisualBurnRate, WeekDay, WeeklyArgs,
     },
     color,
     fast::FxHashMap,
@@ -169,16 +169,20 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
         rows.push(group.into_summary(session_shared.timezone.as_deref())?);
     }
     if session_shared.since.is_some() || session_shared.until.is_some() {
-        let since = session_shared.since.as_deref().map(normalize_date_bound);
-        let until = session_shared.until.as_deref().map(normalize_date_bound);
         rows.retain(|row| {
             let date = row
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
                 .replace('-', "");
-            since.as_ref().is_none_or(|bound| &date >= bound)
-                && until.as_ref().is_none_or(|bound| &date <= bound)
+            session_shared
+                .since
+                .as_ref()
+                .is_none_or(|since| &date >= since)
+                && session_shared
+                    .until
+                    .as_ref()
+                    .is_none_or(|until| &date <= until)
         });
     }
     rows.retain(|row| {
