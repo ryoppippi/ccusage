@@ -256,6 +256,7 @@ impl Cli {
         let mut shared = SharedArgs::with_defaults();
         let config = ConfigContext::from_args(&parser.args);
         apply_config_to_shared(&mut shared, &config);
+        normalize_date_bounds(&mut shared);
         while let Some(arg) = parser.peek() {
             if is_command(arg) {
                 break;
@@ -748,8 +749,8 @@ fn parse_shared_arg_for_command(
 
 fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(), String> {
     match parser.next_flag()?.as_str() {
-        "-s" | "--since" => shared.since = Some(parser.value_for("--since")?),
-        "-u" | "--until" => shared.until = Some(parser.value_for("--until")?),
+        "-s" | "--since" => shared.since = Some(normalize_date_bound(parser.value_for("--since")?)),
+        "-u" | "--until" => shared.until = Some(normalize_date_bound(parser.value_for("--until")?)),
         "-j" | "--json" => shared.json = true,
         "-m" | "--mode" => shared.mode = parse_cost_mode(&parser.value_for("--mode")?)?,
         "-d" | "--debug" => shared.debug = true,
@@ -773,6 +774,19 @@ fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(
         flag => return Err(format!("Unknown option '{flag}'")),
     }
     Ok(())
+}
+
+fn normalize_date_bounds(shared: &mut SharedArgs) {
+    if let Some(since) = shared.since.clone() {
+        shared.since = Some(normalize_date_bound(since));
+    }
+    if let Some(until) = shared.until.clone() {
+        shared.until = Some(normalize_date_bound(until));
+    }
+}
+
+fn normalize_date_bound(raw: String) -> String {
+    raw.replace('-', "")
 }
 
 fn is_command(arg: &str) -> bool {
@@ -1846,6 +1860,43 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn normalizes_dashed_since_and_until_in_root_daily() {
+        let cli = parse(&[
+            "ccusage",
+            "daily",
+            "--since",
+            "2026-04-22",
+            "--until",
+            "2026-04-30",
+        ]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert_eq!(args.shared.since.as_deref(), Some("20260422"));
+        assert_eq!(args.shared.until.as_deref(), Some("20260430"));
+    }
+
+    #[test]
+    fn normalizes_dashed_since_and_until_from_config_defaults() {
+        let path = temp_config_path("date-bounds-config");
+        fs::write(
+            &path,
+            r#"{
+                "defaults": { "since": "2026-04-22", "until": "2026-04-30" }
+            }"#,
+        )
+        .unwrap();
+        let path = path.to_string_lossy().to_string();
+
+        let cli = parse(&["ccusage", "--config", path.as_str(), "daily"]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert_eq!(args.shared.since.as_deref(), Some("20260422"));
+        assert_eq!(args.shared.until.as_deref(), Some("20260430"));
     }
 
     #[test]
