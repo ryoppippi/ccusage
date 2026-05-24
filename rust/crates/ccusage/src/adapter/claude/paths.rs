@@ -41,9 +41,6 @@ pub(crate) fn claude_paths() -> Result<Vec<PathBuf>> {
             paths.push(path);
         }
     }
-    if paths.is_empty() {
-        return Err(cli_error("No valid Claude data directories found"));
-    }
     Ok(paths)
 }
 
