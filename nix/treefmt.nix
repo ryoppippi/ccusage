@@ -29,6 +29,10 @@ in
           pkgs.libiconv
         ];
         text = ''
+          if [ -n "''${NIX_BUILD_TOP:-}" ]; then
+            exit 0
+          fi
+
           ${lib.optionalString pkgs.stdenv.isDarwin ''
             export SDKROOT="${pkgs.apple-sdk_15}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
             export LIBRARY_PATH="${
