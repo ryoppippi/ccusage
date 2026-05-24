@@ -22,15 +22,35 @@ pub(crate) fn read_thread_file(
     let Some(thread_id) = non_empty_json_string(value.get("id")) else {
         return Ok(Vec::new());
     };
-    let cache_tokens = cache_tokens_by_message_id(value.get("messages"));
-    let Some(events) = value
+    let messages = value.get("messages");
+
+    if let Some(events) = value
         .get("usageLedger")
         .and_then(|ledger| ledger.get("events"))
         .and_then(Value::as_array)
-    else {
-        return Ok(Vec::new());
-    };
+    {
+        let cache_tokens = cache_tokens_by_message_id(messages);
+        return Ok(parse_ledger_events(
+            events,
+            &cache_tokens,
+            &thread_id,
+            tz,
+            mode,
+            pricing,
+        ));
+    }
 
+    Ok(parse_message_usage(messages, &thread_id, tz, mode, pricing))
+}
+
+fn parse_ledger_events(
+    events: &[Value],
+    cache_tokens: &HashMap<i64, (u64, u64)>,
+    thread_id: &str,
+    tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> Vec<LoadedEntry> {
     let mut entries = Vec::new();
     for event in events {
         let Some(timestamp_text) = non_empty_json_string(event.get("timestamp")) else {
@@ -68,7 +88,7 @@ pub(crate) fn read_thread_file(
             continue;
         }
         let data = UsageEntry {
-            session_id: Some(thread_id.clone()),
+            session_id: Some(thread_id.to_string()),
             timestamp: timestamp_text,
             version: None,
             message: UsageMessage {
@@ -99,7 +119,7 @@ pub(crate) fn read_thread_file(
             date: format_date_tz(timestamp, tz),
             timestamp,
             project: Arc::from("amp"),
-            session_id: Arc::from(thread_id.as_str()),
+            session_id: Arc::from(thread_id),
             project_path: Arc::from("Amp"),
             cost,
             extra_total_tokens,
@@ -110,7 +130,89 @@ pub(crate) fn read_thread_file(
             data,
         });
     }
-    Ok(entries)
+    entries
+}
+
+fn parse_message_usage(
+    messages: Option<&Value>,
+    thread_id: &str,
+    tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> Vec<LoadedEntry> {
+    let mut entries = Vec::new();
+    let Some(messages) = messages.and_then(Value::as_array) else {
+        return entries;
+    };
+    for message in messages {
+        if message.get("role").and_then(Value::as_str) != Some("assistant") {
+            continue;
+        }
+        let Some(usage) = message.get("usage") else {
+            continue;
+        };
+        let Some(timestamp_text) = non_empty_json_string(usage.get("timestamp"))
+            .or_else(|| non_empty_json_string(message.get("timestamp")))
+        else {
+            continue;
+        };
+        let Some(timestamp) = crate::parse_ts_timestamp(&timestamp_text) else {
+            continue;
+        };
+        let Some(model) = non_empty_json_string(usage.get("model"))
+            .or_else(|| non_empty_json_string(message.get("model")))
+        else {
+            continue;
+        };
+        let usage_raw = TokenUsageRaw {
+            input_tokens: json_value_u64(usage.get("inputTokens")),
+            output_tokens: json_value_u64(usage.get("outputTokens")),
+            cache_creation_input_tokens: json_value_u64(usage.get("cacheCreationInputTokens")),
+            cache_read_input_tokens: json_value_u64(usage.get("cacheReadInputTokens")),
+            speed: None,
+        };
+        if usage_raw.input_tokens == 0
+            && usage_raw.output_tokens == 0
+            && usage_raw.cache_creation_input_tokens == 0
+            && usage_raw.cache_read_input_tokens == 0
+        {
+            continue;
+        }
+        let message_id = message.get("messageId").and_then(|id| {
+            id.as_i64()
+                .map(|v| v.to_string())
+                .or_else(|| id.as_str().map(str::to_string))
+        });
+        let data = UsageEntry {
+            session_id: Some(thread_id.to_string()),
+            timestamp: timestamp_text,
+            version: None,
+            message: UsageMessage {
+                usage: usage_raw,
+                model: Some(model.clone()),
+                id: message_id,
+            },
+            cost_usd: None,
+            request_id: None,
+            is_api_error_message: None,
+        };
+        let cost = calculate_cost(&data, mode, pricing);
+        entries.push(LoadedEntry {
+            date: format_date_tz(timestamp, tz),
+            timestamp,
+            project: Arc::from("amp"),
+            session_id: Arc::from(thread_id),
+            project_path: Arc::from("Amp"),
+            cost,
+            extra_total_tokens: 0,
+            credits: json_value_f64(usage.get("credits")),
+            message_count: None,
+            model: Some(model),
+            usage_limit_reset_time: None,
+            data,
+        });
+    }
+    entries
 }
 
 fn cache_tokens_by_message_id(messages: Option<&Value>) -> HashMap<i64, (u64, u64)> {
@@ -168,5 +270,133 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.output_tokens, 345);
         assert_eq!(entries[0].extra_total_tokens, 0);
+    }
+
+    #[test]
+    fn reads_usage_from_messages_when_ledger_is_missing() {
+        let nanos = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-amp-messages-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("thread.json");
+        fs::write(
+            &file,
+            r#"{
+                "id":"T-thread-a",
+                "messages":[
+                    {"role":"user","content":"hi"},
+                    {"role":"assistant","usage":{
+                        "model":"claude-haiku-4-5-20251001",
+                        "inputTokens":10,
+                        "outputTokens":178,
+                        "cacheCreationInputTokens":986,
+                        "cacheReadInputTokens":11372,
+                        "totalInputTokens":12368,
+                        "timestamp":"2026-01-19T11:42:10.652Z"
+                    }},
+                    {"role":"assistant","usage":{
+                        "model":"claude-haiku-4-5-20251001",
+                        "inputTokens":5,
+                        "outputTokens":42,
+                        "cacheCreationInputTokens":0,
+                        "cacheReadInputTokens":12000,
+                        "timestamp":"2026-01-19T11:43:00.000Z"
+                    }}
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].data.message.usage.input_tokens, 10);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 178);
+        assert_eq!(
+            entries[0].data.message.usage.cache_creation_input_tokens,
+            986
+        );
+        assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 11372);
+        assert_eq!(
+            entries[0].data.message.model.as_deref(),
+            Some("claude-haiku-4-5-20251001")
+        );
+        assert_eq!(entries[0].session_id.as_ref(), "T-thread-a");
+        assert_eq!(entries[1].data.message.usage.input_tokens, 5);
+    }
+
+    #[test]
+    fn ledger_events_take_precedence_over_messages_usage() {
+        let nanos = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-amp-precedence-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("thread.json");
+        fs::write(
+            &file,
+            r#"{
+                "id":"thread-a",
+                "usageLedger":{"events":[{
+                    "id":"event-a",
+                    "timestamp":"2026-01-02T00:00:00.000Z",
+                    "model":"gpt-5",
+                    "tokens":{"input":1,"output":2}
+                }]},
+                "messages":[
+                    {"role":"assistant","usage":{
+                        "model":"claude-haiku-4-5-20251001",
+                        "inputTokens":99,
+                        "outputTokens":99,
+                        "timestamp":"2026-01-19T11:42:10.652Z"
+                    }}
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].data.message.model.as_deref(), Some("gpt-5"));
+        assert_eq!(entries[0].data.message.usage.input_tokens, 1);
+    }
+
+    #[test]
+    fn skips_messages_with_no_usage_tokens() {
+        let nanos = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-amp-empty-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("thread.json");
+        fs::write(
+            &file,
+            r#"{
+                "id":"T-thread-a",
+                "messages":[
+                    {"role":"assistant","usage":{
+                        "model":"claude-haiku-4-5-20251001",
+                        "inputTokens":0,
+                        "outputTokens":0,
+                        "cacheCreationInputTokens":0,
+                        "cacheReadInputTokens":0,
+                        "timestamp":"2026-01-19T11:42:10.652Z"
+                    }}
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert!(entries.is_empty());
     }
 }

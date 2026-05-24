@@ -10,8 +10,11 @@ Each thread is a JSON file named `T-{uuid}.json`.
 
 Usage comes from:
 
-- `usageLedger.events[]` for token usage and credits.
-- `messages[].usage` for cache creation/read breakdown.
+- `usageLedger.events[]` for token usage and credits, with `messages[].usage`
+  supplying the cache creation/read breakdown per `toMessageId`.
+- `messages[].usage` directly when `usageLedger.events` is not present (current
+  Amp schema). Each assistant message's `usage` object carries `model`,
+  `timestamp`, and the token fields below.
 
 Token fields:
 
