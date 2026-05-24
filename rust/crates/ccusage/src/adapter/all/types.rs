@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use serde_json::Value;
 
-use crate::ModelBreakdown;
+use crate::{fast::FxHashMap, ModelBreakdown};
 
 #[derive(Debug, Clone)]
 pub(super) struct AllRow {
@@ -55,6 +55,7 @@ pub(super) struct AllAccumulator {
     models: BTreeSet<String>,
     agents: BTreeSet<&'static str>,
     agent_breakdowns: Vec<AllRow>,
+    agent_indexes: FxHashMap<&'static str, usize>,
 }
 
 impl AllAccumulator {
@@ -71,15 +72,25 @@ impl AllAccumulator {
         } else if row.agent != "all" {
             self.agents.insert(row.agent);
         }
-        self.agent_breakdowns.push(AllRow {
-            metadata_agents: Some(vec![row.agent]),
-            agent_breakdowns: None,
-            ..row
-        });
+        match self.agent_indexes.get(row.agent).copied() {
+            Some(index) => merge_agent_breakdown(&mut self.agent_breakdowns[index], row),
+            None => {
+                self.agent_indexes
+                    .insert(row.agent, self.agent_breakdowns.len());
+                self.agent_breakdowns.push(AllRow {
+                    metadata_agents: Some(vec![row.agent]),
+                    agent_breakdowns: None,
+                    ..row
+                });
+            }
+        }
     }
 
     pub(super) fn into_row(self, period: String) -> AllRow {
         let mut agent_breakdowns = self.agent_breakdowns;
+        for breakdown in &mut agent_breakdowns {
+            breakdown.period = period.clone();
+        }
         agent_breakdowns.sort_by(|a, b| a.agent.cmp(b.agent));
         let mut model_breakdowns = aggregate_model_breakdowns(&agent_breakdowns);
         model_breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
@@ -101,9 +112,47 @@ impl AllAccumulator {
     }
 }
 
-pub(super) fn aggregate_model_breakdowns(rows: &[AllRow]) -> Vec<ModelBreakdown> {
-    use crate::fast::FxHashMap;
+fn merge_agent_breakdown(target: &mut AllRow, source: AllRow) {
+    target.input_tokens += source.input_tokens;
+    target.output_tokens += source.output_tokens;
+    target.cache_creation_tokens += source.cache_creation_tokens;
+    target.cache_read_tokens += source.cache_read_tokens;
+    target.total_tokens += source.total_tokens;
+    target.total_cost += source.total_cost;
+    let mut models: BTreeSet<String> = target.models_used.drain(..).collect();
+    models.extend(source.models_used);
+    target.models_used = models.into_iter().collect();
+    target.model_breakdowns =
+        merge_model_breakdowns(target.model_breakdowns.drain(..), source.model_breakdowns);
+}
 
+fn merge_model_breakdowns(
+    existing: impl IntoIterator<Item = ModelBreakdown>,
+    additional: impl IntoIterator<Item = ModelBreakdown>,
+) -> Vec<ModelBreakdown> {
+    let mut indexes = FxHashMap::<String, usize>::default();
+    let mut breakdowns: Vec<ModelBreakdown> = Vec::new();
+    for item in existing.into_iter().chain(additional) {
+        let index = *indexes.entry(item.model_name.clone()).or_insert_with(|| {
+            let i = breakdowns.len();
+            breakdowns.push(ModelBreakdown {
+                model_name: item.model_name.clone(),
+                ..ModelBreakdown::default()
+            });
+            i
+        });
+        let b = &mut breakdowns[index];
+        b.input_tokens += item.input_tokens;
+        b.output_tokens += item.output_tokens;
+        b.cache_creation_tokens += item.cache_creation_tokens;
+        b.cache_read_tokens += item.cache_read_tokens;
+        b.extra_total_tokens += item.extra_total_tokens;
+        b.cost += item.cost;
+    }
+    breakdowns
+}
+
+pub(super) fn aggregate_model_breakdowns(rows: &[AllRow]) -> Vec<ModelBreakdown> {
     let mut indexes = FxHashMap::<String, usize>::default();
     let mut breakdowns: Vec<ModelBreakdown> = Vec::new();
     for row in rows {
