@@ -171,10 +171,14 @@ fn parse_message_usage(
             cache_read_input_tokens: json_value_u64(usage.get("cacheReadInputTokens")),
             speed: None,
         };
+        let total_tokens = json_value_u64(usage.get("totalTokens"));
+        let (usage_raw, extra_total_tokens) =
+            apply_total_token_fallback(usage_raw, 0, total_tokens);
         if usage_raw.input_tokens == 0
             && usage_raw.output_tokens == 0
             && usage_raw.cache_creation_input_tokens == 0
             && usage_raw.cache_read_input_tokens == 0
+            && extra_total_tokens == 0
         {
             continue;
         }
@@ -196,7 +200,21 @@ fn parse_message_usage(
             request_id: None,
             is_api_error_message: None,
         };
-        let cost = calculate_cost(&data, mode, pricing);
+        let cost_data = UsageEntry {
+            message: UsageMessage {
+                usage: TokenUsageRaw {
+                    output_tokens: data
+                        .message
+                        .usage
+                        .output_tokens
+                        .saturating_add(extra_total_tokens),
+                    ..data.message.usage
+                },
+                ..data.message.clone()
+            },
+            ..data.clone()
+        };
+        let cost = calculate_cost(&cost_data, mode, pricing);
         entries.push(LoadedEntry {
             date: format_date_tz(timestamp, tz),
             timestamp,
@@ -204,7 +222,7 @@ fn parse_message_usage(
             session_id: Arc::from(thread_id),
             project_path: Arc::from("Amp"),
             cost,
-            extra_total_tokens: 0,
+            extra_total_tokens,
             credits: json_value_f64(usage.get("credits")),
             message_count: None,
             model: Some(model),
@@ -398,5 +416,37 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
 
         assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_in_messages_path() {
+        let nanos = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-amp-messages-total-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("thread.json");
+        fs::write(
+            &file,
+            r#"{
+                "id":"T-thread-a",
+                "messages":[
+                    {"role":"assistant","usage":{
+                        "model":"claude-haiku-4-5-20251001",
+                        "totalTokens":345,
+                        "timestamp":"2026-01-19T11:42:10.652Z"
+                    }}
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 345);
+        assert_eq!(entries[0].extra_total_tokens, 0);
     }
 }
