@@ -43,8 +43,6 @@ pub(super) fn discover_log_files() -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use super::*;
     use ccusage_test_support::fs_fixture;
 
@@ -56,9 +54,8 @@ mod tests {
             "chats/b.jsonl": "{}\n",
             "chats/ignore.txt": "no",
         });
-        env::set_var(GEMINI_DATA_DIR_ENV, fixture.root());
+        let _env_guard = super::super::GeminiDataDirEnvGuard::set(fixture.root());
         let files = discover_log_files().unwrap();
-        env::remove_var(GEMINI_DATA_DIR_ENV);
 
         assert_eq!(
             files,

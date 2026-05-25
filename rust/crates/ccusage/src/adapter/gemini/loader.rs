@@ -30,8 +30,6 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use super::*;
     use ccusage_test_support::fs_fixture;
 
@@ -45,13 +43,12 @@ mod tests {
             ]
             .join("\n"),
         });
-        env::set_var(super::super::paths::GEMINI_DATA_DIR_ENV, fixture.root());
+        let _env_guard = super::super::GeminiDataDirEnvGuard::set(fixture.root());
         let shared = SharedArgs {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
-        env::remove_var(super::super::paths::GEMINI_DATA_DIR_ENV);
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-05-17");

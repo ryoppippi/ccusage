@@ -263,9 +263,13 @@ fn push_deduped_entry(
         (exact_hash, existing_index)
     });
 
-    if let Some((_, Some(index))) = dedupe_lookup {
+    if let Some((hash, Some(index))) = dedupe_lookup {
         if should_replace_deduped_entry(&entry.data, &deduped[index].data) {
             deduped[index] = entry;
+            push_deduped_index(deduped_indexes, hash, index);
+            if let Some(message_id) = deduped[index].data.message.id.as_deref() {
+                push_deduped_index(deduped_indexes, usage_dedupe_hash(message_id, None), index);
+            }
         }
         return;
     }
@@ -681,6 +685,50 @@ mod tests {
             Some("msg-sidechain-answer")
         );
         assert_eq!(deduped[1].data.message.usage.cache_read_input_tokens, 700);
+    }
+
+    #[test]
+    fn refreshes_dedupe_indexes_when_parent_replaces_sidechain_replay() {
+        let mut deduped_indexes = Default::default();
+        let mut deduped = Vec::new();
+
+        push_deduped_entry(
+            loaded_usage_entry(UsageEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-sidechain-replay",
+                is_sidechain: true,
+                cache_read_tokens: 50_000,
+                output_tokens: 10,
+            }),
+            &mut deduped_indexes,
+            &mut deduped,
+        );
+        push_deduped_entry(
+            loaded_usage_entry(UsageEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-parent",
+                is_sidechain: false,
+                cache_read_tokens: 20,
+                output_tokens: 10,
+            }),
+            &mut deduped_indexes,
+            &mut deduped,
+        );
+        push_deduped_entry(
+            loaded_usage_entry(UsageEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-parent",
+                is_sidechain: false,
+                cache_read_tokens: 5,
+                output_tokens: 5,
+            }),
+            &mut deduped_indexes,
+            &mut deduped,
+        );
+
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(deduped[0].data.request_id.as_deref(), Some("req-parent"));
+        assert_eq!(deduped[0].data.message.usage.cache_read_input_tokens, 20);
     }
 
     struct UsageEntryFixture {

@@ -14,6 +14,30 @@ pub(crate) use report::{report_from_rows, summarize_entries};
 #[cfg(test)]
 static GEMINI_DATA_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+#[cfg(test)]
+struct GeminiDataDirEnvGuard {
+    previous: Option<std::ffi::OsString>,
+}
+
+#[cfg(test)]
+impl GeminiDataDirEnvGuard {
+    fn set(path: &std::path::Path) -> Self {
+        let previous = std::env::var_os(paths::GEMINI_DATA_DIR_ENV);
+        std::env::set_var(paths::GEMINI_DATA_DIR_ENV, path);
+        Self { previous }
+    }
+}
+
+#[cfg(test)]
+impl Drop for GeminiDataDirEnvGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => std::env::set_var(paths::GEMINI_DATA_DIR_ENV, value),
+            None => std::env::remove_var(paths::GEMINI_DATA_DIR_ENV),
+        }
+    }
+}
+
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
