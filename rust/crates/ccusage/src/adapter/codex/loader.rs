@@ -153,83 +153,27 @@ mod tests {
 
     #[test]
     fn dedupes_copied_branch_history_across_session_files() {
-        let dir = temp_dir("branch-history");
-        let parent_history = [
-            json!({
-                "timestamp": "2026-05-12T08:00:00.000Z",
-                "type": "turn_context",
-                "payload": {
-                    "model": "gpt-5.2",
-                },
-            })
-            .to_string(),
-            json!({
-                "timestamp": "2026-05-12T08:01:00.000Z",
-                "type": "event_msg",
-                "payload": {
-                    "type": "token_count",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 1_000,
-                            "cached_input_tokens": 100,
-                            "output_tokens": 200,
-                            "reasoning_output_tokens": 20,
-                            "total_tokens": 1_200,
-                        },
-                    },
-                },
-            })
-            .to_string(),
-        ]
-        .join("\n");
-        fs::write(
-            dir.join("2026-05-12T08-00-00-parent.jsonl"),
-            &parent_history,
-        )
-        .unwrap();
-        fs::write(
-            dir.join("2026-05-12T08-02-00-branch.jsonl"),
-            [
-                parent_history,
-                json!({
-                    "timestamp": "2026-05-12T08:02:00.000Z",
-                    "type": "event_msg",
-                    "payload": {
-                        "type": "token_count",
-                        "info": {
-                            "total_token_usage": {
-                                "input_tokens": 1_600,
-                                "cached_input_tokens": 300,
-                                "output_tokens": 450,
-                                "reasoning_output_tokens": 40,
-                                "total_tokens": 2_050,
-                            },
-                        },
-                    },
-                })
-                .to_string(),
-            ]
-            .join("\n"),
-        )
-        .unwrap();
+        for single_thread in [true, false] {
+            let events = load_codex_events_from_directory(
+                &codex_branch_history_fixture_dir(),
+                single_thread,
+            )
+            .unwrap();
 
-        let events = load_codex_events_from_directory(&dir, true).unwrap();
-
-        assert_eq!(events.len(), 2);
-        assert_eq!(events[0].session_id, "2026-05-12T08-00-00-parent");
-        assert_eq!(events[0].input_tokens, 1_000);
-        assert_eq!(events[0].cached_input_tokens, 100);
-        assert_eq!(events[0].output_tokens, 200);
-        assert_eq!(events[0].reasoning_output_tokens, 20);
-        assert_eq!(events[0].total_tokens, 1_200);
-        assert_eq!(events[1].session_id, "2026-05-12T08-02-00-branch");
-        assert_eq!(events[1].input_tokens, 600);
-        assert_eq!(events[1].cached_input_tokens, 200);
-        assert_eq!(events[1].output_tokens, 250);
-        assert_eq!(events[1].reasoning_output_tokens, 20);
-        assert_eq!(events[1].total_tokens, 850);
-
-        fs::remove_dir_all(dir).unwrap();
+            assert_eq!(events.len(), 2);
+            assert_eq!(events[0].session_id, "2026-05-12T08-00-00-parent");
+            assert_eq!(events[0].input_tokens, 1_000);
+            assert_eq!(events[0].cached_input_tokens, 100);
+            assert_eq!(events[0].output_tokens, 200);
+            assert_eq!(events[0].reasoning_output_tokens, 20);
+            assert_eq!(events[0].total_tokens, 1_200);
+            assert_eq!(events[1].session_id, "2026-05-12T08-02-00-branch");
+            assert_eq!(events[1].input_tokens, 600);
+            assert_eq!(events[1].cached_input_tokens, 200);
+            assert_eq!(events[1].output_tokens, 250);
+            assert_eq!(events[1].reasoning_output_tokens, 20);
+            assert_eq!(events[1].total_tokens, 850);
+        }
     }
 
     fn temp_dir(name: &str) -> PathBuf {
@@ -240,6 +184,11 @@ mod tests {
         let dir = env::temp_dir().join(format!("ccusage-codex-exec-{name}-{nanos}"));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    fn codex_branch_history_fixture_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../apps/ccusage/test/fixtures/codex/sessions/branch-history")
     }
 
     #[test]
