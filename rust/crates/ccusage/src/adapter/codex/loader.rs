@@ -182,7 +182,11 @@ mod tests {
             .to_string(),
         ]
         .join("\n");
-        fs::write(dir.join("2026-05-12T08-00-00-parent.jsonl"), &parent_history).unwrap();
+        fs::write(
+            dir.join("2026-05-12T08-00-00-parent.jsonl"),
+            &parent_history,
+        )
+        .unwrap();
         fs::write(
             dir.join("2026-05-12T08-02-00-branch.jsonl"),
             [
