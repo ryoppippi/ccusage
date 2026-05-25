@@ -62,6 +62,7 @@ pub(crate) fn message_value_to_entry(
         cost_usd: value.get("cost").and_then(Value::as_f64),
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     let cost_usage = TokenUsageRaw {
         output_tokens: usage.output_tokens.saturating_add(extra_total_tokens),

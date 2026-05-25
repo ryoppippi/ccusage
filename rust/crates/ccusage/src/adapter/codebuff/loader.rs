@@ -55,6 +55,7 @@ fn to_loaded_entry(
         cost_usd: None,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     LoadedEntry {
         date: format_date_tz(entry.timestamp, tz),
@@ -221,6 +222,7 @@ mod tests {
                 cost_usd: None,
                 request_id: None,
                 is_api_error_message: None,
+                is_sidechain: None,
             },
             timestamp: parse_ts_timestamp("2026-01-02T03:04:06.000Z").unwrap(),
             date: "2026-01-02".to_string(),

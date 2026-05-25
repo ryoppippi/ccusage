@@ -216,6 +216,12 @@ fn usage_token_total(data: &UsageEntry) -> u64 {
 }
 
 fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -> bool {
+    let candidate_is_sidechain = is_sidechain_usage_entry(candidate);
+    let existing_is_sidechain = is_sidechain_usage_entry(existing);
+    if candidate_is_sidechain != existing_is_sidechain {
+        return existing_is_sidechain;
+    }
+
     let candidate_total = usage_token_total(candidate);
     let existing_total = usage_token_total(existing);
     if candidate_total != existing_total {
@@ -232,13 +238,28 @@ fn push_deduped_entry(
 ) {
     let dedupe_lookup = entry.data.message.id.as_deref().map(|message_id| {
         let request_id = entry.data.request_id.as_deref();
-        let hash = usage_dedupe_hash(message_id, request_id);
-        let existing_index = deduped_indexes.get(&hash).and_then(|indexes| {
-            indexes.iter().copied().find(|&index| {
-                loaded_entry_matches_dedupe_key(&deduped[index], message_id, request_id)
+        let exact_hash = usage_dedupe_hash(message_id, request_id);
+        let existing_index = deduped_indexes
+            .get(&exact_hash)
+            .and_then(|indexes| {
+                indexes.iter().copied().find(|&index| {
+                    loaded_entry_matches_dedupe_key(&deduped[index], message_id, request_id)
+                })
             })
-        });
-        (hash, existing_index)
+            .or_else(|| {
+                let message_hash = usage_dedupe_hash(message_id, None);
+                let candidate_is_sidechain = is_sidechain_usage_entry(&entry.data);
+                deduped_indexes.get(&message_hash).and_then(|indexes| {
+                    indexes.iter().copied().find(|&index| {
+                        loaded_entry_matches_sidechain_dedupe_key(
+                            &deduped[index],
+                            message_id,
+                            candidate_is_sidechain,
+                        )
+                    })
+                })
+            });
+        (exact_hash, existing_index)
     });
 
     if let Some((_, Some(index))) = dedupe_lookup {
@@ -251,7 +272,10 @@ fn push_deduped_entry(
     let index = deduped.len();
     deduped.push(entry);
     if let Some((hash, None)) = dedupe_lookup {
-        deduped_indexes.entry(hash).or_default().push(index);
+        push_deduped_index(deduped_indexes, hash, index);
+        if let Some(message_id) = deduped[index].data.message.id.as_deref() {
+            push_deduped_index(deduped_indexes, usage_dedupe_hash(message_id, None), index);
+        }
     }
 }
 
@@ -269,6 +293,30 @@ fn loaded_entry_matches_dedupe_key(
 ) -> bool {
     entry.data.message.id.as_deref() == Some(message_id)
         && entry.data.request_id.as_deref() == request_id
+}
+
+fn loaded_entry_matches_sidechain_dedupe_key(
+    entry: &LoadedEntry,
+    message_id: &str,
+    candidate_is_sidechain: bool,
+) -> bool {
+    entry.data.message.id.as_deref() == Some(message_id)
+        && (candidate_is_sidechain || is_sidechain_usage_entry(&entry.data))
+}
+
+fn is_sidechain_usage_entry(entry: &UsageEntry) -> bool {
+    entry.is_sidechain == Some(true)
+}
+
+fn push_deduped_index(
+    deduped_indexes: &mut FxHashMap<u64, SmallIndexVec>,
+    hash: u64,
+    index: usize,
+) {
+    let indexes = deduped_indexes.entry(hash).or_default();
+    if !indexes.contains(&index) {
+        indexes.push(index);
+    }
 }
 
 fn read_usage_file(
@@ -490,12 +538,13 @@ fn usage_limit_reset_time_from_line_bytes(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path};
+    use std::{fs, path::Path, sync::Arc};
 
     use super::{
         extract_session_parts, has_unsupported_null_field, paths::is_project_path_segment,
-        usage_files,
+        push_deduped_entry, usage_files,
     };
+    use crate::{LoadedEntry, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage};
 
     fn temp_claude_dir(name: &str) -> std::path::PathBuf {
         let nanos = std::time::SystemTime::now()
@@ -598,5 +647,99 @@ mod tests {
         assert!(!has_unsupported_null_field(
             br#"{"message":{"content":null,"usage":{"input_tokens":0}}}"#
         ));
+    }
+
+    #[test]
+    fn keeps_parent_usage_when_sidechain_replays_message_with_new_request_id() {
+        let mut deduped_indexes = Default::default();
+        let mut deduped = Vec::new();
+
+        push_deduped_entry(
+            loaded_usage_entry(UsageEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-parent",
+                is_sidechain: false,
+                cache_read_tokens: 20,
+                output_tokens: 10,
+            }),
+            &mut deduped_indexes,
+            &mut deduped,
+        );
+        push_deduped_entry(
+            loaded_usage_entry(UsageEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-sidechain-replay",
+                is_sidechain: true,
+                cache_read_tokens: 50_000,
+                output_tokens: 10,
+            }),
+            &mut deduped_indexes,
+            &mut deduped,
+        );
+        push_deduped_entry(
+            loaded_usage_entry(UsageEntryFixture {
+                message_id: "msg-sidechain-answer",
+                request_id: "req-sidechain-answer",
+                is_sidechain: true,
+                cache_read_tokens: 700,
+                output_tokens: 30,
+            }),
+            &mut deduped_indexes,
+            &mut deduped,
+        );
+
+        assert_eq!(deduped.len(), 2);
+        assert_eq!(deduped[0].data.message.id.as_deref(), Some("msg-parent"));
+        assert_eq!(deduped[0].data.request_id.as_deref(), Some("req-parent"));
+        assert_eq!(deduped[0].data.message.usage.cache_read_input_tokens, 20);
+        assert_eq!(
+            deduped[1].data.message.id.as_deref(),
+            Some("msg-sidechain-answer")
+        );
+        assert_eq!(deduped[1].data.message.usage.cache_read_input_tokens, 700);
+    }
+
+    struct UsageEntryFixture {
+        message_id: &'static str,
+        request_id: &'static str,
+        is_sidechain: bool,
+        cache_read_tokens: u64,
+        output_tokens: u64,
+    }
+
+    fn loaded_usage_entry(fixture: UsageEntryFixture) -> LoadedEntry {
+        LoadedEntry {
+            data: UsageEntry {
+                session_id: Some("session-a".to_string()),
+                timestamp: "2026-03-29T07:00:00.000Z".to_string(),
+                version: Some("1.0.0".to_string()),
+                message: UsageMessage {
+                    usage: TokenUsageRaw {
+                        input_tokens: 0,
+                        output_tokens: fixture.output_tokens,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: fixture.cache_read_tokens,
+                        speed: None,
+                    },
+                    model: Some("claude-sonnet-4-20250514".to_string()),
+                    id: Some(fixture.message_id.to_string()),
+                },
+                cost_usd: None,
+                request_id: Some(fixture.request_id.to_string()),
+                is_api_error_message: None,
+                is_sidechain: Some(fixture.is_sidechain),
+            },
+            timestamp: TimestampMs::from_millis(1_775_000_000_000),
+            date: "2026-03-29".to_string(),
+            project: Arc::from("project-a"),
+            session_id: Arc::from("session-a"),
+            project_path: Arc::from("project-a"),
+            cost: 0.0,
+            extra_total_tokens: 0,
+            credits: None,
+            message_count: None,
+            model: Some("claude-sonnet-4-20250514".to_string()),
+            usage_limit_reset_time: None,
+        }
     }
 }

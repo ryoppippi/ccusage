@@ -534,6 +534,7 @@ mod tests {
                 cost_usd: None,
                 request_id: None,
                 is_api_error_message: None,
+                is_sidechain: None,
             },
             timestamp,
             date: fixture.date.to_string(),
