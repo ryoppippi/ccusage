@@ -9,6 +9,12 @@ use crate::{
     SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
 };
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ControlArg {
+    Help,
+    Version,
+}
+
 impl Cli {
     pub fn parse() -> Self {
         Self::parse_from(env::args_os()).unwrap_or_else(|message| {
@@ -36,6 +42,11 @@ impl Cli {
     {
         let mut parser = ArgParser::new(args.into_iter().skip(1).collect())?;
         normalize_legacy_agent_command_args(&mut parser.args);
+        match control_arg(&parser.args) {
+            Some(ControlArg::Version) => print_version_and_exit(version),
+            Some(ControlArg::Help) => print_help_and_exit(&parser.args),
+            None => {}
+        }
         if let Some(message) = report_flag_alias_error(&parser.args) {
             return Err(message);
         }
@@ -45,21 +56,6 @@ impl Cli {
         if let Some(message) = unsupported_agent_report_error(&parser.args) {
             return Err(message);
         }
-        if parser
-            .args
-            .iter()
-            .any(|arg| matches!(arg.as_str(), "-v" | "-V" | "--version"))
-        {
-            print_version_and_exit(version);
-        }
-        if parser
-            .args
-            .iter()
-            .any(|arg| matches!(arg.as_str(), "-h" | "--help"))
-        {
-            print_help_and_exit(&parser.args);
-        }
-
         let mut shared = SharedArgs::with_defaults();
         config.apply_shared(&mut shared);
         while let Some(arg) = parser.peek() {
@@ -87,6 +83,22 @@ impl Cli {
         }
         Ok(Self { command, shared })
     }
+}
+
+fn control_arg(args: &[String]) -> Option<ControlArg> {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "-v" | "-V" | "--version"))
+    {
+        return Some(ControlArg::Version);
+    }
+    if args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "-h" | "--help"))
+    {
+        return Some(ControlArg::Help);
+    }
+    None
 }
 
 fn parse_command(
@@ -903,5 +915,30 @@ fn parse_cost_source(value: &str) -> Result<CostSource, String> {
         "cc" => Ok(CostSource::Cc),
         "both" => Ok(CostSource::Both),
         _ => Err(format!("Invalid cost source '{value}'")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn detects_help_before_semantic_validation() {
+        assert_eq!(
+            control_arg(&args(&["--help", "--daily"])),
+            Some(ControlArg::Help)
+        );
+    }
+
+    #[test]
+    fn version_takes_precedence_over_help() {
+        assert_eq!(
+            control_arg(&args(&["--help", "--version"])),
+            Some(ControlArg::Version)
+        );
     }
 }

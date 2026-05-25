@@ -1,4 +1,4 @@
-use std::process;
+use std::{path::Path, process};
 
 use crate::parser::command_tokens;
 
@@ -34,11 +34,22 @@ pub(crate) fn help_text_for_args(args: &[String]) -> String {
 }
 
 fn strip_program_name(args: &[String]) -> &[String] {
-    if args.first().is_some_and(|arg| arg == "ccusage") {
+    if args.first().is_some_and(|arg| is_program_name(arg)) {
         &args[1..]
     } else {
         args
     }
+}
+
+fn is_program_name(arg: &str) -> bool {
+    let name = Path::new(arg)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(arg)
+        .rsplit('\\')
+        .next()
+        .unwrap_or(arg);
+    matches!(name, "ccusage" | "ccusage.exe")
 }
 
 fn help_text_for_tokens(tokens: &[String]) -> String {

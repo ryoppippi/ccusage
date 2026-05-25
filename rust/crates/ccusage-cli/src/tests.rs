@@ -392,6 +392,28 @@ fn contextual_codex_help_lists_speed_choices() {
 }
 
 #[test]
+fn contextual_help_strips_path_like_program_name() {
+    let help = help_text_for_args(&[
+        "/usr/local/bin/ccusage".to_string(),
+        "codex".to_string(),
+        "daily".to_string(),
+    ]);
+
+    assert!(help.contains("USAGE:\n  ccusage codex daily <OPTIONS>"));
+}
+
+#[test]
+fn contextual_help_strips_windows_program_name() {
+    let help = help_text_for_args(&[
+        "C:\\Tools\\ccusage.exe".to_string(),
+        "codex".to_string(),
+        "daily".to_string(),
+    ]);
+
+    assert!(help.contains("USAGE:\n  ccusage codex daily <OPTIONS>"));
+}
+
+#[test]
 fn contextual_agent_help_lists_agent_subcommands() {
     let help = help_text_for_args(&["ccusage".to_string(), "claude".to_string()]);
 

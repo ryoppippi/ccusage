@@ -33,10 +33,14 @@ impl ArgParser {
     }
 
     pub(crate) fn next_flag(&mut self) -> Result<String, String> {
+        self.pending_value = None;
         let arg = self
             .next()
             .ok_or_else(|| "Expected option but reached end of arguments".to_string())?;
         if let Some((flag, value)) = arg.split_once('=') {
+            if !flag.starts_with('-') {
+                return Err(format!("Expected option, got '{arg}'"));
+            }
             self.pending_value = Some(value.to_string());
             return Ok(flag.to_string());
         }
@@ -61,5 +65,35 @@ impl ArgParser {
             return Err(format!("Missing value for {flag}"));
         }
         Ok(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use super::*;
+
+    fn parser(args: &[&str]) -> ArgParser {
+        ArgParser::new(args.iter().map(OsString::from).collect()).unwrap()
+    }
+
+    #[test]
+    fn clears_inline_value_when_reading_next_flag() {
+        let mut parser = parser(&["--json=ignored", "--since", "20260101"]);
+
+        assert_eq!(parser.next_flag().unwrap(), "--json");
+        assert_eq!(parser.next_flag().unwrap(), "--since");
+        assert_eq!(parser.value_for("--since").unwrap(), "20260101");
+    }
+
+    #[test]
+    fn rejects_inline_values_on_non_options() {
+        let mut parser = parser(&["daily=bad"]);
+
+        assert_eq!(
+            parser.next_flag().unwrap_err(),
+            "Expected option, got 'daily=bad'"
+        );
     }
 }
