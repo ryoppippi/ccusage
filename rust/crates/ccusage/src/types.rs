@@ -15,6 +15,7 @@ pub(crate) struct UsageEntry {
     pub(crate) cost_usd: Option<f64>,
     pub(crate) request_id: Option<String>,
     pub(crate) is_api_error_message: Option<bool>,
+    pub(crate) is_sidechain: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

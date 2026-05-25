@@ -155,6 +155,7 @@ pub(super) fn to_loaded_entry(
         cost_usd: entry.cost_usd,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     LoadedEntry {
         date: format_date_tz(entry.timestamp, tz),

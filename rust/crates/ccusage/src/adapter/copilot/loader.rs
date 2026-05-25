@@ -76,6 +76,7 @@ fn usage_entry_to_loaded(
         cost_usd: None,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     let cost = calculate_cost_for_usage(Some(&entry.model), cost_usage, None, mode, Some(pricing));
     LoadedEntry {
