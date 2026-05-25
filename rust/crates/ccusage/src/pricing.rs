@@ -421,6 +421,7 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        // Source: https://platform.kimi.ai/docs/pricing/chat-k25
         self.entries.insert(
             "moonshot/kimi-k2.5".to_string(),
             Pricing {
@@ -436,6 +437,7 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        // Source: https://platform.kimi.ai/docs/pricing/chat-k26
         self.entries.insert(
             "moonshot/kimi-k2.6".to_string(),
             Pricing {
