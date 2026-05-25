@@ -102,6 +102,35 @@ mod tests {
     }
 
     #[test]
+    fn keeps_matching_grouped_codex_usage_events_from_distinct_sessions() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("ccusage-codex-group-dedupe-{suffix}"));
+        let sessions_dir = root.join("sessions");
+        fs::create_dir_all(&sessions_dir).unwrap();
+        let usage_line = r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"model":"gpt-5","last_token_usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":50,"reasoning_output_tokens":0,"total_tokens":150}}}}"#;
+        fs::write(sessions_dir.join("session-a.jsonl"), usage_line).unwrap();
+        fs::write(sessions_dir.join("session-b.jsonl"), usage_line).unwrap();
+        let shared = SharedArgs {
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+
+        let groups =
+            load_groups_from_directory(&sessions_dir, &shared, AgentReportKind::Daily).unwrap();
+        fs::remove_dir_all(root).unwrap();
+
+        assert_eq!(groups.len(), 1);
+        let group = groups.get("2026-01-02").unwrap();
+        assert_eq!(group.input_tokens, 200);
+        assert_eq!(group.cached_input_tokens, 20);
+        assert_eq!(group.output_tokens, 100);
+        assert_eq!(group.total_tokens, 300);
+    }
+
+    #[test]
     fn reports_non_cached_codex_input_separately_from_cached_input() {
         let pricing = PricingMap::default();
         let report = report_json(
