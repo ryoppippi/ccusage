@@ -421,6 +421,36 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        self.entries.insert(
+            "moonshot/kimi-k2.5".to_string(),
+            Pricing {
+                input: 0.6e-6,
+                output: 3e-6,
+                cache_create: 0.75e-6,
+                cache_read: 0.1e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "moonshot/kimi-k2.6".to_string(),
+            Pricing {
+                input: 0.95e-6,
+                output: 4e-6,
+                cache_create: 1.1875e-6,
+                cache_read: 0.16e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
         let gpt_5_1_pricing = Pricing {
             input: 1.25e-6,
             output: 10e-6,
@@ -512,6 +542,10 @@ impl PricingMap {
         self.context_limits
             .insert("grok-4.3".to_string(), 1_000_000);
         self.context_limits.insert("gpt-5.4".to_string(), 1_050_000);
+        self.context_limits
+            .insert("moonshot/kimi-k2.5".to_string(), 262_144);
+        self.context_limits
+            .insert("moonshot/kimi-k2.6".to_string(), 262_144);
 
         for model in [
             "claude-opus-4-5",
@@ -595,6 +629,24 @@ mod tests {
         assert!(pricing.find("gpt-5.5").is_some());
         assert!(pricing.find("grok-4.3").is_some());
         assert_eq!(pricing.context_limit("grok-4.3"), Some(1_000_000));
+    }
+
+    #[test]
+    fn embedded_pricing_includes_moonshot_kimi_for_offline_reports() {
+        let pricing = PricingMap::load_embedded();
+        let kimi_k25 = pricing.find("moonshot/kimi-k2.5").unwrap();
+        let kimi_k26 = pricing.find("moonshot/kimi-k2.6").unwrap();
+
+        assert_eq!(kimi_k25.input, 0.6e-6);
+        assert_eq!(kimi_k25.output, 3e-6);
+        assert_eq!(kimi_k25.cache_read, 0.1e-6);
+        assert!(kimi_k25.cache_read_explicit);
+        assert_eq!(kimi_k26.input, 0.95e-6);
+        assert_eq!(kimi_k26.output, 4e-6);
+        assert_eq!(kimi_k26.cache_read, 0.16e-6);
+        assert!(kimi_k26.cache_read_explicit);
+        assert_eq!(pricing.context_limit("moonshot/kimi-k2.5"), Some(262_144));
+        assert_eq!(pricing.context_limit("moonshot/kimi-k2.6"), Some(262_144));
     }
 
     #[test]
