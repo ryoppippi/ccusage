@@ -54,9 +54,6 @@ pub(crate) fn report_json(
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     use super::aggregate::load_groups_from_directory;
     use super::*;
     use crate::cli::SharedArgs;
@@ -93,16 +90,12 @@ mod tests {
 
     #[test]
     fn keeps_matching_grouped_codex_usage_events_from_distinct_sessions() {
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!("ccusage-codex-group-dedupe-{suffix}"));
-        let sessions_dir = root.join("sessions");
-        fs::create_dir_all(&sessions_dir).unwrap();
         let usage_line = r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"model":"gpt-5","last_token_usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":50,"reasoning_output_tokens":0,"total_tokens":150}}}}"#;
-        fs::write(sessions_dir.join("session-a.jsonl"), usage_line).unwrap();
-        fs::write(sessions_dir.join("session-b.jsonl"), usage_line).unwrap();
+        let fixture = fs_fixture!({
+            "sessions/session-a.jsonl": usage_line,
+            "sessions/session-b.jsonl": usage_line,
+        });
+        let sessions_dir = fixture.path("sessions");
         let shared = SharedArgs {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
@@ -110,7 +103,6 @@ mod tests {
 
         let groups =
             load_groups_from_directory(&sessions_dir, &shared, AgentReportKind::Daily).unwrap();
-        fs::remove_dir_all(root).unwrap();
 
         assert_eq!(groups.len(), 1);
         let group = groups.get("2026-01-02").unwrap();
