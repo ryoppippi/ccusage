@@ -149,7 +149,7 @@ impl DailyUsageLine {
                 session_id: None,
                 cost_usd: entry.data.message.cost_usd,
                 request_id: entry.data.message.request_id,
-                is_sidechain: None,
+                is_sidechain: entry.data.message.is_sidechain,
             },
         }
     }
@@ -173,6 +173,7 @@ struct DailyAgentProgressMessage {
     #[serde(rename = "costUSD")]
     cost_usd: Option<f64>,
     request_id: Option<String>,
+    is_sidechain: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -544,6 +545,17 @@ mod tests {
             Some("msg-sidechain-answer")
         );
         assert_eq!(deduped[1].usage.cache_read_input_tokens, 700);
+    }
+
+    #[test]
+    fn propagates_sidechain_metadata_from_agent_progress_lines() {
+        let data = serde_json::from_str::<super::DailyUsageLine>(
+            r#"{"data":{"message":{"timestamp":"2026-03-29T07:00:00.000Z","requestId":"req-sidechain","isSidechain":true,"message":{"usage":{"input_tokens":0,"output_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":20},"model":"claude-sonnet-4-20250514","id":"msg-sidechain"}}}}"#,
+        )
+        .unwrap()
+        .into_entry();
+
+        assert_eq!(data.is_sidechain, Some(true));
     }
 
     struct DailyEntryFixture {
