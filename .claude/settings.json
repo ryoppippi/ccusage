@@ -21,6 +21,16 @@
 					}
 				]
 			}
+		],
+		"WorktreeRemove": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "rm -rf .direnv; command -v nix >/dev/null 2>&1 && nix store gc || true"
+					}
+				]
+			}
 		]
 	}
 }
