@@ -61,6 +61,10 @@ impl SharedArgs {
     }
 }
 
+pub fn normalize_date_bound(value: &str) -> String {
+    value.replace('-', "")
+}
+
 #[derive(Clone)]
 pub struct DailyArgs {
     pub shared: SharedArgs,
@@ -783,8 +787,12 @@ fn parse_shared_arg_for_command(
 
 fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(), String> {
     match parser.next_flag()?.as_str() {
-        "-s" | "--since" => shared.since = Some(parser.value_for("--since")?),
-        "-u" | "--until" => shared.until = Some(parser.value_for("--until")?),
+        "-s" | "--since" => {
+            shared.since = Some(normalize_date_bound(&parser.value_for("--since")?))
+        }
+        "-u" | "--until" => {
+            shared.until = Some(normalize_date_bound(&parser.value_for("--until")?))
+        }
         "-j" | "--json" => shared.json = true,
         "-m" | "--mode" => shared.mode = parse_cost_mode(&parser.value_for("--mode")?)?,
         "-d" | "--debug" => shared.debug = true,
