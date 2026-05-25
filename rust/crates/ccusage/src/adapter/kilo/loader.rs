@@ -102,26 +102,13 @@ fn load_entries_from_database(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env, fs,
-        path::{Path, PathBuf},
-        sync::Mutex,
-    };
+    use std::{env, path::Path, sync::Mutex};
 
     use super::*;
     use crate::{cli::CostMode, PricingMap};
+    use ccusage_test_support::fs_fixture;
 
     static KILO_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
-
-    fn temp_kilo_dir(name: &str) -> PathBuf {
-        let mut path = env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("ccusage-kilo-{name}-{nanos}"));
-        path
-    }
 
     fn create_db_message(path: &Path, id: &str, session_id: &str, data: &str) {
         let db = sqlite::open(path).unwrap();
@@ -139,15 +126,14 @@ mod tests {
     #[test]
     fn loads_kilo_messages_from_sqlite() {
         let _guard = KILO_DATA_DIR_LOCK.lock().unwrap();
-        let kilo_dir = temp_kilo_dir("sqlite");
-        fs::create_dir_all(&kilo_dir).unwrap();
+        let fixture = fs_fixture!({});
         create_db_message(
-            &kilo_dir.join(super::super::paths::KILO_DB_FILE_NAME),
+            &fixture.path(super::super::paths::KILO_DB_FILE_NAME),
             "row-1",
             "session-a",
             r#"{"id":"msg-1","role":"assistant","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50,"reasoning":5,"cache":{"read":10,"write":20}},"cost":0.02,"agent":"build"}"#,
         );
-        env::set_var(super::super::paths::KILO_DATA_DIR_ENV, &kilo_dir);
+        env::set_var(super::super::paths::KILO_DATA_DIR_ENV, fixture.root());
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -155,7 +141,6 @@ mod tests {
         };
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
         env::remove_var(super::super::paths::KILO_DATA_DIR_ENV);
-        fs::remove_dir_all(&kilo_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-01-02");
@@ -178,19 +163,17 @@ mod tests {
     #[test]
     fn ignores_kilo_messages_without_timestamps() {
         let _guard = KILO_DATA_DIR_LOCK.lock().unwrap();
-        let kilo_dir = temp_kilo_dir("missing-timestamp");
-        fs::create_dir_all(&kilo_dir).unwrap();
+        let fixture = fs_fixture!({});
         create_db_message(
-            &kilo_dir.join(super::super::paths::KILO_DB_FILE_NAME),
+            &fixture.path(super::super::paths::KILO_DB_FILE_NAME),
             "row-1",
             "session-a",
             r#"{"role":"assistant","providerID":"openai","modelID":"gpt-5","tokens":{"input":1,"output":1,"cache":{"read":0,"write":0}}}"#,
         );
-        env::set_var(super::super::paths::KILO_DATA_DIR_ENV, &kilo_dir);
+        env::set_var(super::super::paths::KILO_DATA_DIR_ENV, fixture.root());
         let shared = SharedArgs::default();
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
         env::remove_var(super::super::paths::KILO_DATA_DIR_ENV);
-        fs::remove_dir_all(&kilo_dir).unwrap();
 
         assert!(entries.is_empty());
     }
@@ -198,13 +181,11 @@ mod tests {
     #[test]
     fn deduplicates_kilo_messages_across_data_dirs() {
         let _guard = KILO_DATA_DIR_LOCK.lock().unwrap();
-        let first = temp_kilo_dir("first");
-        let second = temp_kilo_dir("second");
-        fs::create_dir_all(&first).unwrap();
-        fs::create_dir_all(&second).unwrap();
-        for (dir, input) in [(&first, 10), (&second, 20)] {
+        let first = fs_fixture!({});
+        let second = fs_fixture!({});
+        for (fixture, input) in [(&first, 10), (&second, 20)] {
             create_db_message(
-                &dir.join(super::super::paths::KILO_DB_FILE_NAME),
+                &fixture.path(super::super::paths::KILO_DB_FILE_NAME),
                 "row-1",
                 "session-a",
                 &format!(
@@ -214,13 +195,11 @@ mod tests {
         }
         env::set_var(
             super::super::paths::KILO_DATA_DIR_ENV,
-            format!("{},{}", first.display(), second.display()),
+            format!("{},{}", first.root().display(), second.root().display()),
         );
         let shared = SharedArgs::default();
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
         env::remove_var(super::super::paths::KILO_DATA_DIR_ENV);
-        fs::remove_dir_all(&first).unwrap();
-        fs::remove_dir_all(&second).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.input_tokens, 10);

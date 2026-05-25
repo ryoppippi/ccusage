@@ -55,34 +55,22 @@ pub(crate) fn report_json(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        time::{SystemTime, UNIX_EPOCH},
-    };
-
     use super::aggregate::load_groups_from_directory;
     use super::*;
     use crate::cli::SharedArgs;
     use crate::{CodexModelUsage, CodexTokenUsageEvent};
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn loads_directory_groups_with_date_filter_without_global_event_vector() {
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!("ccusage-codex-groups-{suffix}"));
-        let sessions_dir = root.join("sessions");
-        fs::create_dir_all(&sessions_dir).unwrap();
-        fs::write(
-            sessions_dir.join("session.jsonl"),
-            [
+        let fixture = fs_fixture!({
+            "sessions/session.jsonl": [
                 r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"model":"gpt-5","last_token_usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":50,"reasoning_output_tokens":0,"total_tokens":150}}}}"#,
                 r#"{"timestamp":"2026-01-03T00:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"model":"gpt-5","last_token_usage":{"input_tokens":200,"cached_input_tokens":20,"output_tokens":75,"reasoning_output_tokens":5,"total_tokens":280}}}}"#,
             ]
             .join("\n"),
-        )
-        .unwrap();
+        });
+        let sessions_dir = fixture.path("sessions");
         let shared = SharedArgs {
             since: Some("20260103".to_string()),
             timezone: Some("UTC".to_string()),
@@ -91,7 +79,6 @@ mod tests {
 
         let groups =
             load_groups_from_directory(&sessions_dir, &shared, AgentReportKind::Daily).unwrap();
-        fs::remove_dir_all(root).unwrap();
 
         assert_eq!(groups.len(), 1);
         let group = groups.get("2026-01-03").unwrap();
