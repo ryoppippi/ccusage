@@ -16,6 +16,20 @@ projects/{project}/{sessionId}.jsonl
 
 `projects/` is scanned recursively, so both nested session directories and legacy flat JSONL files can be loaded.
 
+Sidechain entries:
+
+- Claude Code may write `isSidechain: true` entries for isolated sidechain
+  conversations such as `/btw` `aside_question` logs under `subagents/`. See
+  the Claude Code
+  [side questions documentation](https://code.claude.com/docs/en/interactive-mode#side-questions-with-btw).
+- These files can replay parent conversation messages with the same message ID
+  but a different request ID, including the parent cache-read usage.
+- ccusage keeps the parent entry and drops the replayed sidechain copy when at
+  least one duplicate carries `isSidechain: true`. Distinct sidechain responses
+  with their own message IDs are still counted.
+- This behavior fixes the overcounting reported in
+  [#913](https://github.com/ryoppippi/ccusage/issues/913).
+
 The term `session` has two meanings in this codebase:
 
 - Session report grouping uses project directories.

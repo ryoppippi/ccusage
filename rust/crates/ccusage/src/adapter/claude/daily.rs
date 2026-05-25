@@ -365,6 +365,7 @@ fn push_deduped_daily_entry(
                 })
             })
             .or_else(|| {
+                // /btw sidechain logs can replay parent messages with new request IDs.
                 let message_hash = usage_dedupe_hash(message_id, None);
                 let candidate_is_sidechain = is_sidechain_daily_entry(&entry);
                 deduped_indexes.get(&message_hash).and_then(|indexes| {
