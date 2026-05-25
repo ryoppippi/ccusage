@@ -117,7 +117,7 @@ pub(crate) fn print_table_for_agent(
                 Align::Right,
                 Align::Right,
             ],
-            shared,
+            crate::terminal_style(shared),
         )
     } else {
         SimpleTable::new(
@@ -143,7 +143,7 @@ pub(crate) fn print_table_for_agent(
                 Align::Right,
                 Align::Right,
             ],
-            shared,
+            crate::terminal_style(shared),
         )
     }
     .with_terminal_width(terminal_width)

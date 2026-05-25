@@ -183,7 +183,7 @@ pub(crate) fn print_usage_table(
         headers.push("Last Activity");
         aligns.push(Align::Left);
     }
-    let mut table = SimpleTable::new(headers, aligns, shared)
+    let mut table = SimpleTable::new(headers, aligns, crate::terminal_style(shared))
         .with_terminal_width(terminal_width)
         .with_date_compaction(true);
     let aliases = parse_project_aliases(project_aliases);

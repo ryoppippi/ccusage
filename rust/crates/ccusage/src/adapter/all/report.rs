@@ -77,7 +77,7 @@ pub(super) fn print_table(
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
     let (headers, aligns) = all_table_columns(kind, compact);
-    let mut table = SimpleTable::new(headers, aligns, shared)
+    let mut table = SimpleTable::new(headers, aligns, crate::terminal_style(shared))
         .with_terminal_width(terminal_width)
         .with_date_compaction(true);
 
