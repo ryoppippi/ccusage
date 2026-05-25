@@ -105,7 +105,6 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
     let mut seen = FxHashSet::default();
     events.retain(|event| {
         seen.insert((
-            CompactString::new(&event.session_id),
             CompactString::new(&event.timestamp),
             event.model.as_deref().map(CompactString::new),
             event.input_tokens,
@@ -126,6 +125,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
+    use ccusage_test_support::fs_fixture;
     use serde_json::json;
 
     fn codex_event(session_id: &str) -> CodexTokenUsageEvent {
@@ -143,12 +143,88 @@ mod tests {
     }
 
     #[test]
-    fn keeps_matching_codex_usage_events_from_distinct_sessions() {
+    fn dedupes_matching_codex_usage_events_from_distinct_sessions() {
         let mut events = vec![codex_event("session-a"), codex_event("session-b")];
 
         dedupe_codex_events(&mut events);
 
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "session-a");
+    }
+
+    #[test]
+    fn dedupes_copied_branch_history_across_session_files() {
+        let parent_history = [
+            json!({
+                "timestamp": "2026-05-12T08:00:00.000Z",
+                "type": "turn_context",
+                "payload": {
+                    "model": "gpt-5.2",
+                },
+            })
+            .to_string(),
+            json!({
+                "timestamp": "2026-05-12T08:01:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 1_000,
+                            "cached_input_tokens": 100,
+                            "output_tokens": 200,
+                            "reasoning_output_tokens": 20,
+                            "total_tokens": 1_200,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let branch_history = [
+            parent_history.as_str(),
+            &json!({
+                "timestamp": "2026-05-12T08:02:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 1_600,
+                            "cached_input_tokens": 300,
+                            "output_tokens": 450,
+                            "reasoning_output_tokens": 40,
+                            "total_tokens": 2_050,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let fixture = fs_fixture!({
+            "2026-05-12T08-00-00-parent.jsonl": &parent_history,
+            "2026-05-12T08-02-00-branch.jsonl": branch_history,
+        });
+
+        for single_thread in [true, false] {
+            let events = load_codex_events_from_directory(fixture.root(), single_thread).unwrap();
+
+            assert_eq!(events.len(), 2);
+            assert_eq!(events[0].session_id, "2026-05-12T08-00-00-parent");
+            assert_eq!(events[0].input_tokens, 1_000);
+            assert_eq!(events[0].cached_input_tokens, 100);
+            assert_eq!(events[0].output_tokens, 200);
+            assert_eq!(events[0].reasoning_output_tokens, 20);
+            assert_eq!(events[0].total_tokens, 1_200);
+            assert_eq!(events[1].session_id, "2026-05-12T08-02-00-branch");
+            assert_eq!(events[1].input_tokens, 600);
+            assert_eq!(events[1].cached_input_tokens, 200);
+            assert_eq!(events[1].output_tokens, 250);
+            assert_eq!(events[1].reasoning_output_tokens, 20);
+            assert_eq!(events[1].total_tokens, 850);
+        }
     }
 
     fn temp_dir(name: &str) -> PathBuf {
