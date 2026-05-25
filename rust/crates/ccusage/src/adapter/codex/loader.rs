@@ -18,6 +18,7 @@ pub(crate) fn load_codex_events_from_directory(
 ) -> Result<Vec<CodexTokenUsageEvent>> {
     let mut files = Vec::new();
     collect_usage_files(sessions_dir, &mut files);
+    files.sort_by_cached_key(|path| path.to_string_lossy().into_owned());
     let mut events = if single_thread {
         files
             .iter()
