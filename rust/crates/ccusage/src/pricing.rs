@@ -538,6 +538,7 @@ impl PricingMap {
     }
 }
 
+/// Matches pricing keys across provider/model aliases while preserving version boundaries.
 fn pricing_key_matches(candidate: &str, model: &str, normalized_model: &str) -> bool {
     if contains_pricing_key(model, candidate) || contains_pricing_key(candidate, model) {
         return true;
@@ -547,6 +548,7 @@ fn pricing_key_matches(candidate: &str, model: &str, normalized_model: &str) -> 
         || contains_pricing_key(normalized_candidate.as_ref(), normalized_model)
 }
 
+/// Finds a key only when the surrounding bytes are non-alphanumeric boundaries.
 fn contains_pricing_key(value: &str, key: &str) -> bool {
     value.match_indices(key).any(|(index, _)| {
         let before = index
@@ -558,10 +560,12 @@ fn contains_pricing_key(value: &str, key: &str) -> bool {
     })
 }
 
+/// Treats punctuation separators as boundaries, but not adjacent version digits.
 fn is_pricing_key_boundary(byte: u8) -> bool {
     !byte.is_ascii_alphanumeric()
 }
 
+/// Normalizes known model separator variants without allocating for canonical keys.
 fn normalized_pricing_key(value: &str) -> Cow<'_, str> {
     if value.contains(['.', '@']) {
         Cow::Owned(value.replace(['.', '@'], "-"))
