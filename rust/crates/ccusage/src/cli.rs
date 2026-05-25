@@ -1,5 +1,7 @@
 use std::{env, ffi::OsString, path::PathBuf, process};
 
+use lexopt::Arg;
+
 use crate::{
     config::{
         apply_config_to_agent_args, apply_config_to_blocks_args, apply_config_to_daily_args,
@@ -1086,22 +1088,36 @@ fn parse_cost_source(value: &str) -> Result<CostSource, String> {
 struct ArgParser {
     args: Vec<String>,
     index: usize,
-    pending_value: Option<String>,
 }
 
 impl ArgParser {
     fn new(args: Vec<OsString>) -> Result<Self, String> {
-        let mut parsed = Vec::with_capacity(args.len());
-        for arg in args {
-            parsed.push(
-                arg.into_string()
-                    .map_err(|_| "Arguments must be valid UTF-8".to_string())?,
-            );
+        let mut parser = lexopt::Parser::from_args(args);
+        let mut parsed = Vec::new();
+        while let Some(arg) = parser.next().map_err(|error| error.to_string())? {
+            match arg {
+                Arg::Short(short) => {
+                    let flag = format!("-{short}");
+                    parsed.push(flag.clone());
+                    if option_takes_value(&flag) {
+                        parsed.push(lexopt_value_for(&mut parser, &flag)?);
+                    }
+                }
+                Arg::Long(long) => {
+                    let flag = format!("--{long}");
+                    parsed.push(flag.clone());
+                    if option_takes_value(&flag) {
+                        parsed.push(lexopt_value_for(&mut parser, &flag)?);
+                    } else {
+                        let _ = parser.optional_value();
+                    }
+                }
+                Arg::Value(value) => parsed.push(os_string_to_string(value)?),
+            }
         }
         Ok(Self {
             args: parsed,
             index: 0,
-            pending_value: None,
         })
     }
 
@@ -1122,10 +1138,6 @@ impl ArgParser {
         if matches!(arg.as_str(), "-h" | "--help" | "-v" | "-V" | "--version") {
             print_help_or_version_arg(&arg);
         }
-        if let Some((flag, value)) = arg.split_once('=') {
-            self.pending_value = Some(value.to_string());
-            return Ok(flag.to_string());
-        }
         if arg.starts_with('-') {
             Ok(arg)
         } else {
@@ -1134,12 +1146,6 @@ impl ArgParser {
     }
 
     fn value_for(&mut self, flag: &str) -> Result<String, String> {
-        if let Some(value) = self.pending_value.take() {
-            if value.is_empty() {
-                return Err(format!("Missing value for {flag}"));
-            }
-            return Ok(value);
-        }
         let value = self
             .next()
             .ok_or_else(|| format!("Missing value for {flag}"))?;
@@ -1148,6 +1154,23 @@ impl ArgParser {
         }
         Ok(value)
     }
+}
+
+fn lexopt_value_for(parser: &mut lexopt::Parser, flag: &str) -> Result<String, String> {
+    let value = parser
+        .value()
+        .map_err(|_| format!("Missing value for {flag}"))
+        .and_then(os_string_to_string)?;
+    if value.is_empty() || value.starts_with('-') {
+        return Err(format!("Missing value for {flag}"));
+    }
+    Ok(value)
+}
+
+fn os_string_to_string(value: OsString) -> Result<String, String> {
+    value
+        .into_string()
+        .map_err(|_| "Arguments must be valid UTF-8".to_string())
 }
 
 fn print_help_or_version_arg(arg: &str) -> ! {
@@ -1842,6 +1865,17 @@ mod tests {
         };
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
+        assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn parses_standard_short_option_groups_and_attached_values() {
+        let cli = parse(&["ccusage", "-jO", "-s2026-01-02", "daily"]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert!(args.shared.json);
+        assert!(args.shared.offline);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
     }
 

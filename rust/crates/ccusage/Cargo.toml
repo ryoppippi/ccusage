@@ -19,6 +19,7 @@ jiff = { version = "0.2.24", default-features = false, features = [
 	"tz-system",
 	"tzdb-zoneinfo",
 ] }
+lexopt = "0.3.2"
 memchr = "2"
 compact_str = "0.9"
 phf = { version = "0.13", features = ["macros"] }
