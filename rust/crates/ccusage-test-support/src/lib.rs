@@ -89,9 +89,8 @@ mod tests {
 
     #[test]
     fn creates_incremental_fixture_tree() {
-        let fixture = fs_fixture!({
-            "projects/example/session/chat.jsonl": "{}\n",
-        });
+        let fixture = fs_fixture!({});
+        let _ = fixture.write_file("projects/example/session/chat.jsonl", "{}\n");
 
         assert!(fixture
             .path("projects/example/session/chat.jsonl")
