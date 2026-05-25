@@ -235,6 +235,14 @@ fn merges_same_agent_daily_rows_into_one_monthly_breakdown() {
         ]
     );
     assert_eq!(claude.model_breakdowns.len(), 2);
+    assert_eq!(
+        claude
+            .model_breakdowns
+            .iter()
+            .map(|breakdown| breakdown.model_name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["claude-opus-4-20250514", "claude-sonnet-4-20250514",]
+    );
     let codex = breakdowns
         .iter()
         .find(|row| row.agent == "codex")

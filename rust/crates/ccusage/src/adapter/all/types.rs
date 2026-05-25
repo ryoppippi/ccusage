@@ -149,6 +149,7 @@ fn merge_model_breakdowns(
         b.extra_total_tokens += item.extra_total_tokens;
         b.cost += item.cost;
     }
+    breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
     breakdowns
 }
 
