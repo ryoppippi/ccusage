@@ -43,15 +43,7 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                 index: 0,
                 agent: "claude",
                 progress_agent: crate::progress::UsageLoadAgent::Claude,
-                load: Box::new(|| {
-                    load_session_capable_summary_agent_rows(
-                        "claude",
-                        load_kind,
-                        &loader_shared,
-                        claude::load_entries,
-                        summarize_entries,
-                    )
-                }),
+                load: Box::new(|| load_claude_rows(load_kind, &loader_shared)),
             },
             AgentLoadSpec {
                 index: 1,
@@ -386,11 +378,55 @@ fn load_session_capable_summary_agent_rows(
     })
 }
 
+fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
+    if kind == AgentReportKind::Session {
+        return load_session_capable_summary_agent_rows(
+            "claude",
+            kind,
+            shared,
+            claude::load_entries,
+            summarize_entries,
+        );
+    }
+
+    let mut summaries = claude::load_daily_summaries(shared, None, false)?;
+    let detected = !summaries.is_empty();
+    filter_daily_summaries_by_date(&mut summaries, shared);
+    Ok(AgentRows {
+        rows: summary_rows("claude", summaries),
+        detected,
+    })
+}
+
+fn filter_daily_summaries_by_date(rows: &mut Vec<UsageSummary>, shared: &SharedArgs) {
+    if shared.since.is_none() && shared.until.is_none() {
+        return;
+    }
+    rows.retain(|row| {
+        let date = row.date.as_deref().unwrap_or_default().replace('-', "");
+        shared.since.as_ref().is_none_or(|since| &date >= since)
+            && shared.until.as_ref().is_none_or(|until| &date <= until)
+    });
+}
+
 fn load_codex_rows(
     kind: AgentReportKind,
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
+    if shared.since.is_none() && shared.until.is_none() {
+        let groups = codex::load_groups(shared, kind)?;
+        let detected = !groups.is_empty();
+        let speed = codex::resolve_codex_speed(CodexSpeed::Auto);
+        return Ok(AgentRows {
+            rows: groups
+                .iter()
+                .map(|(period, group)| codex_group_row(period, group, pricing, speed))
+                .collect(),
+            detected,
+        });
+    }
+
     let mut events = codex::load_codex_events(shared)?;
     let detected = !events.is_empty();
     codex::filter_events_by_date(&mut events, shared)?;
@@ -630,4 +666,52 @@ pub(super) fn aggregate_rows(rows: Vec<AllRow>, kind: AgentReportKind) -> Vec<Al
         .into_iter()
         .map(|(period, group)| group.into_row(period))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn usage_summary(date: &str, input_tokens: u64) -> UsageSummary {
+        UsageSummary {
+            date: Some(date.to_string()),
+            month: None,
+            week: None,
+            session_id: None,
+            project_path: None,
+            last_activity: None,
+            input_tokens,
+            output_tokens: 0,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 0,
+            extra_total_tokens: 0,
+            total_cost: 0.0,
+            credits: None,
+            message_count: None,
+            models_used: Vec::new(),
+            model_breakdowns: Vec::new(),
+            project: None,
+            versions: None,
+        }
+    }
+
+    #[test]
+    fn filters_daily_summaries_with_compact_date_bounds() {
+        let mut rows = vec![
+            usage_summary("2026-01-01", 10),
+            usage_summary("2026-01-02", 20),
+            usage_summary("2026-01-03", 30),
+        ];
+        let shared = SharedArgs {
+            since: Some("20260102".to_string()),
+            until: Some("20260102".to_string()),
+            ..SharedArgs::default()
+        };
+
+        filter_daily_summaries_by_date(&mut rows, &shared);
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].date.as_deref(), Some("2026-01-02"));
+        assert_eq!(rows[0].input_tokens, 20);
+    }
 }
