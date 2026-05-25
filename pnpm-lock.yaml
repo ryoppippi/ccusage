@@ -20,8 +20,8 @@ catalogs:
       specifier: ^1.7.2
       version: 1.7.2
     vitepress-plugin-llms:
-      specifier: ^1.12.0
-      version: 1.12.0
+      specifier: ^1.12.2
+      version: 1.13.0
     wrangler:
       specifier: 4.91.0
       version: 4.91.0
@@ -163,7 +163,7 @@ importers:
         version: 1.7.2(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.9.0))
       vitepress-plugin-llms:
         specifier: catalog:docs
-        version: 1.12.0
+        version: 1.13.0
       wrangler:
         specifier: catalog:docs
         version: 4.91.0
@@ -1535,8 +1535,8 @@ packages:
   blake3-wasm@2.1.5:
     resolution: {integrity: sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g==}
 
-  brace-expansion@5.0.4:
-    resolution: {integrity: sha512-h+DEnpVvxmfVefa4jFbCf5HdH5YMDXRsmKflpf1pILZWRFlTbJpxeU55nJl4Smt5HQaGzg1o6RHFPJaOqnmBDg==}
+  brace-expansion@5.0.6:
+    resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
     engines: {node: 18 || 20 || >=22}
 
   braces@3.0.3:
@@ -2299,8 +2299,8 @@ packages:
     engines: {node: '>=22.0.0'}
     hasBin: true
 
-  minimatch@10.2.4:
-    resolution: {integrity: sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==}
+  minimatch@10.2.5:
+    resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
     engines: {node: 18 || 20 || >=22}
 
   minipass@3.3.6:
@@ -3010,8 +3010,8 @@ packages:
       vite:
         optional: true
 
-  vitepress-plugin-llms@1.12.0:
-    resolution: {integrity: sha512-zuzL7a8UJuGl46le5cAy/QxKMGlpSylcsLjDDn6BYPc1u+eP3nzoQk9ne9XFBqrE7exoJlIYJELVN8HMgYlFKQ==}
+  vitepress-plugin-llms@1.13.0:
+    resolution: {integrity: sha512-nYUC0MBkG9gH5nJCrpbwOVpXYqwBgbzTcMchPVQiZ5jylX1QCvMSYxvN4yWXo+OAEKv80361T61+HNPUXnnPwQ==}
     engines: {node: '>=18.0.0'}
 
   vitepress@2.0.0-alpha.17:
@@ -4133,7 +4133,7 @@ snapshots:
 
   blake3-wasm@2.1.5: {}
 
-  brace-expansion@5.0.4:
+  brace-expansion@5.0.6:
     dependencies:
       balanced-match: 4.0.4
 
@@ -4736,7 +4736,7 @@ snapshots:
       mdast-util-to-string: 4.0.0
       micromark-util-classify-character: 2.0.1
       micromark-util-decode-string: 2.0.1
-      unist-util-visit: 5.0.0
+      unist-util-visit: 5.1.0
       zwitch: 2.0.4
 
   mdast-util-to-string@4.0.0:
@@ -4901,9 +4901,9 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  minimatch@10.2.4:
+  minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.4
+      brace-expansion: 5.0.6
 
   minipass@3.3.6:
     dependencies:
@@ -5549,14 +5549,14 @@ snapshots:
     optionalDependencies:
       vite: 8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.9.0)
 
-  vitepress-plugin-llms@1.12.0:
+  vitepress-plugin-llms@1.13.0:
     dependencies:
       gray-matter: 4.0.3
       markdown-it: 14.1.0
       markdown-title: 1.0.2
       mdast-util-from-markdown: 2.0.3
       millify: 6.1.0
-      minimatch: 10.2.4
+      minimatch: 10.2.5
       path-to-regexp: 6.3.0
       picocolors: 1.1.1
       pretty-bytes: 7.1.0
