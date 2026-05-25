@@ -132,6 +132,125 @@ fn aggregates_daily_agent_rows_by_period() {
 }
 
 #[test]
+fn merges_same_agent_daily_rows_into_one_monthly_breakdown() {
+    let rows = aggregate_rows(
+        vec![
+            AllRow {
+                period: "2026-01-02".to_string(),
+                agent: "claude",
+                models_used: vec!["claude-sonnet-4-20250514".to_string()],
+                input_tokens: 10,
+                output_tokens: 5,
+                cache_creation_tokens: 1,
+                cache_read_tokens: 2,
+                total_tokens: 18,
+                total_cost: 0.01,
+                metadata: None,
+                metadata_agents: Some(vec!["claude"]),
+                agent_breakdowns: None,
+                model_breakdowns: vec![ModelBreakdown {
+                    model_name: "claude-sonnet-4-20250514".to_string(),
+                    input_tokens: 10,
+                    output_tokens: 5,
+                    cache_creation_tokens: 1,
+                    cache_read_tokens: 2,
+                    cost: 0.01,
+                    ..ModelBreakdown::default()
+                }],
+            },
+            AllRow {
+                period: "2026-01-15".to_string(),
+                agent: "claude",
+                models_used: vec!["claude-opus-4-20250514".to_string()],
+                input_tokens: 20,
+                output_tokens: 10,
+                cache_creation_tokens: 2,
+                cache_read_tokens: 4,
+                total_tokens: 36,
+                total_cost: 0.05,
+                metadata: None,
+                metadata_agents: Some(vec!["claude"]),
+                agent_breakdowns: None,
+                model_breakdowns: vec![ModelBreakdown {
+                    model_name: "claude-opus-4-20250514".to_string(),
+                    input_tokens: 20,
+                    output_tokens: 10,
+                    cache_creation_tokens: 2,
+                    cache_read_tokens: 4,
+                    cost: 0.05,
+                    ..ModelBreakdown::default()
+                }],
+            },
+            AllRow {
+                period: "2026-01-20".to_string(),
+                agent: "codex",
+                models_used: vec!["gpt-5".to_string()],
+                input_tokens: 30,
+                output_tokens: 15,
+                cache_creation_tokens: 0,
+                cache_read_tokens: 6,
+                total_tokens: 51,
+                total_cost: 0.02,
+                metadata: None,
+                metadata_agents: Some(vec!["codex"]),
+                agent_breakdowns: None,
+                model_breakdowns: vec![ModelBreakdown {
+                    model_name: "gpt-5".to_string(),
+                    input_tokens: 30,
+                    output_tokens: 15,
+                    cache_creation_tokens: 0,
+                    cache_read_tokens: 6,
+                    cost: 0.02,
+                    ..ModelBreakdown::default()
+                }],
+            },
+        ],
+        AgentReportKind::Monthly,
+    );
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].period, "2026-01");
+    assert_eq!(rows[0].input_tokens, 60);
+    assert_eq!(rows[0].output_tokens, 30);
+    let breakdowns = rows[0].agent_breakdowns.as_ref().unwrap();
+    assert_eq!(
+        breakdowns.len(),
+        2,
+        "expected one breakdown row per agent per month, got {breakdowns:#?}"
+    );
+    let claude = breakdowns
+        .iter()
+        .find(|row| row.agent == "claude")
+        .expect("claude breakdown present");
+    assert_eq!(claude.period, "2026-01");
+    assert_eq!(claude.input_tokens, 30);
+    assert_eq!(claude.output_tokens, 15);
+    assert_eq!(claude.cache_creation_tokens, 3);
+    assert_eq!(claude.cache_read_tokens, 6);
+    assert_eq!(
+        claude.models_used,
+        vec![
+            "claude-opus-4-20250514".to_string(),
+            "claude-sonnet-4-20250514".to_string(),
+        ]
+    );
+    assert_eq!(claude.model_breakdowns.len(), 2);
+    assert_eq!(
+        claude
+            .model_breakdowns
+            .iter()
+            .map(|breakdown| breakdown.model_name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["claude-opus-4-20250514", "claude-sonnet-4-20250514",]
+    );
+    let codex = breakdowns
+        .iter()
+        .find(|row| row.agent == "codex")
+        .expect("codex breakdown present");
+    assert_eq!(codex.input_tokens, 30);
+}
+
+#[test]
 fn renders_all_report_json_with_period_and_agent_metadata() {
     let rows = vec![AllRow {
         period: "2026-01-02".to_string(),
