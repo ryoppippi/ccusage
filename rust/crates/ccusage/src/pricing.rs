@@ -518,11 +518,7 @@ impl PricingMap {
         self.context_limits
             .insert("grok-4.3".to_string(), 1_000_000);
         self.context_limits.insert("gpt-5.4".to_string(), 1_050_000);
-        for model in [
-            "claude-opus-4-7",
-            "claude-opus-4-6",
-            "claude-sonnet-4-6",
-        ] {
+        for model in ["claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6"] {
             self.context_limits.insert(model.to_string(), 1_000_000);
         }
 
@@ -759,7 +755,10 @@ mod tests {
     fn embedded_pricing_resolves_opus_47_dot_model_names() {
         let pricing = PricingMap::load_embedded();
 
-        assert_eq!(pricing.find("claude-opus-4.7-20260416").unwrap().input, 5e-6);
+        assert_eq!(
+            pricing.find("claude-opus-4.7-20260416").unwrap().input,
+            5e-6
+        );
         assert_eq!(pricing.context_limit("claude-opus-4.7"), Some(1_000_000));
         assert_eq!(
             pricing
@@ -780,7 +779,10 @@ mod tests {
             pricing.find("claude-sonnet-4.6-20260416").unwrap().input,
             sonnet_46.input
         );
-        assert_eq!(pricing.find("claude-haiku-4.5").unwrap().input, haiku_45.input);
+        assert_eq!(
+            pricing.find("claude-haiku-4.5").unwrap().input,
+            haiku_45.input
+        );
         assert_eq!(
             pricing.context_limit("claude-sonnet-4.6"),
             pricing.context_limit("claude-sonnet-4-6")
