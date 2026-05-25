@@ -212,7 +212,7 @@ pub(super) fn print_table_from_groups(
             Align::Right,
             Align::Right,
         ],
-        shared,
+        crate::terminal_style(shared),
     )
     .with_terminal_width(crate::terminal_width())
     .with_date_compaction(true);

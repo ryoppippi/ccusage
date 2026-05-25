@@ -107,6 +107,7 @@ dependencies = [
 name = "ccusage"
 version = "20.0.4"
 dependencies = [
+ "ccusage-cli",
  "ccusage-terminal",
  "ccusage-test-support",
  "compact_str",
@@ -123,6 +124,14 @@ dependencies = [
  "smallvec",
  "sqlite",
  "ureq",
+]
+
+[[package]]
+name = "ccusage-cli"
+version = "20.0.4"
+dependencies = [
+ "insta",
+ "serde_json",
 ]
 
 [[package]]

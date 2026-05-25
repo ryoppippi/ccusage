@@ -313,7 +313,8 @@ pub(crate) fn print_blocks_table(
     }
     headers.push("Cost");
     aligns.push(Align::Right);
-    let mut table = SimpleTable::new(headers, aligns, shared).with_terminal_width(terminal_width);
+    let mut table = SimpleTable::new(headers, aligns, crate::terminal_style(shared))
+        .with_terminal_width(terminal_width);
     for block in blocks {
         if block.is_gap {
             let mut row = vec![

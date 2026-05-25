@@ -47,7 +47,7 @@ pub(crate) use utils::{
 
 use ccusage_terminal::{terminal_width, TerminalStyle};
 pub(crate) use ccusage_terminal::{Align, Color, SimpleTable};
-use cli::{AgentCommandArgs, AgentReportKind, Cli, Command};
+use cli::{AgentCommandArgs, AgentReportKind, Command};
 use pricing::PricingMap;
 
 #[cfg(all(target_os = "linux", target_env = "musl"))]
@@ -87,22 +87,20 @@ fn cli_error(message: impl Into<String>) -> CliError {
     CliError(message.into())
 }
 
-impl From<&cli::SharedArgs> for TerminalStyle {
-    fn from(shared: &cli::SharedArgs) -> Self {
-        Self {
-            color: shared.color,
-            log_level: log_level(),
-            no_color: shared.no_color,
-        }
+fn terminal_style(shared: &cli::SharedArgs) -> TerminalStyle {
+    TerminalStyle {
+        color: shared.color,
+        log_level: log_level(),
+        no_color: shared.no_color,
     }
 }
 
 fn color(shared: &cli::SharedArgs, value: impl AsRef<str>, color: Color) -> String {
-    ccusage_terminal::color(shared, value, color)
+    ccusage_terminal::color(terminal_style(shared), value, color)
 }
 
 fn print_box_title(title: &str, shared: &cli::SharedArgs) {
-    ccusage_terminal::print_box_title(title, shared);
+    ccusage_terminal::print_box_title(title, terminal_style(shared));
 }
 
 trait Context<T> {
@@ -119,7 +117,7 @@ where
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = cli::parse();
     match cli.command {
         Some(Command::All(args)) => adapter::all::run(args),
         Some(Command::Daily(args)) => commands::run_daily(args),

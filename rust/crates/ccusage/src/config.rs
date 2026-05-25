@@ -374,6 +374,37 @@ pub(crate) fn apply_config_to_agent_args(
     }
 }
 
+impl crate::cli::CliConfig for ConfigContext {
+    fn apply_shared(&self, shared: &mut SharedArgs) {
+        apply_config_to_shared(shared, self);
+    }
+
+    fn apply_daily_args(&self, args: &mut DailyArgs) {
+        apply_config_to_daily_args(args, self);
+    }
+
+    fn apply_weekly_args(&self, args: &mut WeeklyArgs) {
+        apply_config_to_weekly_args(args, self);
+    }
+
+    fn apply_blocks_args(&self, args: &mut BlocksArgs) {
+        apply_config_to_blocks_args(args, self);
+    }
+
+    fn apply_statusline_args(&self, args: &mut StatuslineArgs) {
+        apply_config_to_statusline_args(args, self);
+    }
+
+    fn apply_agent_args(
+        &self,
+        codex_speed: &mut CodexSpeed,
+        pi_path: Option<&mut Option<String>>,
+        open_claw_path: Option<&mut Option<String>>,
+    ) {
+        apply_config_to_agent_args(codex_speed, pi_path, open_claw_path, self);
+    }
+}
+
 fn apply_shared_options(shared: &mut SharedArgs, options: SharedOptions) {
     if let Some(since) = options.since {
         shared.since = Some(normalize_date_bound(&since));

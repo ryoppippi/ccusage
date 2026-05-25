@@ -16,6 +16,7 @@ let
       path: type:
       (craneLib.filterCargoSources path type)
       || lib.hasSuffix "/cli-help.json" path
+      || lib.hasSuffix "/cli-commands.json" path
       || lib.hasSuffix "/fast-multiplier-overrides.json" path;
   };
   commonArgs = {
