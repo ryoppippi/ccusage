@@ -51,6 +51,10 @@ Expected files are discovered under:
 
 Only `StatusUpdate` messages with non-zero token usage are included.
 
+## Cost Calculation
+
+Kimi rows do not store recorded USD cost, so ccusage estimates cost from token counts and LiteLLM pricing. The default `kimi-for-coding` model is kept as the displayed model name, but pricing resolves to Moonshot K2.5 before `2026-04-20T15:28:10.072Z` and Moonshot K2.6 at or after that timestamp.
+
 ## Environment Variables
 
 | Variable        | Description                                                                            |
