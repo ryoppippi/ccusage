@@ -57,9 +57,9 @@ pub(crate) fn report_json(
 mod tests {
     use super::aggregate::load_groups_from_directory;
     use super::*;
-    use ccusage_test_support::fs_fixture;
     use crate::cli::SharedArgs;
     use crate::{CodexModelUsage, CodexTokenUsageEvent};
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn loads_directory_groups_with_date_filter_without_global_event_vector() {

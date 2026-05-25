@@ -65,12 +65,7 @@ pub(crate) fn has_data() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env,
-        ffi::OsString,
-        path::Path,
-        sync::Mutex,
-    };
+    use std::{env, ffi::OsString, path::Path, sync::Mutex};
 
     use ccusage_test_support::fs_fixture;
     use serde_json::json;

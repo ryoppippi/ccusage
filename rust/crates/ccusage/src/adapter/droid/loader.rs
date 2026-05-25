@@ -80,11 +80,7 @@ use super::report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env,
-        path::Path,
-        sync::Mutex,
-    };
+    use std::{env, path::Path, sync::Mutex};
 
     use ccusage_test_support::fs_fixture;
     use serde_json::json;

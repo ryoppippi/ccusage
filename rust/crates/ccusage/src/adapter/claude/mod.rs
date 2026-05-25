@@ -545,8 +545,8 @@ mod tests {
         extract_session_parts, has_unsupported_null_field, paths::is_project_path_segment,
         push_deduped_entry, usage_files,
     };
-    use ccusage_test_support::fs_fixture;
     use crate::{LoadedEntry, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage};
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn limits_usage_file_discovery_to_requested_project() {
@@ -568,10 +568,7 @@ mod tests {
             "projects/project-b/session-b/b.jsonl": "{}",
         });
 
-        let files = usage_files(
-            &[fixture.root().to_path_buf()],
-            Some("project-a/session-a"),
-        );
+        let files = usage_files(&[fixture.root().to_path_buf()], Some("project-a/session-a"));
 
         assert_eq!(files.len(), 2);
     }

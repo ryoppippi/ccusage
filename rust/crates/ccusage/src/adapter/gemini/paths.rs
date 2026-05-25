@@ -62,10 +62,7 @@ mod tests {
 
         assert_eq!(
             files,
-            vec![
-                fixture.path("chats/a.json"),
-                fixture.path("chats/b.jsonl")
-            ]
+            vec![fixture.path("chats/a.json"), fixture.path("chats/b.jsonl")]
         );
     }
 }

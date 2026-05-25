@@ -46,11 +46,7 @@ fn default_goose_db_candidates() -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env,
-        path::Path,
-        sync::Mutex,
-    };
+    use std::{env, path::Path, sync::Mutex};
 
     use super::*;
     use ccusage_test_support::fs_fixture;

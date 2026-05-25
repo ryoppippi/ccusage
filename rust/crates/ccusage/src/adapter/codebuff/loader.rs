@@ -78,18 +78,14 @@ use super::report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env,
-        path::Path,
-        sync::Mutex,
-    };
+    use std::{env, path::Path, sync::Mutex};
 
-    use ccusage_test_support::fs_fixture;
     use super::super::{parser::parse_usage_object, paths::CODEBUFF_DATA_DIR_ENV};
     use super::*;
     use crate::{
         cli::AgentReportKind, parse_ts_timestamp, TokenUsageRaw, UsageEntry, UsageMessage,
     };
+    use ccusage_test_support::fs_fixture;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 

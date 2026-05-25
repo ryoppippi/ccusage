@@ -148,7 +148,6 @@ mod tests {
         assert_eq!(entries[0].cache_read_tokens, 123);
         assert_eq!(entries[0].reasoning_output_tokens, 128);
         assert_eq!(entries[0].dedup_key, "trace-1:span-1");
-
     }
 
     #[test]
@@ -208,7 +207,6 @@ mod tests {
         assert_eq!(entries[0].dedup_key, "trace-dupe:chat-1");
         assert_eq!(entries[0].input_tokens, 60);
         assert_eq!(entries[0].output_tokens, 10);
-
     }
 
     #[test]
@@ -250,7 +248,6 @@ mod tests {
         assert_eq!(report["daily"][0]["outputTokens"], 50);
         assert_eq!(report["daily"][0]["totalTokens"], 175);
         assert_eq!(report["daily"][0]["totalCost"], 300.0);
-
     }
 
     #[test]

@@ -38,9 +38,9 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
 mod tests {
     use std::{env, path::Path};
 
-    use ccusage_test_support::fs_fixture;
     use super::super::paths::KIMI_DATA_DIR_ENV;
     use super::*;
+    use ccusage_test_support::fs_fixture;
 
     struct EnvDirGuard;
 

@@ -213,7 +213,6 @@ mod tests {
         assert_eq!(events[2].output_tokens, 4);
         assert_eq!(events[2].reasoning_output_tokens, 1);
         assert_eq!(events[2].total_tokens, 14);
-
     }
 
     #[test]
@@ -260,7 +259,6 @@ mod tests {
         assert_eq!(events[0].cached_input_tokens, 10);
         assert_eq!(events[0].output_tokens, 50);
         assert_eq!(events[0].total_tokens, 150);
-
     }
 
     #[test]
@@ -288,7 +286,6 @@ mod tests {
         assert_eq!(events[1].cached_input_tokens, 10);
         assert_eq!(events[1].output_tokens, 25);
         assert_eq!(events[1].total_tokens, 125);
-
     }
 
     #[test]
@@ -321,7 +318,6 @@ mod tests {
         assert_eq!(events[0].cached_input_tokens, 20);
         assert_eq!(events[0].output_tokens, 30);
         assert_eq!(events[0].total_tokens, 150);
-
     }
 
     #[test]
@@ -353,7 +349,6 @@ mod tests {
         assert_eq!(events[0].cached_input_tokens, 20);
         assert_eq!(events[0].output_tokens, 30);
         assert_eq!(events[0].total_tokens, 150);
-
     }
 
     #[test]
@@ -382,6 +377,5 @@ mod tests {
         assert_eq!(events[0].input_tokens, 10);
         assert_eq!(events[0].output_tokens, 5);
         assert_eq!(events[0].total_tokens, 15);
-
     }
 }

@@ -102,11 +102,7 @@ fn load_entries_from_database(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env,
-        path::Path,
-        sync::Mutex,
-    };
+    use std::{env, path::Path, sync::Mutex};
 
     use super::*;
     use crate::{cli::CostMode, PricingMap};
