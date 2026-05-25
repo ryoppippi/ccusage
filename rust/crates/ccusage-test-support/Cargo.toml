@@ -1,6 +1,6 @@
 [package]
 name = "ccusage-test-support"
-version = "0.0.0"
+version = "20.0.5"
 edition = "2021"
 publish = false
 
