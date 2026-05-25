@@ -25,6 +25,9 @@ Use this skill when the user asks to create or open a PR, push changes for revie
 5. Finish only when the PR is actually ready.
    Read `references/completion.md`.
 
+6. Merge the PR only when explicitly requested.
+   Read `references/merge.md`.
+
 ## Always Apply
 
 - Never push directly to `main` without explicit permission.

@@ -788,34 +788,24 @@ struct HookContext {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs, time::SystemTime};
+    use ccusage_test_support::fs_fixture;
 
     use super::*;
 
-    fn temp_statusline_path(name: &str) -> std::path::PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        env::temp_dir().join(format!("ccusage-statusline-{name}-{nanos}.jsonl"))
-    }
-
     #[test]
     fn calculates_context_tokens_from_latest_assistant_transcript_line() {
-        let path = temp_statusline_path("context");
-        fs::write(
-            &path,
-            [
+        let fixture = fs_fixture!({
+            "transcript.jsonl": [
                 r#"{"type":"assistant","message":{"usage":{"input_tokens":1000,"output_tokens":999}}}"#,
                 r#"not json"#,
                 r#"{"type":"assistant","message":{"usage":{"input_tokens":2000,"cache_creation_input_tokens":100,"cache_read_input_tokens":50,"output_tokens":888}}}"#,
             ]
             .join("\n"),
-        )
-        .unwrap();
+        });
 
-        let context = calculate_context_tokens_from_transcript(&path, None, true).unwrap();
-        fs::remove_file(&path).unwrap();
+        let context =
+            calculate_context_tokens_from_transcript(&fixture.path("transcript.jsonl"), None, true)
+                .unwrap();
 
         assert_eq!(context.total_input_tokens, 2150);
         assert_eq!(context.context_window_size, 200_000);
@@ -823,20 +813,16 @@ mod tests {
 
     #[test]
     fn uses_model_context_limit_for_transcript_context_tokens() {
-        let path = temp_statusline_path("context-limit");
-        fs::write(
-            &path,
-            r#"{"type":"assistant","message":{"usage":{"input_tokens":1000}}}"#,
-        )
-        .unwrap();
+        let fixture = fs_fixture!({
+            "transcript.jsonl": r#"{"type":"assistant","message":{"usage":{"input_tokens":1000}}}"#,
+        });
 
         let context = calculate_context_tokens_from_transcript(
-            &path,
+            &fixture.path("transcript.jsonl"),
             Some("anthropic.claude-3-5-sonnet-20240620-v1:0"),
             true,
         )
         .unwrap();
-        fs::remove_file(&path).unwrap();
 
         assert_eq!(context.total_input_tokens, 1000);
         assert_eq!(context.context_window_size, 1_000_000);

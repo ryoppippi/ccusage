@@ -75,8 +75,6 @@ macro_rules! fs_fixture {
 mod tests {
     use crate::fs_fixture;
 
-    use super::Fixture;
-
     #[test]
     fn creates_inline_fixture_tree() {
         let fixture = fs_fixture!({
@@ -91,7 +89,7 @@ mod tests {
 
     #[test]
     fn creates_incremental_fixture_tree() {
-        let fixture = Fixture::new();
+        let fixture = fs_fixture!({});
         let _ = fixture.write_file("projects/example/session/chat.jsonl", "{}\n");
 
         assert!(fixture

@@ -36,56 +36,40 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs, path::PathBuf};
+    use std::{env, path::Path};
 
     use super::super::paths::KIMI_DATA_DIR_ENV;
     use super::*;
+    use ccusage_test_support::fs_fixture;
 
-    struct EnvDirGuard {
-        dir: PathBuf,
-    }
+    struct EnvDirGuard;
 
     impl EnvDirGuard {
-        fn set(dir: PathBuf) -> Self {
-            env::set_var(KIMI_DATA_DIR_ENV, &dir);
-            Self { dir }
+        fn set(dir: &Path) -> Self {
+            env::set_var(KIMI_DATA_DIR_ENV, dir);
+            Self
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
             env::remove_var(KIMI_DATA_DIR_ENV);
-            let _ = fs::remove_dir_all(&self.dir);
         }
-    }
-
-    fn temp_kimi_dir(name: &str) -> PathBuf {
-        let mut path = env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("ccusage-kimi-{name}-{nanos}"));
-        path
     }
 
     #[test]
     fn loads_status_update_token_usage_from_wire_files() {
         let _guard = super::super::KIMI_DATA_DIR_LOCK.lock().unwrap();
-        let kimi_dir = temp_kimi_dir("wire");
-        fs::create_dir_all(kimi_dir.join("sessions/group/session-a")).unwrap();
-        fs::write(kimi_dir.join("config.json"), r#"{"model":"kimi-k2"}"#).unwrap();
-        fs::write(
-            kimi_dir.join("sessions/group/session-a/wire.jsonl"),
-            [
+        let fixture = fs_fixture!({
+            "config.json": r#"{"model":"kimi-k2"}"#,
+            "sessions/group/session-a/wire.jsonl": [
                 r#"{"type":"metadata","protocol_version":"1.3"}"#,
                 r#"{"timestamp":1770983426.420942,"message":{"type":"TurnBegin","payload":{"user_input":"hello"}}}"#,
                 r#"{"timestamp":1770983427.123,"message":{"type":"StatusUpdate","payload":{"token_usage":{"input_other":100,"output":50,"input_cache_read":10,"input_cache_creation":20},"message_id":"msg-1"}}}"#,
             ]
             .join("\n"),
-        )
-        .unwrap();
-        let _cleanup = EnvDirGuard::set(kimi_dir);
+        });
+        let _cleanup = EnvDirGuard::set(fixture.root());
         let shared = SharedArgs {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
@@ -108,18 +92,14 @@ mod tests {
     #[test]
     fn skips_malformed_and_zero_token_wire_lines() {
         let _guard = super::super::KIMI_DATA_DIR_LOCK.lock().unwrap();
-        let kimi_dir = temp_kimi_dir("zero");
-        fs::create_dir_all(kimi_dir.join("sessions/group/session-a")).unwrap();
-        fs::write(
-            kimi_dir.join("sessions/group/session-a/wire.jsonl"),
-            [
+        let fixture = fs_fixture!({
+            "sessions/group/session-a/wire.jsonl": [
                 "not json",
                 r#"{"timestamp":1770983427,"message":{"type":"StatusUpdate","payload":{"token_usage":{"input_other":0,"output":0,"input_cache_read":0,"input_cache_creation":0}}}}"#,
             ]
             .join("\n"),
-        )
-        .unwrap();
-        let _cleanup = EnvDirGuard::set(kimi_dir);
+        });
+        let _cleanup = EnvDirGuard::set(fixture.root());
         let entries = load_entries(&SharedArgs::default(), &PricingMap::load_embedded()).unwrap();
 
         assert!(entries.is_empty());

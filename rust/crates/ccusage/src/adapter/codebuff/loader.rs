@@ -55,6 +55,7 @@ fn to_loaded_entry(
         cost_usd: None,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     LoadedEntry {
         date: format_date_tz(entry.timestamp, tz),
@@ -77,63 +78,44 @@ use super::report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env, fs,
-        path::PathBuf,
-        sync::Mutex,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::{env, path::Path, sync::Mutex};
 
     use super::super::{parser::parse_usage_object, paths::CODEBUFF_DATA_DIR_ENV};
     use super::*;
     use crate::{
         cli::AgentReportKind, parse_ts_timestamp, TokenUsageRaw, UsageEntry, UsageMessage,
     };
+    use ccusage_test_support::fs_fixture;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     struct EnvDirGuard {
         key: &'static str,
-        dir: PathBuf,
     }
 
     impl EnvDirGuard {
-        fn set(key: &'static str, dir: PathBuf) -> Self {
-            env::set_var(key, &dir);
-            Self { key, dir }
+        fn set(key: &'static str, dir: &Path) -> Self {
+            env::set_var(key, dir);
+            Self { key }
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
             env::remove_var(self.key);
-            let _ = fs::remove_dir_all(&self.dir);
         }
-    }
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        env::temp_dir().join(format!("ccusage-codebuff-{name}-{nanos}"))
     }
 
     #[test]
     fn loads_assistant_usage_from_chat_messages() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let dir = temp_dir("chat");
-        let chat_dir = dir.join("projects/project-a/chats/2026-01-02T03-04-05.000Z");
-        fs::create_dir_all(&chat_dir).unwrap();
-        fs::write(
-            chat_dir.join("chat-messages.json"),
-            r#"[
+        let fixture = fs_fixture!({
+            "projects/project-a/chats/2026-01-02T03-04-05.000Z/chat-messages.json": r#"[
                 {"role":"user","text":"hello"},
                 {"id":"assistant-message","role":"assistant","timestamp":"2026-01-02T03:04:06.000Z","metadata":{"model":"claude-sonnet-4-20250514","usage":{"inputTokens":100,"outputTokens":50,"cacheCreationInputTokens":20,"cacheReadInputTokens":10}},"credits":1.25}
             ]"#,
-        )
-        .unwrap();
-        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, dir.clone());
+        });
+        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let shared = SharedArgs {
@@ -142,7 +124,7 @@ mod tests {
         };
         let entries = load_entries(&shared, &pricing).unwrap();
 
-        let channel = dir.file_name().unwrap().to_str().unwrap();
+        let channel = fixture.root().file_name().unwrap().to_str().unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-01-02");
         assert_eq!(
@@ -162,20 +144,15 @@ mod tests {
     #[test]
     fn falls_back_to_run_state_provider_usage() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let dir = temp_dir("run-state");
-        let chat_dir = dir.join("projects/project-a/chats/2026-01-02T03-04-05.000Z");
-        fs::create_dir_all(&chat_dir).unwrap();
-        fs::write(
-            chat_dir.join("chat-messages.json"),
-            r#"[
+        let fixture = fs_fixture!({
+            "projects/project-a/chats/2026-01-02T03-04-05.000Z/chat-messages.json": r#"[
                 {"variant":"agent","metadata":{"runState":{"sessionState":{"mainAgentState":{"messageHistory":[
                     {"role":"user","providerOptions":{}},
                     {"role":"assistant","providerOptions":{"codebuff":{"model":"openai/gpt-5","usage":{"prompt_tokens":100,"completion_tokens":50,"prompt_tokens_details":{"cached_tokens":10}}}}}
                 ]}}}}}
             ]"#,
-        )
-        .unwrap();
-        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, dir);
+        });
+        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();
@@ -221,6 +198,7 @@ mod tests {
                 cost_usd: None,
                 request_id: None,
                 is_api_error_message: None,
+                is_sidechain: None,
             },
             timestamp: parse_ts_timestamp("2026-01-02T03:04:06.000Z").unwrap(),
             date: "2026-01-02".to_string(),

@@ -91,21 +91,10 @@ fn load_entries_from_db(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        path::{Path, PathBuf},
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::path::Path;
 
     use super::*;
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        std::env::temp_dir().join(format!("ccusage-goose-{name}-{nanos}"))
-    }
+    use ccusage_test_support::fs_fixture;
 
     fn create_goose_db(path: &Path) {
         let db = sqlite::open(path).unwrap();
@@ -167,9 +156,8 @@ INSERT INTO sessions (
 
     #[test]
     fn loads_accumulated_tokens_from_goose_sqlite() {
-        let dir = temp_dir("sqlite");
-        fs::create_dir_all(&dir).unwrap();
-        let db_path = dir.join(super::super::paths::GOOSE_DB_FILE_NAME);
+        let fixture = fs_fixture!({});
+        let db_path = fixture.path(super::super::paths::GOOSE_DB_FILE_NAME);
         create_goose_db(&db_path);
         insert_session(
             &db_path,
@@ -192,7 +180,6 @@ INSERT INTO sessions (
             &SharedArgs::default(),
         )
         .unwrap();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-05-01");

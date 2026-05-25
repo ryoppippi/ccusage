@@ -137,6 +137,7 @@ fn parse_line(
         cost_usd: None,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     Some(LoadedEntry {
         data,
@@ -300,6 +301,7 @@ mod tests {
                 cost_usd: None,
                 request_id: None,
                 is_api_error_message: None,
+                is_sidechain: None,
             },
             timestamp: TimestampMs::UNIX_EPOCH,
             date: "2026-01-02".to_string(),

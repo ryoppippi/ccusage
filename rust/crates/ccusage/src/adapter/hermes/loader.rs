@@ -97,21 +97,10 @@ fn load_state_db_entries(db_path: &Path, shared: &SharedArgs) -> Vec<HermesEntry
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        path::{Path, PathBuf},
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::path::Path;
 
     use super::*;
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        std::env::temp_dir().join(format!("ccusage-hermes-{name}-{nanos}"))
-    }
+    use ccusage_test_support::fs_fixture;
 
     fn create_state_db(path: &Path) {
         let db = sqlite::open(path).unwrap();
@@ -139,9 +128,8 @@ mod tests {
 
     #[test]
     fn loads_billable_hermes_sessions_from_state_db() {
-        let dir = temp_dir("state");
-        fs::create_dir_all(&dir).unwrap();
-        let db_path = dir.join("state.db");
+        let fixture = fs_fixture!({});
+        let db_path = fixture.path("state.db");
         create_state_db(&db_path);
         let db = sqlite::open(&db_path).unwrap();
         let mut statement = db
@@ -180,7 +168,6 @@ mod tests {
             .into_iter()
             .map(|entry| to_loaded_entry(entry, tz.as_ref(), &pricing))
             .collect::<Vec<_>>();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2025-06-15");

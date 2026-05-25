@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{borrow::Cow, time::Duration};
 
 use serde::Deserialize;
 
@@ -176,9 +176,12 @@ impl PricingMap {
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
         self.entries.get(model).copied().or_else(|| {
+            let normalized_model = normalized_pricing_key(model);
             self.entries
                 .iter()
-                .filter(|(candidate, _)| model.contains(*candidate) || candidate.contains(model))
+                .filter(|(candidate, _)| {
+                    pricing_key_matches(candidate, model, normalized_model.as_ref())
+                })
                 .max_by(|(left, _), (right, _)| {
                     left.len().cmp(&right.len()).then_with(|| right.cmp(left))
                 })
@@ -188,9 +191,12 @@ impl PricingMap {
 
     pub(crate) fn context_limit(&self, model: &str) -> Option<u64> {
         self.context_limits.get(model).copied().or_else(|| {
+            let normalized_model = normalized_pricing_key(model);
             self.context_limits
                 .iter()
-                .filter(|(candidate, _)| model.contains(*candidate) || candidate.contains(model))
+                .filter(|(candidate, _)| {
+                    pricing_key_matches(candidate, model, normalized_model.as_ref())
+                })
                 .max_by(|(left, _), (right, _)| {
                     left.len().cmp(&right.len()).then_with(|| right.cmp(left))
                 })
@@ -421,6 +427,38 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        // Source: https://platform.kimi.ai/docs/pricing/chat-k25
+        self.entries.insert(
+            "moonshot/kimi-k2.5".to_string(),
+            Pricing {
+                input: 0.6e-6,
+                output: 3e-6,
+                cache_create: 0.75e-6,
+                cache_read: 0.1e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        // Source: https://platform.kimi.ai/docs/pricing/chat-k26
+        self.entries.insert(
+            "moonshot/kimi-k2.6".to_string(),
+            Pricing {
+                input: 0.95e-6,
+                output: 4e-6,
+                cache_create: 1.1875e-6,
+                cache_read: 0.16e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
         let gpt_5_1_pricing = Pricing {
             input: 1.25e-6,
             output: 10e-6,
@@ -512,14 +550,18 @@ impl PricingMap {
         self.context_limits
             .insert("grok-4.3".to_string(), 1_000_000);
         self.context_limits.insert("gpt-5.4".to_string(), 1_050_000);
+        for model in ["claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6"] {
+            self.context_limits.insert(model.to_string(), 1_000_000);
+        }
+        self.context_limits
+            .insert("moonshot/kimi-k2.5".to_string(), 262_144);
+        self.context_limits
+            .insert("moonshot/kimi-k2.6".to_string(), 262_144);
 
         for model in [
             "claude-opus-4-5",
-            "claude-opus-4-6",
-            "claude-opus-4-7",
             "claude-haiku-4-5",
             "claude-opus-4",
-            "claude-sonnet-4-6",
             "claude-sonnet-4",
             "claude-3-5-haiku",
             "claude-3-5-haiku-20241022",
@@ -529,6 +571,42 @@ impl PricingMap {
         ] {
             self.context_limits.insert(model.to_string(), 200_000);
         }
+    }
+}
+
+/// Matches pricing keys across provider/model aliases while preserving version boundaries.
+fn pricing_key_matches(candidate: &str, model: &str, normalized_model: &str) -> bool {
+    if contains_pricing_key(model, candidate) || contains_pricing_key(candidate, model) {
+        return true;
+    }
+    let normalized_candidate = normalized_pricing_key(candidate);
+    contains_pricing_key(normalized_model, normalized_candidate.as_ref())
+        || contains_pricing_key(normalized_candidate.as_ref(), normalized_model)
+}
+
+/// Finds a key only when the surrounding bytes are non-alphanumeric boundaries.
+fn contains_pricing_key(value: &str, key: &str) -> bool {
+    value.match_indices(key).any(|(index, _)| {
+        let before = index
+            .checked_sub(1)
+            .and_then(|before| value.as_bytes().get(before))
+            .copied();
+        let after = value.as_bytes().get(index + key.len()).copied();
+        before.is_none_or(is_pricing_key_boundary) && after.is_none_or(is_pricing_key_boundary)
+    })
+}
+
+/// Treats punctuation separators as boundaries, but not adjacent version digits.
+fn is_pricing_key_boundary(byte: u8) -> bool {
+    !byte.is_ascii_alphanumeric()
+}
+
+/// Normalizes known model separator variants without allocating for canonical keys.
+fn normalized_pricing_key(value: &str) -> Cow<'_, str> {
+    if value.contains(['.', '@']) {
+        Cow::Owned(value.replace(['.', '@'], "-"))
+    } else {
+        Cow::Borrowed(value)
     }
 }
 
@@ -595,6 +673,24 @@ mod tests {
         assert!(pricing.find("gpt-5.5").is_some());
         assert!(pricing.find("grok-4.3").is_some());
         assert_eq!(pricing.context_limit("grok-4.3"), Some(1_000_000));
+    }
+
+    #[test]
+    fn embedded_pricing_includes_moonshot_kimi_for_offline_reports() {
+        let pricing = PricingMap::load_embedded();
+        let kimi_k25 = pricing.find("moonshot/kimi-k2.5").unwrap();
+        let kimi_k26 = pricing.find("moonshot/kimi-k2.6").unwrap();
+
+        assert_eq!(kimi_k25.input, 0.6e-6);
+        assert_eq!(kimi_k25.output, 3e-6);
+        assert_eq!(kimi_k25.cache_read, 0.1e-6);
+        assert!(kimi_k25.cache_read_explicit);
+        assert_eq!(kimi_k26.input, 0.95e-6);
+        assert_eq!(kimi_k26.output, 4e-6);
+        assert_eq!(kimi_k26.cache_read, 0.16e-6);
+        assert!(kimi_k26.cache_read_explicit);
+        assert_eq!(pricing.context_limit("moonshot/kimi-k2.5"), Some(262_144));
+        assert_eq!(pricing.context_limit("moonshot/kimi-k2.6"), Some(262_144));
     }
 
     #[test]
@@ -711,6 +807,85 @@ mod tests {
                 .fast_multiplier,
             6.0
         );
+    }
+
+    #[test]
+    fn embedded_pricing_resolves_opus_47_dot_model_names() {
+        let pricing = PricingMap::load_embedded();
+
+        assert_eq!(
+            pricing.find("claude-opus-4.7-20260416").unwrap().input,
+            5e-6
+        );
+        assert_eq!(pricing.context_limit("claude-opus-4.7"), Some(1_000_000));
+        assert_eq!(
+            pricing
+                .find("openrouter/anthropic/claude-opus-4.7")
+                .unwrap()
+                .input,
+            5e-6
+        );
+    }
+
+    #[test]
+    fn embedded_pricing_resolves_separator_aliases_for_other_claude_models() {
+        let pricing = PricingMap::load_embedded();
+        let sonnet_46 = pricing.find("claude-sonnet-4-6").unwrap();
+        let haiku_45 = pricing.find("claude-haiku-4-5").unwrap();
+
+        assert_eq!(
+            pricing.find("claude-sonnet-4.6-20260416").unwrap().input,
+            sonnet_46.input
+        );
+        assert_eq!(
+            pricing.find("claude-haiku-4.5").unwrap().input,
+            haiku_45.input
+        );
+        assert_eq!(
+            pricing.context_limit("claude-sonnet-4.6"),
+            pricing.context_limit("claude-sonnet-4-6")
+        );
+        assert_eq!(
+            pricing.context_limit("claude-haiku-4.5"),
+            pricing.context_limit("claude-haiku-4-5")
+        );
+    }
+
+    #[test]
+    fn fuzzy_match_requires_model_key_boundaries() {
+        let mut pricing = PricingMap::default();
+        pricing.entries.insert(
+            "claude-opus-4-7".to_string(),
+            Pricing {
+                input: 5e-6,
+                output: 25e-6,
+                cache_create: 6.25e-6,
+                cache_read: 0.5e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        pricing.entries.insert(
+            "claude-opus-4".to_string(),
+            Pricing {
+                input: 15e-6,
+                output: 75e-6,
+                cache_create: 18.75e-6,
+                cache_read: 1.5e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+
+        assert_eq!(pricing.find("claude-opus-4.70").unwrap().input, 15e-6);
     }
 
     #[test]

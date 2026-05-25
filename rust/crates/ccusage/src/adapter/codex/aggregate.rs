@@ -18,7 +18,18 @@ use crate::{
 
 use super::{parser, paths};
 
-type CodexEventKey = (crate::TimestampMs, u64, usize, u64, u64, u64, u64, u64);
+type CodexEventKey = (
+    u64,
+    usize,
+    crate::TimestampMs,
+    u64,
+    usize,
+    u64,
+    u64,
+    u64,
+    u64,
+    u64,
+);
 type CodexDedupeShards = [Mutex<FxHashSet<CodexEventKey>>];
 
 struct CodexAggregation {
@@ -26,7 +37,7 @@ struct CodexAggregation {
     seen: FxHashSet<CodexEventKey>,
 }
 
-pub(super) fn load_groups(
+pub(crate) fn load_groups(
     shared: &SharedArgs,
     kind: AgentReportKind,
 ) -> Result<BTreeMap<String, CodexGroup>> {
@@ -339,8 +350,10 @@ fn codex_event_key(
     model: &str,
 ) -> CodexEventKey {
     (
+        hash_text(&event.session_id),
+        event.session_id.len(),
         timestamp,
-        hash_model_name(model),
+        hash_text(model),
         model.len(),
         event.input_tokens,
         event.cached_input_tokens,
@@ -350,9 +363,9 @@ fn codex_event_key(
     )
 }
 
-fn hash_model_name(model: &str) -> u64 {
+fn hash_text(value: &str) -> u64 {
     let mut hasher = FxHasher::default();
-    model.hash(&mut hasher);
+    value.hash(&mut hasher);
     hasher.finish()
 }
 

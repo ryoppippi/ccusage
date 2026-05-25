@@ -65,14 +65,9 @@ pub(crate) fn has_data() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env,
-        ffi::OsString,
-        fs,
-        path::{Path, PathBuf},
-        sync::Mutex,
-    };
+    use std::{env, ffi::OsString, path::Path, sync::Mutex};
 
+    use ccusage_test_support::fs_fixture;
     use serde_json::json;
 
     use super::*;
@@ -103,30 +98,15 @@ mod tests {
         }
     }
 
-    fn temp_qwen_dir(name: &str) -> PathBuf {
-        let mut path = env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("ccusage-qwen-{name}-{nanos}"));
-        path
-    }
-
     #[test]
     fn loads_qwen_jsonl_usage_entries() {
-        let qwen_dir = temp_qwen_dir("entries");
-        let chat_dir = qwen_dir.join("projects/myProject/chats");
-        fs::create_dir_all(&chat_dir).unwrap();
-        fs::write(
-            chat_dir.join("chat-a.jsonl"),
-            [
+        let fixture = fs_fixture!({
+            "projects/myProject/chats/chat-a.jsonl": [
                 r#"{"type":"user","text":"hello"}"#,
                 r#"{"type":"assistant","model":"qwen3-coder-plus","timestamp":"2026-02-23T14:24:56.857Z","sessionId":"session-json","usageMetadata":{"promptTokenCount":100,"candidatesTokenCount":50,"thoughtsTokenCount":10,"cachedContentTokenCount":5}}"#,
             ]
             .join("\n"),
-        )
-        .unwrap();
+        });
 
         let shared = SharedArgs {
             mode: CostMode::Display,
@@ -134,9 +114,8 @@ mod tests {
             ..SharedArgs::default()
         };
         let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
-        let _guard = QwenDataDirGuard::set(&qwen_dir);
+        let _guard = QwenDataDirGuard::set(fixture.root());
         let entries = load_entries(&shared).unwrap();
-        fs::remove_dir_all(&qwen_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-02-23");
@@ -151,14 +130,9 @@ mod tests {
 
     #[test]
     fn builds_qwen_daily_json_report_with_reasoning_in_total() {
-        let qwen_dir = temp_qwen_dir("report");
-        let chat_dir = qwen_dir.join("projects/myProject/chats");
-        fs::create_dir_all(&chat_dir).unwrap();
-        fs::write(
-            chat_dir.join("chat-a.jsonl"),
-            r#"{"type":"assistant","model":"qwen3-coder-plus","timestamp":"2026-02-23T14:24:56.857Z","sessionId":"session-json","usageMetadata":{"promptTokenCount":100,"candidatesTokenCount":50,"thoughtsTokenCount":10,"cachedContentTokenCount":5}}"#,
-        )
-        .unwrap();
+        let fixture = fs_fixture!({
+            "projects/myProject/chats/chat-a.jsonl": r#"{"type":"assistant","model":"qwen3-coder-plus","timestamp":"2026-02-23T14:24:56.857Z","sessionId":"session-json","usageMetadata":{"promptTokenCount":100,"candidatesTokenCount":50,"thoughtsTokenCount":10,"cachedContentTokenCount":5}}"#,
+        });
 
         let shared = SharedArgs {
             mode: CostMode::Display,
@@ -166,11 +140,10 @@ mod tests {
             ..SharedArgs::default()
         };
         let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
-        let _guard = QwenDataDirGuard::set(&qwen_dir);
+        let _guard = QwenDataDirGuard::set(fixture.root());
         let entries = load_entries(&shared).unwrap();
         let rows = summarize_entries(&entries, AgentReportKind::Daily).unwrap();
         let report = report_from_rows(&rows, AgentReportKind::Daily);
-        fs::remove_dir_all(&qwen_dir).unwrap();
 
         assert_eq!(report["daily"][0]["date"], "2026-02-23");
         assert_eq!(report["daily"][0]["outputTokens"], 50);

@@ -69,41 +69,26 @@ fn is_kimi_wire_file(sessions_path: &Path, file_path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs, path::PathBuf};
+    use std::env;
 
     use super::*;
-
-    fn temp_kimi_dir(name: &str) -> PathBuf {
-        let mut path = env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("ccusage-kimi-{name}-{nanos}"));
-        path
-    }
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn discovers_wire_jsonl_files_under_sessions_group_session() {
         let _guard = super::super::KIMI_DATA_DIR_LOCK.lock().unwrap();
-        let kimi_dir = temp_kimi_dir("discover");
-        fs::create_dir_all(kimi_dir.join("sessions/group/session")).unwrap();
-        fs::create_dir_all(kimi_dir.join("sessions/nested/path/session")).unwrap();
-        fs::write(kimi_dir.join("sessions/group/session/wire.jsonl"), "{}\n").unwrap();
-        fs::write(kimi_dir.join("sessions/group/session/other.jsonl"), "{}\n").unwrap();
-        fs::write(
-            kimi_dir.join("sessions/nested/path/session/wire.jsonl"),
-            "{}\n",
-        )
-        .unwrap();
-        env::set_var(KIMI_DATA_DIR_ENV, &kimi_dir);
+        let fixture = fs_fixture!({
+            "sessions/group/session/wire.jsonl": "{}\n",
+            "sessions/group/session/other.jsonl": "{}\n",
+            "sessions/nested/path/session/wire.jsonl": "{}\n",
+        });
+        env::set_var(KIMI_DATA_DIR_ENV, fixture.root());
         let files = discover_wire_files().unwrap();
         env::remove_var(KIMI_DATA_DIR_ENV);
-        fs::remove_dir_all(&kimi_dir).unwrap();
 
         assert_eq!(
             files,
-            vec![kimi_dir.join("sessions/group/session/wire.jsonl")]
+            vec![fixture.path("sessions/group/session/wire.jsonl")]
         );
     }
 }

@@ -55,6 +55,7 @@ pub(super) fn row_to_entry(
         cost_usd: None,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     let cost = calculate_goose_cost(&model, &provider_id, usage, reasoning_tokens, pricing);
 

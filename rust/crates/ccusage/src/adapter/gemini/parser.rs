@@ -365,6 +365,7 @@ pub(super) fn event_to_loaded(
         cost_usd: None,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     LoadedEntry {
         date: format_date_tz(event.timestamp, tz),

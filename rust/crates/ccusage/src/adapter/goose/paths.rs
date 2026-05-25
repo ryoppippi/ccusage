@@ -46,52 +46,35 @@ fn default_goose_db_candidates() -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env, fs,
-        path::{Path, PathBuf},
-        sync::Mutex,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::{env, path::Path, sync::Mutex};
 
     use super::*;
+    use ccusage_test_support::fs_fixture;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-    struct EnvDirGuard {
-        dir: PathBuf,
-    }
+    struct EnvDirGuard;
 
     impl EnvDirGuard {
-        fn set(dir: PathBuf) -> Self {
-            env::set_var(GOOSE_PATH_ROOT_ENV, &dir);
-            Self { dir }
+        fn set(dir: &Path) -> Self {
+            env::set_var(GOOSE_PATH_ROOT_ENV, dir);
+            Self
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
             env::remove_var(GOOSE_PATH_ROOT_ENV);
-            let _ = fs::remove_dir_all(&self.dir);
         }
-    }
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        env::temp_dir().join(format!("ccusage-goose-{name}-{nanos}"))
     }
 
     #[test]
     fn discovers_goose_path_root_database() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let dir = temp_dir("path-root");
-        let db_dir = dir.join("data/sessions");
-        fs::create_dir_all(&db_dir).unwrap();
-        let db_path = db_dir.join(GOOSE_DB_FILE_NAME);
-        fs::write(&db_path, "").unwrap();
-        let _cleanup = EnvDirGuard::set(dir);
+        let fixture = fs_fixture!({
+            "data/sessions/sessions.db": "",
+        });
+        let _cleanup = EnvDirGuard::set(fixture.root());
 
         let paths = goose_db_paths().unwrap();
 

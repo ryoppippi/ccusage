@@ -8,7 +8,7 @@ mod types;
 
 use crate::{cli::AgentCommandArgs, log_level, print_json_or_jq, wants_json, PricingMap, Result};
 
-pub(crate) use aggregate::{aggregate_events, filter_events_by_date};
+pub(crate) use aggregate::{aggregate_events, filter_events_by_date, load_groups};
 pub(crate) use loader::load_codex_events;
 #[cfg(test)]
 pub(crate) use loader::load_codex_events_from_directory;
@@ -17,7 +17,6 @@ pub(crate) use report::{
 };
 pub(crate) use speed::resolve_codex_speed;
 
-use aggregate::load_groups;
 use report::{print_table_from_groups, report_from_groups};
 
 #[cfg(test)]
@@ -55,36 +54,56 @@ pub(crate) fn report_json(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::aggregate::load_groups_from_directory;
     use super::*;
     use crate::cli::SharedArgs;
     use crate::{CodexModelUsage, CodexTokenUsageEvent};
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn loads_directory_groups_with_date_filter_without_global_event_vector() {
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!("ccusage-codex-groups-{suffix}"));
-        let sessions_dir = root.join("sessions");
-        fs::create_dir_all(&sessions_dir).unwrap();
-        fs::write(
-            sessions_dir.join("session.jsonl"),
-            [
+        let fixture = fs_fixture!({
+            "sessions/session.jsonl": [
                 r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"model":"gpt-5","last_token_usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":50,"reasoning_output_tokens":0,"total_tokens":150}}}}"#,
                 r#"{"timestamp":"2026-01-03T00:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"model":"gpt-5","last_token_usage":{"input_tokens":200,"cached_input_tokens":20,"output_tokens":75,"reasoning_output_tokens":5,"total_tokens":280}}}}"#,
             ]
             .join("\n"),
-        )
-        .unwrap();
+        });
+        let sessions_dir = fixture.path("sessions");
         let shared = SharedArgs {
             since: Some("20260103".to_string()),
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+
+        let groups =
+            load_groups_from_directory(&sessions_dir, &shared, AgentReportKind::Daily).unwrap();
+
+        assert_eq!(groups.len(), 1);
+        let group = groups.get("2026-01-03").unwrap();
+        assert_eq!(group.input_tokens, 200);
+        assert_eq!(group.cached_input_tokens, 20);
+        assert_eq!(group.output_tokens, 75);
+        assert_eq!(group.reasoning_output_tokens, 5);
+        assert_eq!(group.total_tokens, 280);
+    }
+
+    #[test]
+    fn keeps_matching_grouped_codex_usage_events_from_distinct_sessions() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("ccusage-codex-group-dedupe-{suffix}"));
+        let sessions_dir = root.join("sessions");
+        fs::create_dir_all(&sessions_dir).unwrap();
+        let usage_line = r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"model":"gpt-5","last_token_usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":50,"reasoning_output_tokens":0,"total_tokens":150}}}}"#;
+        fs::write(sessions_dir.join("session-a.jsonl"), usage_line).unwrap();
+        fs::write(sessions_dir.join("session-b.jsonl"), usage_line).unwrap();
+        let shared = SharedArgs {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
@@ -94,12 +113,11 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
 
         assert_eq!(groups.len(), 1);
-        let group = groups.get("2026-01-03").unwrap();
+        let group = groups.get("2026-01-02").unwrap();
         assert_eq!(group.input_tokens, 200);
         assert_eq!(group.cached_input_tokens, 20);
-        assert_eq!(group.output_tokens, 75);
-        assert_eq!(group.reasoning_output_tokens, 5);
-        assert_eq!(group.total_tokens, 280);
+        assert_eq!(group.output_tokens, 100);
+        assert_eq!(group.total_tokens, 300);
     }
 
     #[test]

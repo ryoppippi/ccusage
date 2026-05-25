@@ -105,7 +105,6 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
     let mut seen = FxHashSet::default();
     events.retain(|event| {
         seen.insert((
-            CompactString::new(&event.session_id),
             CompactString::new(&event.timestamp),
             event.model.as_deref().map(CompactString::new),
             event.input_tokens,
@@ -120,12 +119,8 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{
-        env, fs,
-        path::PathBuf,
-        time::{SystemTime, UNIX_EPOCH},
-    };
 
+    use ccusage_test_support::fs_fixture;
     use serde_json::json;
 
     fn codex_event(session_id: &str) -> CodexTokenUsageEvent {
@@ -143,31 +138,94 @@ mod tests {
     }
 
     #[test]
-    fn keeps_matching_codex_usage_events_from_distinct_sessions() {
+    fn dedupes_matching_codex_usage_events_from_distinct_sessions() {
         let mut events = vec![codex_event("session-a"), codex_event("session-b")];
 
         dedupe_codex_events(&mut events);
 
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "session-a");
     }
 
-    fn temp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-codex-exec-{name}-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        dir
+    #[test]
+    fn dedupes_copied_branch_history_across_session_files() {
+        let parent_history = [
+            json!({
+                "timestamp": "2026-05-12T08:00:00.000Z",
+                "type": "turn_context",
+                "payload": {
+                    "model": "gpt-5.2",
+                },
+            })
+            .to_string(),
+            json!({
+                "timestamp": "2026-05-12T08:01:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 1_000,
+                            "cached_input_tokens": 100,
+                            "output_tokens": 200,
+                            "reasoning_output_tokens": 20,
+                            "total_tokens": 1_200,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let branch_history = [
+            parent_history.as_str(),
+            &json!({
+                "timestamp": "2026-05-12T08:02:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 1_600,
+                            "cached_input_tokens": 300,
+                            "output_tokens": 450,
+                            "reasoning_output_tokens": 40,
+                            "total_tokens": 2_050,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let fixture = fs_fixture!({
+            "2026-05-12T08-00-00-parent.jsonl": &parent_history,
+            "2026-05-12T08-02-00-branch.jsonl": branch_history,
+        });
+
+        for single_thread in [true, false] {
+            let events = load_codex_events_from_directory(fixture.root(), single_thread).unwrap();
+
+            assert_eq!(events.len(), 2);
+            assert_eq!(events[0].session_id, "2026-05-12T08-00-00-parent");
+            assert_eq!(events[0].input_tokens, 1_000);
+            assert_eq!(events[0].cached_input_tokens, 100);
+            assert_eq!(events[0].output_tokens, 200);
+            assert_eq!(events[0].reasoning_output_tokens, 20);
+            assert_eq!(events[0].total_tokens, 1_200);
+            assert_eq!(events[1].session_id, "2026-05-12T08-02-00-branch");
+            assert_eq!(events[1].input_tokens, 600);
+            assert_eq!(events[1].cached_input_tokens, 200);
+            assert_eq!(events[1].output_tokens, 250);
+            assert_eq!(events[1].reasoning_output_tokens, 20);
+            assert_eq!(events[1].total_tokens, 850);
+        }
     }
 
     #[test]
     fn loads_saved_codex_exec_json_usage() {
-        let dir = temp_dir("json-usage");
-        let file = dir.join("run.jsonl");
-        fs::write(
-            &file,
-            [
+        let fixture = fs_fixture!({
+            "run.jsonl": [
                 json!({
                     "type": "turn.completed",
                     "timestamp": "2026-01-02T03:04:05.000Z",
@@ -207,10 +265,9 @@ mod tests {
                 .to_string(),
             ]
             .join("\n"),
-        )
-        .unwrap();
+        });
 
-        let events = load_codex_events_from_directory(&dir, true).unwrap();
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 3);
         assert_eq!(events[0].session_id, "run");
@@ -231,17 +288,12 @@ mod tests {
         assert_eq!(events[2].output_tokens, 4);
         assert_eq!(events[2].reasoning_output_tokens, 1);
         assert_eq!(events[2].total_tokens, 14);
-
-        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn loads_session_usage_with_numeric_timestamp() {
-        let dir = temp_dir("numeric-session-timestamp");
-        let file = dir.join("session.jsonl");
-        fs::write(
-            &file,
-            [
+        let fixture = fs_fixture!({
+            "session.jsonl": [
                 json!({
                     "timestamp": "2026-01-02T00:00:00.000Z",
                     "type": "turn_context",
@@ -270,10 +322,9 @@ mod tests {
                 .to_string(),
             ]
             .join("\n"),
-        )
-        .unwrap();
+        });
 
-        let events = load_codex_events_from_directory(&dir, true).unwrap();
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].session_id, "session");
@@ -283,26 +334,20 @@ mod tests {
         assert_eq!(events[0].cached_input_tokens, 10);
         assert_eq!(events[0].output_tokens, 50);
         assert_eq!(events[0].total_tokens, 150);
-
-        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn loads_session_usage_with_spaced_type_fields() {
-        let dir = temp_dir("spaced-session-type");
-        let file = dir.join("session.jsonl");
-        fs::write(
-            &file,
-            [
+        let fixture = fs_fixture!({
+            "session.jsonl": [
                 r#"{ "timestamp": "2026-01-02T00:00:00.000Z", "type" : "turn_context", "payload": { "model": "gpt-5" } }"#,
                 r#"{ "timestamp": "2026-01-02T00:00:01.000Z", "type" : "event_msg", "payload": { "type" : "token_count", "info": { "total_token_usage": { "input_tokens": 100, "cached_input_tokens": 10, "output_tokens": 50, "total_tokens": 150 }, "model": "gpt-5" } } }"#,
                 r#"{ "timestamp": "2026-01-02T00:00:02.000Z", "type" : "event_msg", "payload": { "type":"token_count", "info": { "total_token_usage": { "input_tokens": 200, "cached_input_tokens": 20, "output_tokens": 75, "total_tokens": 275 }, "model": "gpt-5" } } }"#,
             ]
             .join("\n"),
-        )
-        .unwrap();
+        });
 
-        let events = load_codex_events_from_directory(&dir, true).unwrap();
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].timestamp, "2026-01-02T00:00:01.000Z");
@@ -316,16 +361,12 @@ mod tests {
         assert_eq!(events[1].cached_input_tokens, 10);
         assert_eq!(events[1].output_tokens, 25);
         assert_eq!(events[1].total_tokens, 125);
-
-        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn loads_headless_usage_with_unexpected_noncritical_field_types() {
-        let dir = temp_dir("headless-lossy-fields");
-        let file = dir.join("run.jsonl");
-        fs::write(
-            &file,
+        let fixture = fs_fixture!({
+            "run.jsonl":
             json!({
                 "type": "turn.completed",
                 "timestamp": false,
@@ -340,10 +381,9 @@ mod tests {
                 },
             })
             .to_string(),
-        )
-        .unwrap();
+        });
 
-        let events = load_codex_events_from_directory(&dir, true).unwrap();
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].session_id, "run");
@@ -353,16 +393,12 @@ mod tests {
         assert_eq!(events[0].cached_input_tokens, 20);
         assert_eq!(events[0].output_tokens, 30);
         assert_eq!(events[0].total_tokens, 150);
-
-        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn loads_headless_usage_with_token_count_text_content() {
-        let dir = temp_dir("headless-token-count-content");
-        let file = dir.join("run.jsonl");
-        fs::write(
-            &file,
+        let fixture = fs_fixture!({
+            "run.jsonl":
             json!({
                 "type": "turn.completed",
                 "timestamp": "2026-01-02T03:04:05.000Z",
@@ -376,10 +412,9 @@ mod tests {
                 },
             })
             .to_string(),
-        )
-        .unwrap();
+        });
 
-        let events = load_codex_events_from_directory(&dir, true).unwrap();
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].session_id, "run");
@@ -389,16 +424,12 @@ mod tests {
         assert_eq!(events[0].cached_input_tokens, 20);
         assert_eq!(events[0].output_tokens, 30);
         assert_eq!(events[0].total_tokens, 150);
-
-        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn uses_nested_model_name_for_standalone_exec_usage() {
-        let dir = temp_dir("model-name");
-        let file = dir.join("solo.jsonl");
-        fs::write(
-            &file,
+        let fixture = fs_fixture!({
+            "solo.jsonl":
             json!({
                 "data": {
                     "timestamp": "2026-03-01T00:00:00.000Z",
@@ -411,10 +442,9 @@ mod tests {
                 },
             })
             .to_string(),
-        )
-        .unwrap();
+        });
 
-        let events = load_codex_events_from_directory(&dir, true).unwrap();
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].session_id, "solo");
@@ -422,7 +452,5 @@ mod tests {
         assert_eq!(events[0].input_tokens, 10);
         assert_eq!(events[0].output_tokens, 5);
         assert_eq!(events[0].total_tokens, 15);
-
-        fs::remove_dir_all(dir).unwrap();
     }
 }
