@@ -254,26 +254,15 @@ fn kimi_for_coding_pricing_model(timestamp: TimestampMs) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf};
-
     use super::*;
-
-    fn temp_kimi_dir(name: &str) -> PathBuf {
-        let mut path = std::env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("ccusage-kimi-{name}-{nanos}"));
-        path
-    }
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn falls_back_to_total_tokens_when_kimi_parts_are_missing() {
-        let kimi_dir = temp_kimi_dir("total");
-        fs::create_dir_all(kimi_dir.join("sessions/group/session-a")).unwrap();
-        fs::write(kimi_dir.join("config.json"), r#"{"model":"kimi-k2"}"#).unwrap();
-        let file = kimi_dir.join("sessions/group/session-a/wire.jsonl");
+        let fixture = fs_fixture!({
+            "sessions/group/session-a/wire.jsonl": "",
+        });
+        let file = fixture.path("sessions/group/session-a/wire.jsonl");
         let value = serde_json::json!({
             "timestamp": 1770983427.123,
             "message": {
@@ -287,7 +276,6 @@ mod tests {
         });
 
         let entry = wire_line_to_entry(&value, &file, "kimi-k2", TimestampMs::UNIX_EPOCH).unwrap();
-        fs::remove_dir_all(&kimi_dir).unwrap();
 
         assert_eq!(entry.output_tokens, 432);
         assert_eq!(entry.extra_total_tokens, 0);

@@ -152,27 +152,17 @@ pub(super) fn entry_id(entry: &LoadedEntry) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs, time::SystemTime};
-
     use super::*;
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn falls_back_to_total_tokens_when_pi_parts_are_missing() {
-        let nanos = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-pi-total-{nanos}"));
-        fs::create_dir_all(dir.join("sessions/project-a")).unwrap();
-        let file = dir.join("sessions/project-a/agent_session-a.jsonl");
-        fs::write(
-            &file,
-            r#"{"type":"message","timestamp":"2026-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"totalTokens":333}}}"#,
-        )
-        .unwrap();
+        let fixture = fs_fixture!({
+            "sessions/project-a/agent_session-a.jsonl": r#"{"type":"message","timestamp":"2026-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"totalTokens":333}}}"#,
+        });
+        let file = fixture.path("sessions/project-a/agent_session-a.jsonl");
 
         let entries = read_session_file(&file, None).unwrap();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.output_tokens, 333);

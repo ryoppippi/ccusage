@@ -490,35 +490,22 @@ fn usage_limit_reset_time_from_line_bytes(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path};
+    use std::path::Path;
 
     use super::{
         extract_session_parts, has_unsupported_null_field, paths::is_project_path_segment,
         usage_files,
     };
-
-    fn temp_claude_dir(name: &str) -> std::path::PathBuf {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = std::env::temp_dir().join(format!("ccusage-claude-loader-{name}-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn limits_usage_file_discovery_to_requested_project() {
-        let dir = temp_claude_dir("project-filter");
-        let project_a = dir.join("projects/project-a/session-a");
-        let project_b = dir.join("projects/project-b/session-b");
-        fs::create_dir_all(&project_a).unwrap();
-        fs::create_dir_all(&project_b).unwrap();
-        fs::write(project_a.join("a.jsonl"), "{}").unwrap();
-        fs::write(project_b.join("b.jsonl"), "{}").unwrap();
+        let fixture = fs_fixture!({
+            "projects/project-a/session-a/a.jsonl": "{}",
+            "projects/project-b/session-b/b.jsonl": "{}",
+        });
 
-        let files = usage_files(std::slice::from_ref(&dir), Some("project-a"));
-        fs::remove_dir_all(&dir).unwrap();
+        let files = usage_files(&[fixture.root().to_path_buf()], Some("project-a"));
 
         assert_eq!(files.len(), 1);
         assert!(files[0].to_string_lossy().contains("project-a"));
@@ -526,16 +513,15 @@ mod tests {
 
     #[test]
     fn falls_back_to_full_discovery_for_non_segment_project_filter() {
-        let dir = temp_claude_dir("project-filter-fallback");
-        let project_a = dir.join("projects/project-a/session-a");
-        let project_b = dir.join("projects/project-b/session-b");
-        fs::create_dir_all(&project_a).unwrap();
-        fs::create_dir_all(&project_b).unwrap();
-        fs::write(project_a.join("a.jsonl"), "{}").unwrap();
-        fs::write(project_b.join("b.jsonl"), "{}").unwrap();
+        let fixture = fs_fixture!({
+            "projects/project-a/session-a/a.jsonl": "{}",
+            "projects/project-b/session-b/b.jsonl": "{}",
+        });
 
-        let files = usage_files(std::slice::from_ref(&dir), Some("project-a/session-a"));
-        fs::remove_dir_all(&dir).unwrap();
+        let files = usage_files(
+            &[fixture.root().to_path_buf()],
+            Some("project-a/session-a"),
+        );
 
         assert_eq!(files.len(), 2);
     }

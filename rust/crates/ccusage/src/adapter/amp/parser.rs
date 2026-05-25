@@ -263,27 +263,17 @@ fn json_value_f64(value: Option<&Value>) -> Option<f64> {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs, time::SystemTime};
-
     use super::*;
+    use ccusage_test_support::fs_fixture;
 
     #[test]
     fn falls_back_to_total_tokens_when_amp_parts_are_missing() {
-        let nanos = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-amp-total-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("thread.json");
-        fs::write(
-            &file,
-            r#"{"id":"thread-a","usageLedger":{"events":[{"id":"event-a","timestamp":"2026-01-02T00:00:00.000Z","model":"gpt-5","tokens":{"total":345}}]}}"#,
-        )
-        .unwrap();
+        let fixture = fs_fixture!({
+            "thread.json": r#"{"id":"thread-a","usageLedger":{"events":[{"id":"event-a","timestamp":"2026-01-02T00:00:00.000Z","model":"gpt-5","tokens":{"total":345}}]}}"#,
+        });
+        let file = fixture.path("thread.json");
 
         let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.output_tokens, 345);
@@ -292,16 +282,8 @@ mod tests {
 
     #[test]
     fn reads_usage_from_messages_when_ledger_is_missing() {
-        let nanos = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-amp-messages-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("thread.json");
-        fs::write(
-            &file,
-            r#"{
+        let fixture = fs_fixture!({
+            "thread.json": r#"{
                 "id":"T-thread-a",
                 "messages":[
                     {"role":"user","content":"hi"},
@@ -324,11 +306,10 @@ mod tests {
                     }}
                 ]
             }"#,
-        )
-        .unwrap();
+        });
+        let file = fixture.path("thread.json");
 
         let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].data.message.usage.input_tokens, 10);
@@ -348,16 +329,8 @@ mod tests {
 
     #[test]
     fn ledger_events_take_precedence_over_messages_usage() {
-        let nanos = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-amp-precedence-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("thread.json");
-        fs::write(
-            &file,
-            r#"{
+        let fixture = fs_fixture!({
+            "thread.json": r#"{
                 "id":"thread-a",
                 "usageLedger":{"events":[{
                     "id":"event-a",
@@ -374,11 +347,10 @@ mod tests {
                     }}
                 ]
             }"#,
-        )
-        .unwrap();
+        });
+        let file = fixture.path("thread.json");
 
         let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.model.as_deref(), Some("gpt-5"));
@@ -387,16 +359,8 @@ mod tests {
 
     #[test]
     fn skips_messages_with_no_usage_tokens() {
-        let nanos = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-amp-empty-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("thread.json");
-        fs::write(
-            &file,
-            r#"{
+        let fixture = fs_fixture!({
+            "thread.json": r#"{
                 "id":"T-thread-a",
                 "messages":[
                     {"role":"assistant","usage":{
@@ -409,27 +373,18 @@ mod tests {
                     }}
                 ]
             }"#,
-        )
-        .unwrap();
+        });
+        let file = fixture.path("thread.json");
 
         let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert!(entries.is_empty());
     }
 
     #[test]
     fn falls_back_to_total_tokens_in_messages_path() {
-        let nanos = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-amp-messages-total-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        let file = dir.join("thread.json");
-        fs::write(
-            &file,
-            r#"{
+        let fixture = fs_fixture!({
+            "thread.json": r#"{
                 "id":"T-thread-a",
                 "messages":[
                     {"role":"assistant","usage":{
@@ -439,11 +394,10 @@ mod tests {
                     }}
                 ]
             }"#,
-        )
-        .unwrap();
+        });
+        let file = fixture.path("thread.json");
 
         let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
-        fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.output_tokens, 345);

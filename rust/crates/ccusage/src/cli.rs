@@ -1716,9 +1716,8 @@ include!(concat!(env!("OUT_DIR"), "/cli-help.rs"));
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ccusage_test_support::fs_fixture;
     use serde_json::{json, Value};
-    use std::fs;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn parse(args: &[&str]) -> Cli {
         Cli::parse_from(args.iter().map(OsString::from)).unwrap()
@@ -1729,16 +1728,6 @@ mod tests {
             Ok(_) => panic!("expected parse error"),
             Err(error) => error,
         }
-    }
-
-    fn temp_config_path(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir = env::temp_dir().join(format!("ccusage-cli-{name}-{nanos}"));
-        fs::create_dir_all(&dir).unwrap();
-        dir.join("ccusage.json")
     }
 
     fn shared_snapshot(shared: &SharedArgs) -> Value {
@@ -1868,16 +1857,13 @@ mod tests {
 
     #[test]
     fn applies_config_defaults_and_command_options_before_cli_options() {
-        let path = temp_config_path("daily");
-        fs::write(
-            &path,
-            r#"{
+        let fixture = fs_fixture!({
+            "ccusage.json": r#"{
                 "defaults": { "json": true, "order": "desc" },
                 "commands": { "daily": { "since": "20260102", "order": "desc" } }
             }"#,
-        )
-        .unwrap();
-        let path = path.to_string_lossy().to_string();
+        });
+        let path = fixture.path("ccusage.json").to_string_lossy().to_string();
 
         let cli = parse(&[
             "ccusage",
@@ -1897,17 +1883,14 @@ mod tests {
 
     #[test]
     fn applies_agent_namespace_config_to_codex_speed() {
-        let path = temp_config_path("codex");
-        fs::write(
-            &path,
-            r#"{
+        let fixture = fs_fixture!({
+            "ccusage.json": r#"{
                 "codex": {
                     "commands": { "daily": { "speed": "fast" } }
                 }
             }"#,
-        )
-        .unwrap();
-        let path = path.to_string_lossy().to_string();
+        });
+        let path = fixture.path("ccusage.json").to_string_lossy().to_string();
 
         let cli = parse(&["ccusage", "--config", path.as_str(), "codex", "daily"]);
         let Some(Command::Codex(args)) = cli.command else {
@@ -1918,10 +1901,8 @@ mod tests {
 
     #[test]
     fn applies_config_file_passed_after_agent_command() {
-        let path = temp_config_path("codex-postfix");
-        fs::write(
-            &path,
-            r#"{
+        let fixture = fs_fixture!({
+            "ccusage.json": r#"{
                 "$schema": "https://ccusage.com/config-schema.json",
                 "defaults": {
                     "json": true,
@@ -1936,9 +1917,8 @@ mod tests {
                     }
                 }
             }"#,
-        )
-        .unwrap();
-        let path = path.to_string_lossy().to_string();
+        });
+        let path = fixture.path("ccusage.json").to_string_lossy().to_string();
 
         let cli = parse(&["ccusage", "codex", "monthly", "--config", path.as_str()]);
         let Some(Command::Codex(args)) = cli.command else {
@@ -1953,10 +1933,8 @@ mod tests {
 
     #[test]
     fn applies_schema_documented_config_file_options() {
-        let path = temp_config_path("schema-documented");
-        fs::write(
-            &path,
-            r#"{
+        let fixture = fs_fixture!({
+            "ccusage.json": r#"{
                 "$schema": "https://ccusage.com/config-schema.json",
                 "defaults": {
                     "json": true,
@@ -1994,9 +1972,8 @@ mod tests {
                     }
                 }
             }"#,
-        )
-        .unwrap();
-        let path = path.to_string_lossy().to_string();
+        });
+        let path = fixture.path("ccusage.json").to_string_lossy().to_string();
 
         let cli = parse(&["ccusage", "claude", "weekly", "--config", path.as_str()]);
         let Some(Command::Weekly(args)) = cli.command else {

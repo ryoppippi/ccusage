@@ -80,12 +80,12 @@ use super::report::{report_from_rows, summarize_entries};
 #[cfg(test)]
 mod tests {
     use std::{
-        env, fs,
-        path::PathBuf,
+        env,
+        path::Path,
         sync::Mutex,
-        time::{SystemTime, UNIX_EPOCH},
     };
 
+    use ccusage_test_support::fs_fixture;
     use serde_json::json;
 
     use super::super::{
@@ -101,29 +101,19 @@ mod tests {
 
     struct EnvDirGuard {
         key: &'static str,
-        dir: PathBuf,
     }
 
     impl EnvDirGuard {
-        fn set(key: &'static str, dir: PathBuf) -> Self {
-            env::set_var(key, &dir);
-            Self { key, dir }
+        fn set(key: &'static str, dir: &Path) -> Self {
+            env::set_var(key, dir);
+            Self { key }
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
             env::remove_var(self.key);
-            let _ = fs::remove_dir_all(&self.dir);
         }
-    }
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        env::temp_dir().join(format!("ccusage-droid-{name}-{nanos}"))
     }
 
     #[test]
@@ -156,11 +146,8 @@ mod tests {
     #[test]
     fn loads_usage_from_droid_settings_files() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let dir = temp_dir("settings");
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(
-            dir.join("session-a.settings.json"),
-            r#"{
+        let fixture = fs_fixture!({
+            "session-a.settings.json": r#"{
                 "model": "Claude-Sonnet-4-[Anthropic]",
                 "providerLock": "anthropic",
                 "providerLockTimestamp": "2026-05-01T01:02:03.000Z",
@@ -172,14 +159,9 @@ mod tests {
                     "thinkingTokens": 5
                 }
             }"#,
-        )
-        .unwrap();
-        fs::write(
-            dir.join("zero.settings.json"),
-            r#"{"model":"gpt-5","tokenUsage":{"inputTokens":0}}"#,
-        )
-        .unwrap();
-        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, dir.clone());
+            "zero.settings.json": r#"{"model":"gpt-5","tokenUsage":{"inputTokens":0}}"#,
+        });
+        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let shared = SharedArgs {
@@ -205,23 +187,15 @@ mod tests {
     #[test]
     fn falls_back_to_sidecar_jsonl_model() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let dir = temp_dir("sidecar");
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(
-            dir.join("session-b.settings.json"),
-            r#"{
+        let fixture = fs_fixture!({
+            "session-b.settings.json": r#"{
                 "providerLock": "anthropic",
                 "providerLockTimestamp": "2026-05-02T01:02:03.000Z",
                 "tokenUsage": {"inputTokens": 10, "outputTokens": 20}
             }"#,
-        )
-        .unwrap();
-        fs::write(
-            dir.join("session-b.jsonl"),
-            r#"{"content":"Model: Claude Opus 4.5 Thinking [Anthropic]"}"#,
-        )
-        .unwrap();
-        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, dir);
+            "session-b.jsonl": r#"{"content":"Model: Claude Opus 4.5 Thinking [Anthropic]"}"#,
+        });
+        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();
@@ -236,30 +210,21 @@ mod tests {
     #[test]
     fn keeps_latest_snapshot_for_duplicate_session_ids() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let dir = temp_dir("dedupe-latest");
-        let archive_dir = dir.join("archive");
-        fs::create_dir_all(&archive_dir).unwrap();
-        fs::write(
-            archive_dir.join("session-c.settings.json"),
-            r#"{
+        let fixture = fs_fixture!({
+            "archive/session-c.settings.json": r#"{
                 "model": "gpt-5",
                 "providerLock": "openai",
                 "providerLockTimestamp": "2026-05-01T01:02:03.000Z",
                 "tokenUsage": {"inputTokens": 10, "outputTokens": 20}
             }"#,
-        )
-        .unwrap();
-        fs::write(
-            dir.join("session-c.settings.json"),
-            r#"{
+            "session-c.settings.json": r#"{
                 "model": "gpt-5",
                 "providerLock": "openai",
                 "providerLockTimestamp": "2026-05-02T01:02:03.000Z",
                 "tokenUsage": {"inputTokens": 100, "outputTokens": 200}
             }"#,
-        )
-        .unwrap();
-        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, dir);
+        });
+        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();
