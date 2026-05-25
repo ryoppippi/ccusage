@@ -26,7 +26,7 @@ struct CodexAggregation {
     seen: FxHashSet<CodexEventKey>,
 }
 
-pub(super) fn load_groups(
+pub(crate) fn load_groups(
     shared: &SharedArgs,
     kind: AgentReportKind,
 ) -> Result<BTreeMap<String, CodexGroup>> {

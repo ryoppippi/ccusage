@@ -8,7 +8,7 @@ mod types;
 
 use crate::{cli::AgentCommandArgs, log_level, print_json_or_jq, wants_json, PricingMap, Result};
 
-pub(crate) use aggregate::{aggregate_events, filter_events_by_date};
+pub(crate) use aggregate::{aggregate_events, filter_events_by_date, load_groups};
 pub(crate) use loader::load_codex_events;
 #[cfg(test)]
 pub(crate) use loader::load_codex_events_from_directory;
@@ -17,7 +17,6 @@ pub(crate) use report::{
 };
 pub(crate) use speed::resolve_codex_speed;
 
-use aggregate::load_groups;
 use report::{print_table_from_groups, report_from_groups};
 
 #[cfg(test)]
