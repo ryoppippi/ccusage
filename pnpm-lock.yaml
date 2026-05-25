@@ -29,10 +29,6 @@ catalogs:
     publint:
       specifier: ^0.3.12
       version: 0.3.12
-  llm-docs:
-    '@gunshi/docs':
-      specifier: ^0.31.0
-      version: 0.31.0
   release:
     bumpp:
       specifier: ^11.1.0
@@ -82,9 +78,6 @@ importers:
         specifier: runtime:^24.15.0
         version: runtime:24.15.0
     devDependencies:
-      '@gunshi/docs':
-        specifier: catalog:llm-docs
-        version: 0.31.0
       bumpp:
         specifier: catalog:release
         version: 11.1.0
@@ -641,10 +634,6 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
-
-  '@gunshi/docs@0.31.0':
-    resolution: {integrity: sha512-XFRjB/wgcpTnBVfJ6FYme/ZW2tM7kHsU1T3zxvOy6rJjW2B1urN+wdjQF6P7d8B1+Ad8x76PA3zB9osKAoG5Ew==}
-    hasBin: true
 
   '@iconify-json/logos@1.2.10':
     resolution: {integrity: sha512-qxaXKJ6fu8jzTMPQdHtNxlfx6tBQ0jXRbHZIYy5Ilh8Lx9US9FsAdzZWUR8MXV8PnWTKGDFO4ZZee9VwerCyMA==}
@@ -3250,11 +3239,6 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.4':
     optional: true
-
-  '@gunshi/docs@0.31.0':
-    dependencies:
-      '@antfu/install-pkg': 1.1.0
-      tinyexec: 1.1.2
 
   '@iconify-json/logos@1.2.10':
     dependencies:

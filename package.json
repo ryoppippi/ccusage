@@ -30,7 +30,6 @@
 	},
 	"dependencies": {},
 	"devDependencies": {
-		"@gunshi/docs": "catalog:llm-docs",
 		"bumpp": "catalog:release",
 		"changelogithub": "catalog:release",
 		"pkg-pr-new": "catalog:release",
