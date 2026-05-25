@@ -7,8 +7,8 @@ use serde_json::{Map, Value};
 
 use crate::{
     cli::{
-        BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs, SharedArgs, SortOrder,
-        StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
+        normalize_date_bound, BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs, SharedArgs,
+        SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
     },
     config_schema::{
         BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
@@ -376,10 +376,10 @@ pub(crate) fn apply_config_to_agent_args(
 
 fn apply_shared_options(shared: &mut SharedArgs, options: SharedOptions) {
     if let Some(since) = options.since {
-        shared.since = Some(since);
+        shared.since = Some(normalize_date_bound(&since));
     }
     if let Some(until) = options.until {
-        shared.until = Some(until);
+        shared.until = Some(normalize_date_bound(&until));
     }
     if let Some(json) = options.json {
         shared.json = json;
@@ -534,8 +534,8 @@ mod tests {
 
         apply_config_to_shared(&mut shared, &config);
 
-        assert_eq!(shared.since.as_deref(), Some("2026-01-01"));
-        assert_eq!(shared.until.as_deref(), Some("2026-01-31"));
+        assert_eq!(shared.since.as_deref(), Some("20260101"));
+        assert_eq!(shared.until.as_deref(), Some("20260131"));
         assert!(shared.json);
         assert_eq!(shared.mode, CostMode::Calculate);
         assert!(shared.debug);
