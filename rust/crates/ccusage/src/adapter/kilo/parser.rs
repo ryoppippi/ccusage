@@ -69,6 +69,7 @@ pub(super) fn message_value_to_entry(
         cost_usd,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     let provider = non_empty_json_string(value.get("providerID"));
     let cost_data = UsageEntry {

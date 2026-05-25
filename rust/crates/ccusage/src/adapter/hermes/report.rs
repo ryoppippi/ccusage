@@ -94,6 +94,7 @@ mod tests {
                 cost_usd: Some(0.34),
                 request_id: None,
                 is_api_error_message: None,
+                is_sidechain: None,
             },
             timestamp: crate::parse_ts_timestamp("2025-06-15T15:06:40.250Z").unwrap(),
             date: "2025-06-15".to_string(),

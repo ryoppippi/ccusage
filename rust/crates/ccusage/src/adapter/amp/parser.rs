@@ -99,6 +99,7 @@ fn parse_ledger_events(
             cost_usd: None,
             request_id: None,
             is_api_error_message: None,
+            is_sidechain: None,
         };
         let cost_data = UsageEntry {
             message: UsageMessage {
@@ -199,6 +200,7 @@ fn parse_message_usage(
             cost_usd: None,
             request_id: None,
             is_api_error_message: None,
+            is_sidechain: None,
         };
         let cost_data = UsageEntry {
             message: UsageMessage {

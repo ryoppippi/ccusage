@@ -7,3 +7,11 @@ if command -v direnv >/dev/null 2>&1 && [ -f .envrc ]; then
   direnv allow
 fi
 """
+
+[cleanup]
+script = """
+rm -rf .direnv
+if command -v nix >/dev/null 2>&1; then
+  nix store gc || true
+fi
+"""

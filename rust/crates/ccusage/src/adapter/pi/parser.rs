@@ -74,6 +74,7 @@ pub(crate) fn read_session_file(
             cost_usd: Some(cost),
             request_id: None,
             is_api_error_message: None,
+            is_sidechain: None,
         };
         entries.push(LoadedEntry {
             date: format_date_tz(timestamp, tz),

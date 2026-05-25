@@ -187,6 +187,7 @@ pub(super) fn kimi_entry_to_loaded(
         cost_usd: None,
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     LoadedEntry {
         date: format_date_tz(entry.timestamp, tz),

@@ -169,6 +169,7 @@ fn openclaw_entry_to_loaded(entry: OpenClawEntry, tz: Option<&JiffTimeZone>) -> 
         cost_usd: Some(entry.cost),
         request_id: None,
         is_api_error_message: None,
+        is_sidechain: None,
     };
     LoadedEntry {
         date: format_date_tz(entry.timestamp, tz),
