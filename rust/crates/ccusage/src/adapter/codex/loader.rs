@@ -125,6 +125,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
+    use ccusage_test_support::fs_fixture;
     use serde_json::json;
 
     fn codex_event(session_id: &str) -> CodexTokenUsageEvent {
@@ -153,12 +154,62 @@ mod tests {
 
     #[test]
     fn dedupes_copied_branch_history_across_session_files() {
+        let parent_history = [
+            json!({
+                "timestamp": "2026-05-12T08:00:00.000Z",
+                "type": "turn_context",
+                "payload": {
+                    "model": "gpt-5.2",
+                },
+            })
+            .to_string(),
+            json!({
+                "timestamp": "2026-05-12T08:01:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 1_000,
+                            "cached_input_tokens": 100,
+                            "output_tokens": 200,
+                            "reasoning_output_tokens": 20,
+                            "total_tokens": 1_200,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let branch_history = [
+            parent_history.as_str(),
+            &json!({
+                "timestamp": "2026-05-12T08:02:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 1_600,
+                            "cached_input_tokens": 300,
+                            "output_tokens": 450,
+                            "reasoning_output_tokens": 40,
+                            "total_tokens": 2_050,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let fixture = fs_fixture!({
+            "2026-05-12T08-00-00-parent.jsonl": &parent_history,
+            "2026-05-12T08-02-00-branch.jsonl": branch_history,
+        });
+
         for single_thread in [true, false] {
-            let events = load_codex_events_from_directory(
-                &codex_branch_history_fixture_dir(),
-                single_thread,
-            )
-            .unwrap();
+            let events = load_codex_events_from_directory(fixture.root(), single_thread).unwrap();
 
             assert_eq!(events.len(), 2);
             assert_eq!(events[0].session_id, "2026-05-12T08-00-00-parent");
@@ -184,11 +235,6 @@ mod tests {
         let dir = env::temp_dir().join(format!("ccusage-codex-exec-{name}-{nanos}"));
         fs::create_dir_all(&dir).unwrap();
         dir
-    }
-
-    fn codex_branch_history_fixture_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../apps/ccusage/test/fixtures/codex/sessions/branch-history")
     }
 
     #[test]
