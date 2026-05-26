@@ -60,6 +60,9 @@ pub(crate) fn session_summary_json(row: &UsageSummary) -> Value {
         "modelBreakdowns": row.model_breakdowns,
         "projectPath": row.project_path,
     });
+    if let (Some(obj), Some(first_activity)) = (value.as_object_mut(), &row.first_activity) {
+        obj.insert("firstActivity".to_string(), json!(first_activity));
+    }
     if let (Some(obj), Some(credits)) = (value.as_object_mut(), row.credits) {
         obj.insert("credits".to_string(), json!(credits));
     }
@@ -427,6 +430,7 @@ mod tests {
             week: None,
             session_id: None,
             project_path: None,
+            first_activity: None,
             last_activity: None,
             input_tokens: 100,
             output_tokens: 50,
@@ -458,7 +462,8 @@ mod tests {
         row.date = None;
         row.session_id = Some("session-a".to_string());
         row.project_path = Some("/Users/example/workspace/api".to_string());
-        row.last_activity = Some("2026-01-02 12:34:56".to_string());
+        row.first_activity = Some("2026-01-01T10:00:00.000Z".to_string());
+        row.last_activity = Some("2026-01-02T12:34:56.000Z".to_string());
 
         insta::assert_json_snapshot!(session_summary_json(&row));
     }
@@ -506,6 +511,7 @@ mod tests {
             week: None,
             session_id: None,
             project_path: None,
+            first_activity: None,
             last_activity: None,
             input_tokens: 1_234,
             output_tokens: 567,

@@ -145,6 +145,7 @@ pub(crate) struct CodexGroup {
     pub(crate) reasoning_output_tokens: u64,
     pub(crate) total_tokens: u64,
     pub(crate) models: BTreeMap<String, CodexModelUsage>,
+    pub(crate) first_activity: Option<String>,
     pub(crate) last_activity: Option<String>,
 }
 
@@ -161,6 +162,8 @@ pub(crate) struct UsageSummary {
     pub(crate) session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) project_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) first_activity: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) last_activity: Option<String>,
     pub(crate) input_tokens: u64,

@@ -51,6 +51,12 @@ pub(crate) fn agent_summary_json(
     if include_session_metadata {
         if let Some(obj) = value.as_object_mut() {
             obj.insert(
+                "firstActivity".to_string(),
+                row.first_activity
+                    .as_ref()
+                    .map_or(Value::Null, |value| json!(value)),
+            );
+            obj.insert(
                 "lastActivity".to_string(),
                 row.last_activity
                     .as_ref()
@@ -187,6 +193,7 @@ mod tests {
             week: Some("2025-12-29".to_string()),
             session_id: Some("session-a".to_string()),
             project_path: Some("/workspace/api".to_string()),
+            first_activity: None,
             last_activity: Some("2026-01-02".to_string()),
             input_tokens: 100,
             output_tokens: 50,

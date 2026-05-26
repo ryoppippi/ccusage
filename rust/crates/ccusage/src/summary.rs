@@ -7,8 +7,8 @@ use crate::{
     cli::{SharedArgs, SortOrder, WeekDay},
     cli_error,
     fast::{FxHashMap, FxHashSet},
-    format_date, format_naive_date, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
-    TimestampMs, TokenCounts, UsageSummary,
+    format_naive_date, format_rfc3339_millis, parse_iso_date, LoadedEntry,
+    ModelBreakdown, Result, TimestampMs, TokenCounts, UsageSummary,
 };
 
 pub(crate) fn summarize_by_key<F, M>(
@@ -90,6 +90,7 @@ impl UsageAccumulator {
             week: None,
             session_id: None,
             project_path: None,
+            first_activity: None,
             last_activity: None,
             input_tokens: self.counts.input_tokens,
             output_tokens: self.counts.output_tokens,
@@ -110,6 +111,7 @@ impl UsageAccumulator {
 #[derive(Default)]
 pub(crate) struct SessionAccumulator {
     usage: UsageAccumulator,
+    earliest: Option<TimestampMs>,
     latest: Option<(TimestampMs, Arc<str>, Arc<str>)>,
     versions: BTreeSet<String>,
 }
@@ -117,6 +119,9 @@ pub(crate) struct SessionAccumulator {
 impl SessionAccumulator {
     pub(crate) fn add_entry(&mut self, entry: &LoadedEntry) {
         self.usage.add_entry(entry);
+        if self.earliest.is_none_or(|ts| entry.timestamp < ts) {
+            self.earliest = Some(entry.timestamp);
+        }
         if self
             .latest
             .as_ref()
@@ -133,14 +138,15 @@ impl SessionAccumulator {
         }
     }
 
-    pub(crate) fn into_summary(self, timezone: Option<&str>) -> Result<UsageSummary> {
+    pub(crate) fn into_summary(self, _timezone: Option<&str>) -> Result<UsageSummary> {
         let Some((timestamp, session_id, project_path)) = self.latest else {
             return Err(cli_error("empty session group"));
         };
         let mut summary = self.usage.into_summary();
         summary.session_id = Some(session_id.to_string());
         summary.project_path = Some(project_path.to_string());
-        summary.last_activity = Some(format_date(timestamp, timezone));
+        summary.first_activity = self.earliest.map(format_rfc3339_millis);
+        summary.last_activity = Some(format_rfc3339_millis(timestamp));
         summary.versions = Some(self.versions.into_iter().collect());
         Ok(summary)
     }
@@ -189,6 +195,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         week: None,
         session_id: None,
         project_path: None,
+        first_activity: None,
         last_activity: None,
         input_tokens: 0,
         output_tokens: 0,
@@ -607,6 +614,7 @@ mod tests {
             week: None,
             session_id: None,
             project_path: None,
+            first_activity: None,
             last_activity: None,
             input_tokens: fixture.input_tokens,
             output_tokens: 10,

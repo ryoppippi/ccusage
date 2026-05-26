@@ -306,6 +306,13 @@ fn accumulate_codex_event_into_group(
     group.reasoning_output_tokens += event.reasoning_output_tokens;
     group.total_tokens += event.total_tokens;
     if group
+        .first_activity
+        .as_deref()
+        .is_none_or(|current| event.timestamp.as_str() < current)
+    {
+        group.first_activity = Some(event.timestamp.clone());
+    }
+    if group
         .last_activity
         .as_deref()
         .is_none_or(|current| event.timestamp.as_str() > current)
@@ -377,6 +384,14 @@ fn merge_groups(target: &mut BTreeMap<String, CodexGroup>, source: BTreeMap<Stri
         target_group.output_tokens += group.output_tokens;
         target_group.reasoning_output_tokens += group.reasoning_output_tokens;
         target_group.total_tokens += group.total_tokens;
+        if target_group.first_activity.as_deref().is_none_or(|current| {
+            group
+                .first_activity
+                .as_deref()
+                .is_some_and(|next| next < current)
+        }) {
+            target_group.first_activity = group.first_activity;
+        }
         if target_group.last_activity.as_deref().is_none_or(|current| {
             group
                 .last_activity

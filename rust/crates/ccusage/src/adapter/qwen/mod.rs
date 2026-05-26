@@ -52,6 +52,9 @@ fn filter_session_summaries(rows: &mut Vec<crate::UsageSummary>, shared: &Shared
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
+                .split('T')
+                .next()
+                .unwrap_or("")
                 .replace('-', "");
             since.as_ref().is_none_or(|bound| &date >= bound)
                 && until.as_ref().is_none_or(|bound| &date <= bound)
@@ -181,6 +184,7 @@ mod tests {
             week: None,
             session_id: Some(session_id.to_string()),
             project_path: None,
+            first_activity: None,
             last_activity: Some(last_activity.to_string()),
             input_tokens: 0,
             output_tokens: 0,

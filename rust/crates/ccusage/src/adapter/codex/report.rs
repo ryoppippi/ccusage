@@ -68,6 +68,7 @@ fn group_json(
         "models": models,
     });
     if kind == AgentReportKind::Session {
+        row["firstActivity"] = json!(group.first_activity);
         row["lastActivity"] = json!(group.last_activity);
         let separator = period.rfind('/');
         row["sessionFile"] = json!(separator.map_or(period, |index| &period[index + 1..]));

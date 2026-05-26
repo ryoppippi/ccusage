@@ -98,6 +98,7 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
         "cachedInputTokens": 110,
         "costUSD": 0.0008085,
         "directory": "/workspace/api",
+        "firstActivity": "2026-01-02T00:00:00.000Z",
         "inputTokens": 100,
         "lastActivity": "2026-01-02T00:05:00.000Z",
         "models": {
@@ -120,6 +121,7 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
         "cachedInputTokens": 0,
         "costUSD": 0.000013,
         "directory": "/workspace/web",
+        "firstActivity": "2026-01-05T23:59:59.000Z",
         "inputTokens": 10,
         "lastActivity": "2026-01-05T23:59:59.000Z",
         "models": {

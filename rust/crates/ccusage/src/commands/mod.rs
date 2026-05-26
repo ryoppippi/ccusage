@@ -174,6 +174,9 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
+                .split('T')
+                .next()
+                .unwrap_or("")
                 .replace('-', "");
             session_shared
                 .since

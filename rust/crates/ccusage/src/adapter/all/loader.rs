@@ -586,6 +586,9 @@ fn summary_metadata(agent: &'static str, summary: &UsageSummary) -> Option<Value
         metadata.insert("credits".to_string(), json_float(credits));
     }
     if summary.session_id.is_some() {
+        if let Some(first_activity) = summary.first_activity.as_ref() {
+            metadata.insert("firstActivity".to_string(), json!(first_activity));
+        }
         if let Some(last_activity) = summary.last_activity.as_ref() {
             metadata.insert("lastActivity".to_string(), json!(last_activity));
         }
@@ -637,6 +640,7 @@ pub(super) fn codex_group_row(
         total_tokens: group.total_tokens,
         total_cost: codex::calculate_group_cost(group, pricing, speed),
         metadata: Some(json!({
+            "firstActivity": group.first_activity,
             "lastActivity": group.last_activity,
             "reasoningOutputTokens": group.reasoning_output_tokens,
         })),
@@ -679,6 +683,7 @@ mod tests {
             week: None,
             session_id: None,
             project_path: None,
+            first_activity: None,
             last_activity: None,
             input_tokens,
             output_tokens: 0,
