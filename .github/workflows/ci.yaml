@@ -45,6 +45,39 @@ jobs:
           mkdir -p "$HOME/.config/claude/projects"
       - run: nix develop --command pnpm run test
 
+  code-coverage:
+    needs: changes
+    if: needs.changes.outputs.code-changed == 'true' && (github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      code-quality: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-nix
+      - name: Create default Claude directories for tests
+        run: |
+          mkdir -p "$HOME/.claude/projects"
+          mkdir -p "$HOME/.config/claude/projects"
+      - name: Generate Rust coverage report
+        run: |
+          mkdir -p coverage
+          env -u CFLAGS -u CXXFLAGS nix develop --command cargo llvm-cov \
+            --manifest-path rust/Cargo.toml \
+            --workspace \
+            --cobertura \
+            --output-path coverage/cobertura.xml
+      - name: Upload Rust coverage report
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-code-coverage@v1
+        with:
+          file: coverage/cobertura.xml
+          language: Rust
+          label: code-coverage/cargo-llvm-cov
+
   build-native-packages:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
