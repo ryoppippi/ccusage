@@ -26,6 +26,7 @@ in
             rustToolchain
             cargo-edit
             cargo-insta
+            cargo-llvm-cov
             pkg-config
             openssl
             config.treefmt.build.wrapper
