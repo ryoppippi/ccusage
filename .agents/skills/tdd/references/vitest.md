@@ -70,8 +70,8 @@ it('rejects invalid config', async () => {
 });
 ```
 
-Read `vitest-examples.md` for expanded bad/good examples when reviewing or
-teaching test style.
+Read [`vitest-examples.md`](./vitest-examples.md) for expanded bad/good
+examples when reviewing or teaching test style.
 
 ## Branching
 
