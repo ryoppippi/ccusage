@@ -61,22 +61,8 @@ describe(calculateTotal, () => {
 
 ## Expected Failures
 
-Avoid `try`/`catch` for expected failures.
-
-Bad:
-
-```typescript
-it('rejects invalid config', async () => {
-	try {
-		await loadConfig('bad.json');
-		expect.fail('expected loadConfig to throw');
-	} catch (error) {
-		expect(error).toBeInstanceOf(Error);
-	}
-});
-```
-
-Good:
+Avoid `try`/`catch` for expected failures. Assert the rejection or thrown error
+directly:
 
 ```typescript
 it('rejects invalid config', async () => {
@@ -84,25 +70,13 @@ it('rejects invalid config', async () => {
 });
 ```
 
+Read [`vitest-examples.md`](./vitest-examples.md) for expanded bad/good
+examples when reviewing or teaching test style.
+
 ## Branching
 
-Avoid `if` branches inside test bodies. Split behaviors or use `it.each`.
-
-Bad:
-
-```typescript
-it('formats output', () => {
-	const output = formatReport(mode);
-
-	if (mode === 'json') {
-		expect(JSON.parse(output)).toEqual(expected);
-	} else {
-		expect(output).toContain('Total');
-	}
-});
-```
-
-Good:
+Avoid `if` branches inside test bodies. Split behaviors when the assertions are
+meaningfully different:
 
 ```typescript
 it('formats JSON output', () => {
@@ -134,23 +108,6 @@ it.each([
 ## Helpers And Values
 
 Avoid wrapper/helper functions that hide behavior and assertions.
-
-Bad:
-
-```typescript
-function expectReport(input: UsageEntry[], expected: ReportRow[]) {
-	expect(renderDaily(input)).toEqual(expected);
-}
-
-it('renders daily totals', () => {
-	expectReport(
-		[{ timestamp: '2026-05-16T10:00:00Z', inputTokens: 100 }],
-		[{ date: '2026-05-16', inputTokens: 100 }],
-	);
-});
-```
-
-Good:
 
 ```typescript
 it('renders daily totals', () => {

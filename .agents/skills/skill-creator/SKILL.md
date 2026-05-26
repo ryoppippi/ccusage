@@ -14,8 +14,9 @@ Use this skill when creating or updating repo-local skills under `.agents/skills
 3. Keep `SKILL.md` focused on core workflow and navigation. Move detailed examples, APIs, or long checklists into `references/` files linked directly from `SKILL.md`.
 4. Add scripts under `scripts/` only for deterministic or repeated operations that are better executed than rewritten.
 5. Update the root `AGENTS.md` Skill Routing list when adding a repo-local skill that agents should discover before work.
-6. Let the Nix dev shell refresh generated local agent skill targets through its shell hook.
-7. Run `pnpm run format` after edits and use the normal repo validation level for the change.
+6. Keep skill and reference files below the line budgets in this guide.
+7. Let the Nix dev shell refresh generated local agent skill targets through its shell hook.
+8. Run `pnpm run format` after edits and use the normal repo validation level for the change.
 
 ## Local Skill Management
 
@@ -84,6 +85,27 @@ Keep the body procedural and repo-specific:
 - Small examples that prevent common mistakes.
 
 Avoid explaining generic concepts the model already knows. The skill body is loaded only after the skill triggers, but it still competes with task context once loaded.
+
+## Line Budgets
+
+Assume some agents may preview only the first 200 lines of a skill or reference
+file. Keep each file comfortably below that limit, with the most important
+routing, safety, and workflow instructions near the top.
+
+Targets:
+
+- Keep `SKILL.md` under 160 lines.
+- Keep each `references/*.md` file under 180 lines.
+- Split longer material by decision point or workflow phase, then link the
+  specific file from `SKILL.md`.
+- Do not put required instructions below examples, troubleshooting notes, or
+  optional background.
+
+Audit with:
+
+```sh
+fd . .agents/skills -t f -e md -x wc -l {} | sort -nr
+```
 
 ## References
 
