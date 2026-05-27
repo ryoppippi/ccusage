@@ -24,6 +24,10 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     if wants_json(&shared) {
         return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
     }
+    if rows.is_empty() {
+        eprintln!("{}", empty_usage_message());
+        return Ok(());
+    }
     print_usage_table(
         "GitHub Copilot CLI Token Usage Report",
         crate::adapter::opencode::first_column(args.kind),
@@ -33,4 +37,21 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         None,
     )?;
     Ok(())
+}
+
+fn empty_usage_message() -> &'static str {
+    "No GitHub Copilot CLI usage data found.\nEnable Copilot OpenTelemetry file export before starting or resuming Copilot sessions.\nSee https://ccusage.com/guide/copilot/#data-source"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_usage_message_links_to_copilot_docs() {
+        assert_eq!(
+            empty_usage_message(),
+            "No GitHub Copilot CLI usage data found.\nEnable Copilot OpenTelemetry file export before starting or resuming Copilot sessions.\nSee https://ccusage.com/guide/copilot/#data-source"
+        );
+    }
 }
