@@ -76,7 +76,8 @@ pub(super) fn print_table(
     }
     let terminal_width = crate::terminal_width();
     let is_tty = std::io::stdout().is_terminal();
-    let compact = shared.compact || (is_tty && terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD);
+    let compact =
+        shared.compact || (is_tty && terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD);
     let (headers, aligns) = all_table_columns(kind, compact);
     let mut table = SimpleTable::new(headers, aligns, crate::terminal_style(shared))
         .with_terminal_width(terminal_width)

@@ -92,7 +92,8 @@ pub(crate) fn print_table_for_agent(
     }
     let terminal_width = crate::terminal_width();
     let is_tty = std::io::stdout().is_terminal();
-    let compact = shared.compact || (is_tty && terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD);
+    let compact =
+        shared.compact || (is_tty && terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD);
     print_box_title(
         &format!(
             "{agent_name} Token Usage Report - {}",
