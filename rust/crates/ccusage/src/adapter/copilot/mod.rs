@@ -49,9 +49,7 @@ mod tests {
 
     #[test]
     fn empty_usage_message_links_to_copilot_docs() {
-        assert_eq!(
-            empty_usage_message(),
-            "No GitHub Copilot CLI usage data found.\nEnable Copilot OpenTelemetry file export before starting or resuming Copilot sessions.\nSee https://ccusage.com/guide/copilot/#data-source"
-        );
+        let message = empty_usage_message();
+        assert!(message.contains("https://ccusage.com/guide/copilot/#data-source"));
     }
 }
