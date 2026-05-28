@@ -39,7 +39,10 @@ pub(super) fn discover_log_files() -> Result<Vec<PathBuf>> {
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if path.is_dir() {
-                        let transcript = path.join(".system_generated").join("logs").join("transcript.jsonl");
+                        let transcript = path
+                            .join(".system_generated")
+                            .join("logs")
+                            .join("transcript.jsonl");
                         if transcript.is_file() {
                             files.push(transcript);
                         }

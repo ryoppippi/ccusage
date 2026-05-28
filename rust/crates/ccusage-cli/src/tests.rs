@@ -358,8 +358,22 @@ fn applies_schema_documented_config_file_options() {
 fn root_help_lists_agent_namespaces_without_nested_commands() {
     let help = help_text();
     let agents = [
-        "claude", "codex", "opencode", "amp", "droid", "codebuff", "hermes", "pi", "goose", "kilo",
-        "copilot", "gemini", "antigravity", "kimi", "qwen", "openclaw",
+        "claude",
+        "codex",
+        "opencode",
+        "amp",
+        "droid",
+        "codebuff",
+        "hermes",
+        "pi",
+        "goose",
+        "kilo",
+        "copilot",
+        "gemini",
+        "antigravity",
+        "kimi",
+        "qwen",
+        "openclaw",
     ];
 
     for agent in agents {
