@@ -50,7 +50,15 @@ pub(super) fn visit_codex_session_file(
         let line = match lines.next_line() {
             Ok(Some(line)) => line,
             Ok(None) => break,
-            Err(error) => return Err(error.into()),
+            Err(error) => {
+                if crate::log_level() != Some(0) {
+                    eprintln!(
+                        "WARN  Failed to read Codex session file {}: {error}",
+                        path.display()
+                    );
+                }
+                break;
+            }
         };
         let Some(line_kind) = codex_line_usage_kind(line) else {
             continue;
