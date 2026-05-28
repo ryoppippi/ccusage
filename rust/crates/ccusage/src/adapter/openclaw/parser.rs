@@ -1,7 +1,12 @@
-use std::{fs, path::Path, sync::Arc};
+use std::{
+    fs,
+    path::Path,
+    sync::{Arc, LazyLock},
+};
 
-use ccusage_jsonl::lines_with_any_marker;
+use ccusage_jsonl::JsonlFileLines;
 use jiff::tz::TimeZone as JiffTimeZone;
+use memchr::memmem::Finder;
 use serde_json::{Map, Value};
 
 use crate::{
@@ -24,21 +29,26 @@ struct OpenClawEntry {
     cost: f64,
 }
 
+static MODEL_CHANGE_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""model_change""#));
+static MODEL_SNAPSHOT_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""model-snapshot""#));
+static USAGE_FINDER: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(br#""usage""#));
+
 pub(super) fn parse_session_file(
     path: &Path,
     tz: Option<&JiffTimeZone>,
 ) -> Result<Vec<LoadedEntry>> {
     let session_id = extract_session_id(path);
     let fallback_timestamp = file_modified_timestamp(path);
-    let input = fs::read(path)?;
+    let mut lines = JsonlFileLines::open_with_capacity(path, 128 * 1024)?;
     let mut current_model = None::<String>;
     let mut current_provider = None::<String>;
     let mut entries = Vec::new();
-    for line in lines_with_any_marker(
-        &input,
-        &[br#""model_change""#, br#""model-snapshot""#, br#""usage""#],
-    ) {
-        let line = line.bytes;
+    while let Some(line) = lines.next_line()? {
+        if !has_openclaw_marker(line) {
+            continue;
+        }
         let Ok(value) = serde_json::from_slice::<Value>(line) else {
             continue;
         };
@@ -71,6 +81,12 @@ pub(super) fn parse_session_file(
         }
     }
     Ok(entries)
+}
+
+fn has_openclaw_marker(line: &[u8]) -> bool {
+    MODEL_CHANGE_FINDER.find(line).is_some()
+        || MODEL_SNAPSHOT_FINDER.find(line).is_some()
+        || USAGE_FINDER.find(line).is_some()
 }
 
 fn is_model_change(record: &Map<String, Value>) -> bool {
