@@ -130,6 +130,7 @@ fn open_code_model_candidates(model: &str, provider: &str) -> Vec<String> {
 fn resolve_open_code_model_name(model: &str) -> String {
     match model {
         "gemini-3-pro-high" => "gemini-3-pro-preview".to_string(),
+        "k2p6" => "kimi-k2.6".to_string(),
         _ => model.to_string(),
     }
 }
@@ -292,6 +293,43 @@ mod tests {
                 "github_copilot/claude-sonnet-4-5",
             ]
         );
+    }
+
+    #[test]
+    fn calculates_cost_for_k2p6_when_opencode_stores_zero_cost() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "kimi-k2.6": {
+                    "input_cost_per_token": 0.00000095,
+                    "output_cost_per_token": 0.000004,
+                    "cache_read_input_token_cost": 0.00000016
+                }
+            }"#,
+        );
+        let entry = message_value_to_entry(
+            &json!({
+                "id": "message-a",
+                "sessionID": "session-a",
+                "providerID": "kimi-for-coding",
+                "modelID": "k2p6",
+                "time": { "created": 0 },
+                "tokens": {
+                    "input": 100,
+                    "output": 10,
+                    "cache": { "read": 50 }
+                },
+                "cost": 0
+            }),
+            None,
+            None,
+            None,
+            CostMode::Auto,
+            Some(&pricing),
+        )
+        .unwrap();
+
+        assert_eq!(entry.cost, 0.000143);
     }
 
     #[test]
