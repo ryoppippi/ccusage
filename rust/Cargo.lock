@@ -108,6 +108,7 @@ name = "ccusage"
 version = "20.0.5"
 dependencies = [
  "ccusage-cli",
+ "ccusage-jsonl",
  "ccusage-terminal",
  "ccusage-test-support",
  "compact_str",
@@ -132,6 +133,13 @@ version = "20.0.5"
 dependencies = [
  "insta",
  "serde_json",
+]
+
+[[package]]
+name = "ccusage-jsonl"
+version = "0.1.0"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]

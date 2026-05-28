@@ -1,5 +1,6 @@
 use std::{collections::HashSet, fs, io, path::Path};
 
+use ccusage_jsonl::lines;
 use serde_json::Value;
 
 use crate::{
@@ -284,10 +285,10 @@ fn extract_model_from_sidecar_jsonl(settings_path: &Path) -> Result<Option<Strin
         return Ok(None);
     };
     let sidecar = settings_path.with_file_name(format!("{prefix}.jsonl"));
-    let Ok(content) = fs::read_to_string(sidecar) else {
+    let Ok(content) = fs::read(sidecar) else {
         return Ok(None);
     };
-    for line in content.lines().take(500) {
+    for line in lines(&content).take(500).filter_map(|line| line.as_str()) {
         if let Some(model) = extract_droid_model_from_line(line) {
             return Ok(Some(model));
         }

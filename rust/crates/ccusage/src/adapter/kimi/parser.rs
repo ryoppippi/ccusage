@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+use ccusage_jsonl::{contains, lines_with_any_marker};
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
@@ -34,13 +35,18 @@ pub(super) struct KimiUsageEntry {
 pub(super) fn read_wire_file(path: &Path) -> Result<Vec<KimiUsageEntry>> {
     let model = read_model_from_config(path);
     let fallback_timestamp = file_modified_timestamp(path);
-    let content = fs::read_to_string(path)?;
-    Ok(content
-        .lines()
-        .filter(|line| line.contains("\"StatusUpdate\"") && line.contains("\"token_usage\""))
-        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-        .filter_map(|value| wire_line_to_entry(&value, path, &model, fallback_timestamp))
-        .collect::<Vec<_>>())
+    let content = fs::read(path)?;
+    Ok(
+        lines_with_any_marker(&content, &[br#""StatusUpdate""#, br#""token_usage""#])
+            .into_iter()
+            .filter(|line| {
+                contains(line.bytes, br#""StatusUpdate""#)
+                    && contains(line.bytes, br#""token_usage""#)
+            })
+            .filter_map(|line| serde_json::from_slice::<Value>(line.bytes).ok())
+            .filter_map(|value| wire_line_to_entry(&value, path, &model, fallback_timestamp))
+            .collect::<Vec<_>>(),
+    )
 }
 
 fn read_model_from_config(file_path: &Path) -> String {

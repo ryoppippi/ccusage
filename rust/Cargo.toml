@@ -2,6 +2,7 @@
 members = [
 	"crates/ccusage",
 	"crates/ccusage-cli",
+	"crates/ccusage-jsonl",
 	"crates/ccusage-terminal",
 	"crates/ccusage-test-support",
 ]

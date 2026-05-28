@@ -4,6 +4,7 @@ use std::{
     path::Path,
 };
 
+use ccusage_jsonl::lines_with_marker;
 use serde_json::{Map, Value};
 
 use crate::{apply_total_token_fallback, Result, TimestampMs, TokenUsageRaw};
@@ -53,11 +54,9 @@ struct CopilotUsageCandidate {
 }
 
 pub(super) fn parse_otel_file(path: &Path) -> Result<Vec<CopilotUsageEntry>> {
-    let content = fs::read_to_string(path)?;
-    let records = content
-        .lines()
-        .filter(|line| line.contains("\"attributes\""))
-        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+    let content = fs::read(path)?;
+    let records = lines_with_marker(&content, br#""attributes""#)
+        .filter_map(|line| serde_json::from_slice::<Value>(line.bytes).ok())
         .filter_map(|value| value.as_object().cloned())
         .collect::<Vec<_>>();
     let trace_contexts = collect_trace_contexts(&records);

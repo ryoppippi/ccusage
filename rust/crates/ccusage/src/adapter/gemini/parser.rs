@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
+use ccusage_jsonl::lines;
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{Map, Value};
 
@@ -92,9 +93,9 @@ pub(super) fn parse_jsonl_file(path: &Path) -> Result<Vec<GeminiUsageEvent>> {
     let mut current_model = None::<String>;
     let mut events = Vec::new();
     let mut direct_event_indexes = HashMap::<String, usize>::new();
-    let content = fs::read_to_string(path)?;
-    for line in content.lines() {
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
+    let content = fs::read(path)?;
+    for line in lines(&content) {
+        let Ok(value) = serde_json::from_slice::<Value>(line.bytes) else {
             continue;
         };
         let Some(record) = value.as_object() else {

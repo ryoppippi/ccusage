@@ -1,10 +1,6 @@
-use std::{
-    fs,
-    io::{BufRead, BufReader},
-    path::Path,
-    sync::Arc,
-};
+use std::{fs, path::Path, sync::Arc};
 
+use ccusage_jsonl::{contains, lines_with_any_marker};
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{Map, Value};
 
@@ -34,20 +30,22 @@ pub(super) fn parse_session_file(
 ) -> Result<Vec<LoadedEntry>> {
     let session_id = extract_session_id(path);
     let fallback_timestamp = file_modified_timestamp(path);
-    let input = fs::File::open(path)?;
-    let reader = BufReader::new(input);
+    let input = fs::read(path)?;
     let mut current_model = None::<String>;
     let mut current_provider = None::<String>;
     let mut entries = Vec::new();
-    for line in reader.lines() {
-        let line = line?;
-        if !line.contains("\"model_change\"")
-            && !line.contains("\"model-snapshot\"")
-            && !line.contains("\"usage\"")
+    for line in lines_with_any_marker(
+        &input,
+        &[br#""model_change""#, br#""model-snapshot""#, br#""usage""#],
+    ) {
+        let line = line.bytes;
+        if !contains(line, br#""model_change""#)
+            && !contains(line, br#""model-snapshot""#)
+            && !contains(line, br#""usage""#)
         {
             continue;
         }
-        let Ok(value) = serde_json::from_str::<Value>(&line) else {
+        let Ok(value) = serde_json::from_slice::<Value>(line) else {
             continue;
         };
         let Some(record) = value.as_object() else {

@@ -14,6 +14,7 @@ path = "src/bin/generate_config_schema.rs"
 
 [dependencies]
 ccusage-cli = { path = "../ccusage-cli" }
+ccusage-jsonl = { path = "../ccusage-jsonl" }
 ccusage-terminal = { path = "../ccusage-terminal" }
 jiff = { version = "0.2.24", default-features = false, features = [
 	"std",

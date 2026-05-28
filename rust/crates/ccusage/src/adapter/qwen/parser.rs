@@ -1,12 +1,12 @@
 use std::{
     collections::HashSet,
-    fs::{self, File},
-    io::{BufRead, BufReader},
+    fs,
     path::Path,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use ccusage_jsonl::lines;
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
@@ -52,14 +52,10 @@ fn read_chat_file(
     shared: &SharedArgs,
 ) -> Result<Vec<LoadedEntry>> {
     let fallback = file_timestamp(file, shared);
-    let input = File::open(file)?;
-    let reader = BufReader::new(input);
+    let input = fs::read(file)?;
     let mut entries = Vec::new();
-    for line in reader.lines() {
-        let Ok(line) = line else {
-            continue;
-        };
-        let Ok(value) = serde_json::from_str::<Value>(&line) else {
+    for line in lines(&input) {
+        let Ok(value) = serde_json::from_slice::<Value>(line.bytes) else {
             continue;
         };
         if let Some(entry) = parse_line(file, fallback, &value, tz, mode, pricing) {

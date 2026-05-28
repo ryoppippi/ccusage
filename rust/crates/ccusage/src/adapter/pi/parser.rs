@@ -1,5 +1,6 @@
 use std::{fs, path::Path, sync::Arc};
 
+use ccusage_jsonl::{contains, lines_with_any_marker};
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
@@ -12,16 +13,17 @@ pub(crate) fn read_session_file(
     path: &Path,
     tz: Option<&JiffTimeZone>,
 ) -> Result<Vec<LoadedEntry>> {
-    let content = fs::read_to_string(path)?;
+    let content = fs::read(path)?;
     let project = extract_project(path);
     let session_id = extract_session_id(path);
     let mut entries = Vec::new();
 
-    for line in content.lines() {
-        if !line.contains("\"usage\"") || !line.contains("\"message\"") {
+    for line in lines_with_any_marker(&content, &[br#""usage""#, br#""message""#]) {
+        let line = line.bytes;
+        if !contains(line, br#""usage""#) || !contains(line, br#""message""#) {
             continue;
         }
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
+        let Ok(value) = serde_json::from_slice::<Value>(line) else {
             continue;
         };
         if !is_pi_message_usage(&value) {

@@ -1,11 +1,6 @@
-use std::{
-    borrow::Cow,
-    fs,
-    io::{BufRead, BufReader},
-    path::Path,
-    sync::LazyLock,
-};
+use std::{borrow::Cow, fs, path::Path, sync::LazyLock};
 
+use ccusage_jsonl::JsonlFileLines;
 use memchr::memmem::Finder;
 use serde_json::Value;
 
@@ -31,7 +26,6 @@ static INPUT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""input_tokens":"#));
 static PROMPT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""prompt_tokens":"#));
-
 #[derive(Clone, Copy)]
 enum CodexLineKind {
     Session,
@@ -43,31 +37,22 @@ pub(super) fn visit_codex_session_file(
     path: &Path,
     mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    let Ok(file) = fs::File::open(path) else {
+    let Ok(mut lines) = JsonlFileLines::open_with_capacity(path, 128 * 1024) else {
         return Ok(());
     };
-    let mut reader = BufReader::with_capacity(128 * 1024, file);
-    let mut line = Vec::new();
     let session_id = codex_session_id(sessions_dir, path);
     let mut previous_totals: Option<CodexRawUsage> = None;
     let mut current_model: Option<String> = None;
     let mut current_model_is_fallback = false;
     let fallback_timestamp = file_modified_timestamp(path);
 
-    loop {
-        line.clear();
-        let Ok(bytes_read) = reader.read_until(b'\n', &mut line) else {
-            return Ok(());
-        };
-        if bytes_read == 0 {
-            break;
-        }
-        let Some(line_kind) = codex_line_usage_kind(&line) else {
+    while let Ok(Some(line)) = lines.next_line() {
+        let Some(line_kind) = codex_line_usage_kind(line) else {
             continue;
         };
         match line_kind {
             CodexLineKind::Session => {
-                let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(&line) else {
+                let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(line) else {
                     continue;
                 };
                 visit_codex_session_entry(
@@ -80,7 +65,7 @@ pub(super) fn visit_codex_session_file(
                 )?;
             }
             CodexLineKind::Headless => {
-                if let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(&line) {
+                if let Ok(value) = serde_json::from_slice::<CodexLogEntry<'_>>(line) {
                     add_codex_exec_event(
                         &session_id,
                         &value,
@@ -92,7 +77,7 @@ pub(super) fn visit_codex_session_file(
                 } else {
                     add_codex_exec_event_from_value(
                         &session_id,
-                        &line,
+                        line,
                         &fallback_timestamp,
                         &mut current_model,
                         &mut current_model_is_fallback,

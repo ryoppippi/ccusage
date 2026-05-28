@@ -6,6 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use ccusage_jsonl::lines;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -569,13 +570,12 @@ fn calculate_context_tokens_from_transcript(
     model_id: Option<&str>,
     offline: bool,
 ) -> Option<HookContext> {
-    let content = fs::read_to_string(path).ok()?;
-    for line in content.lines().rev() {
-        let line = line.trim();
-        if line.is_empty() {
+    let content = fs::read(path).ok()?;
+    for line in lines(&content).rev() {
+        if line.bytes.iter().all(u8::is_ascii_whitespace) {
             continue;
         }
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(line.bytes) else {
             continue;
         };
         if value.get("type").and_then(serde_json::Value::as_str) != Some("assistant") {
