@@ -394,6 +394,7 @@ fn agent_label(agent: &str) -> &str {
         "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
         "qwen" => "Qwen",
+        "antigravity" => "Antigravity CLI",
         _ => agent,
     }
 }

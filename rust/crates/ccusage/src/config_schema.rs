@@ -46,6 +46,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) kimi: Option<KimiConfig>,
     /// Qwen configuration.
     pub(crate) qwen: Option<QwenConfig>,
+    /// Antigravity configuration.
+    pub(crate) antigravity: Option<AntigravityConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -253,6 +255,21 @@ pub(crate) struct GeminiConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GeminiCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AntigravityConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<AntigravityCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AntigravityCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -1042,8 +1059,24 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
+                "$schema",
+                "amp",
+                "antigravity",
+                "claude",
+                "codebuff",
+                "codex",
+                "commands",
+                "copilot",
+                "defaults",
+                "gemini",
+                "goose",
+                "hermes",
+                "kilo",
+                "kimi",
+                "opencode",
+                "openclaw",
+                "pi",
+                "qwen",
                 "droid",
             ],
         );

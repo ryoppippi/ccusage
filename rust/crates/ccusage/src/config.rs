@@ -248,6 +248,7 @@ fn is_agent_command(command: &str) -> bool {
             | "gemini"
             | "kimi"
             | "openclaw"
+            | "antigravity"
     )
 }
 

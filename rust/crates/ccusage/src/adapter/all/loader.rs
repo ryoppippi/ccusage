@@ -4,8 +4,8 @@ use serde_json::{json, Value};
 
 use crate::{
     adapter::{
-        amp, claude, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
-        opencode, pi, qwen,
+        amp, antigravity, claude, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo,
+        kimi, openclaw, opencode, pi, qwen,
     },
     cli::{AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
     filter_loaded_entries_by_date, json_float, summarize_by_key, summarize_summaries_by_bucket,
@@ -233,6 +233,21 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                 agent: "qwen",
                 progress_agent: crate::progress::UsageLoadAgent::Qwen,
                 load: Box::new(|| load_qwen_rows(load_kind, &loader_shared)),
+            },
+            AgentLoadSpec {
+                index: 15,
+                agent: "antigravity",
+                progress_agent: crate::progress::UsageLoadAgent::Antigravity,
+                load: Box::new(|| {
+                    load_priced_summary_agent_rows(
+                        "antigravity",
+                        load_kind,
+                        &loader_shared,
+                        &pricing,
+                        antigravity::load_entries,
+                        antigravity::summarize_entries,
+                    )
+                }),
             },
         ],
         &mut progress,

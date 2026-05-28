@@ -138,6 +138,7 @@ fn main() -> Result<()> {
         Some(Command::Qwen(args)) => adapter::qwen::run(args),
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
         Some(Command::Gemini(args)) => adapter::gemini::run(args),
+        Some(Command::Antigravity(args)) => adapter::antigravity::run(args),
         Some(Command::Kimi(args)) => adapter::kimi::run(args),
         Some(Command::OpenClaw(args)) => adapter::openclaw::run(args),
         None => {

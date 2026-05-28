@@ -1,5 +1,6 @@
 pub(crate) mod all;
 pub(crate) mod amp;
+pub(crate) mod antigravity;
 pub(crate) mod claude;
 pub(crate) mod codebuff;
 pub(crate) mod codex;

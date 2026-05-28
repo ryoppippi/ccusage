@@ -199,6 +199,7 @@ fn command_snapshot(command: Option<Command>) -> Value {
         Some(Command::Kilo(args)) => agent_command_snapshot("kilo", args),
         Some(Command::Copilot(args)) => agent_command_snapshot("copilot", args),
         Some(Command::Gemini(args)) => agent_command_snapshot("gemini", args),
+        Some(Command::Antigravity(args)) => agent_command_snapshot("antigravity", args),
         Some(Command::Kimi(args)) => agent_command_snapshot("kimi", args),
         Some(Command::Qwen(args)) => agent_command_snapshot("qwen", args),
         Some(Command::OpenClaw(args)) => agent_command_snapshot("openclaw", args),
@@ -358,7 +359,7 @@ fn root_help_lists_agent_namespaces_without_nested_commands() {
     let help = help_text();
     let agents = [
         "claude", "codex", "opencode", "amp", "droid", "codebuff", "hermes", "pi", "goose", "kilo",
-        "copilot", "gemini", "kimi", "qwen", "openclaw",
+        "copilot", "gemini", "antigravity", "kimi", "qwen", "openclaw",
     ];
 
     for agent in agents {
@@ -915,6 +916,16 @@ fn parses_gemini_session_options() {
     let cli = parse(&["ccusage", "gemini", "session", "--json"]);
     let Some(Command::Gemini(args)) = cli.command else {
         panic!("expected gemini command");
+    };
+    assert_eq!(args.kind, AgentReportKind::Session);
+    assert!(args.shared.json);
+}
+
+#[test]
+fn parses_antigravity_session_options() {
+    let cli = parse(&["ccusage", "antigravity", "session", "--json"]);
+    let Some(Command::Antigravity(args)) = cli.command else {
+        panic!("expected antigravity command");
     };
     assert_eq!(args.kind, AgentReportKind::Session);
     assert!(args.shared.json);
