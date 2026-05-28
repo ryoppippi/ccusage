@@ -36,6 +36,10 @@ pub struct JsonlLines<'a> {
     bytes: &'a [u8],
 }
 
+pub struct ByteLines<'a> {
+    bytes: &'a [u8],
+}
+
 #[derive(Debug)]
 pub struct JsonlFileLines {
     reader: BufReader<File>,
@@ -64,6 +68,33 @@ impl<'a> JsonlLines<'a> {
     #[inline]
     pub fn new(bytes: &'a [u8]) -> Self {
         Self { bytes }
+    }
+}
+
+impl<'a> ByteLines<'a> {
+    #[inline]
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes }
+    }
+}
+
+impl<'a> Iterator for ByteLines<'a> {
+    type Item = &'a [u8];
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.bytes.is_empty() {
+            return None;
+        }
+        if let Some(newline) = memchr(b'\n', self.bytes) {
+            let (line, rest) = self.bytes.split_at(newline);
+            self.bytes = &rest[1..];
+            Some(line)
+        } else {
+            let line = self.bytes;
+            self.bytes = &[];
+            Some(line)
+        }
     }
 }
 
@@ -157,6 +188,11 @@ pub fn lines(bytes: &[u8]) -> JsonlLines<'_> {
 }
 
 #[inline]
+pub fn byte_lines(bytes: &[u8]) -> ByteLines<'_> {
+    ByteLines::new(bytes)
+}
+
+#[inline]
 pub fn lines_with_marker<'a>(bytes: &'a [u8], marker: &'a [u8]) -> JsonlMarkerLines<'a> {
     JsonlMarkerLines::new(bytes, marker)
 }
@@ -241,7 +277,17 @@ fn line_start_ptr(haystack: &[u8], line: &[u8]) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{lines, lines_with_any_marker, lines_with_marker};
+    use super::{byte_lines, lines, lines_with_any_marker, lines_with_marker};
+
+    #[test]
+    fn byte_lines_returns_newline_delimited_slices() {
+        let lines = byte_lines(b"one\ntwo\nthree").collect::<Vec<_>>();
+
+        assert_eq!(
+            lines,
+            [b"one".as_slice(), b"two".as_slice(), b"three".as_slice()]
+        );
+    }
 
     #[test]
     fn lines_splits_lf_and_trims_cr() {

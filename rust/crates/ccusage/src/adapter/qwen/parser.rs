@@ -6,7 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use ccusage_jsonl::lines;
+use ccusage_jsonl::JsonlFileLines;
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
@@ -52,10 +52,15 @@ fn read_chat_file(
     shared: &SharedArgs,
 ) -> Result<Vec<LoadedEntry>> {
     let fallback = file_timestamp(file, shared);
-    let input = fs::read(file)?;
+    let mut lines = JsonlFileLines::open_with_capacity(file, 128 * 1024)?;
     let mut entries = Vec::new();
-    for line in lines(&input) {
-        let Ok(value) = serde_json::from_slice::<Value>(line.bytes) else {
+    loop {
+        let line = match lines.next_line() {
+            Ok(Some(line)) => line,
+            Ok(None) => break,
+            Err(error) => return Err(error.into()),
+        };
+        let Ok(value) = serde_json::from_slice::<Value>(line) else {
             continue;
         };
         if let Some(entry) = parse_line(file, fallback, &value, tz, mode, pricing) {

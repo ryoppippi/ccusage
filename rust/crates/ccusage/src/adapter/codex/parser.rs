@@ -46,7 +46,12 @@ pub(super) fn visit_codex_session_file(
     let mut current_model_is_fallback = false;
     let fallback_timestamp = file_modified_timestamp(path);
 
-    while let Ok(Some(line)) = lines.next_line() {
+    loop {
+        let line = match lines.next_line() {
+            Ok(Some(line)) => line,
+            Ok(None) => break,
+            Err(error) => return Err(error.into()),
+        };
         let Some(line_kind) = codex_line_usage_kind(line) else {
             continue;
         };

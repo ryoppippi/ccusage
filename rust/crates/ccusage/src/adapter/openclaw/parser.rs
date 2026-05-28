@@ -1,6 +1,6 @@
 use std::{fs, path::Path, sync::Arc};
 
-use ccusage_jsonl::{contains, lines_with_any_marker};
+use ccusage_jsonl::lines_with_any_marker;
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{Map, Value};
 
@@ -39,12 +39,6 @@ pub(super) fn parse_session_file(
         &[br#""model_change""#, br#""model-snapshot""#, br#""usage""#],
     ) {
         let line = line.bytes;
-        if !contains(line, br#""model_change""#)
-            && !contains(line, br#""model-snapshot""#)
-            && !contains(line, br#""usage""#)
-        {
-            continue;
-        }
         let Ok(value) = serde_json::from_slice::<Value>(line) else {
             continue;
         };

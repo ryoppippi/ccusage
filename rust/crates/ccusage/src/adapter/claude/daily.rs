@@ -6,6 +6,7 @@ use std::{
     thread,
 };
 
+use ccusage_jsonl::byte_lines;
 use jiff::tz::TimeZone as JiffTimeZone;
 use memchr::memmem;
 use serde::Deserialize;
@@ -13,7 +14,7 @@ use serde::Deserialize;
 use crate::{
     calculate_cost_for_usage,
     cli::{CostMode, SharedArgs},
-    fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
+    fast::{suffix_string, FxHashMap, SmallIndexVec},
     format_date_tz, log_level, parse_ts_timestamp, parse_tz, ModelBreakdown, PricingMap, Result,
     Speed, TimestampMs, TokenCounts, TokenUsageRaw, UsageSummary,
 };

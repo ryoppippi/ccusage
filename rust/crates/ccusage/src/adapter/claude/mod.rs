@@ -9,6 +9,7 @@ use std::{
     thread,
 };
 
+use ccusage_jsonl::byte_lines;
 use jiff::tz::TimeZone as JiffTimeZone;
 use memchr::memmem;
 use rustc_hash::FxHasher;
@@ -17,7 +18,7 @@ use crate::{
     calculate_cost,
     cli::{CostMode, SharedArgs},
     debug_log,
-    fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
+    fast::{suffix_string, FxHashMap, SmallIndexVec},
     format_date_tz, log_level, parse_ts_timestamp, parse_tz, progress, LoadedEntry, LoadedFile,
     PricingMap, Result, Speed, TimestampMs, UsageEntry, UsageSummary,
 };
