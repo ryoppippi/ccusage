@@ -297,16 +297,7 @@ mod tests {
 
     #[test]
     fn calculates_cost_for_k2p6_when_opencode_stores_zero_cost() {
-        let mut pricing = PricingMap::default();
-        pricing.load_json(
-            r#"{
-                "kimi-k2.6": {
-                    "input_cost_per_token": 0.00000095,
-                    "output_cost_per_token": 0.000004,
-                    "cache_read_input_token_cost": 0.00000016
-                }
-            }"#,
-        );
+        let pricing = PricingMap::load_embedded();
         let entry = message_value_to_entry(
             &json!({
                 "id": "message-a",
