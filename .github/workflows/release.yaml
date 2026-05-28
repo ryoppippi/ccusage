@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04-arm
+          - os: blacksmith-4vcpu-ubuntu-2404-arm
             platform: linux
             arch: arm64
             binary: result/bin/ccusage
@@ -88,7 +88,7 @@ jobs:
   npm:
     needs:
       - build-native-packages
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
     timeout-minutes: 10
     permissions:
       contents: read
@@ -117,7 +117,7 @@ jobs:
   release:
     needs:
       - npm
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
     permissions:
       contents: write
     steps:
