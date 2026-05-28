@@ -94,10 +94,17 @@ fn read_codex_session_files_parallel(
 
 fn read_codex_session_file(sessions_dir: &Path, path: &Path) -> Vec<CodexTokenUsageEvent> {
     let mut events = Vec::new();
-    let _ = visit_codex_session_file(sessions_dir, path, |event| {
+    if let Err(error) = visit_codex_session_file(sessions_dir, path, |event| {
         events.push(event);
         Ok(())
-    });
+    }) {
+        if crate::log_level() != Some(0) {
+            eprintln!(
+                "WARN  Failed to read Codex session file {}: {error}",
+                path.display()
+            );
+        }
+    }
     events
 }
 
