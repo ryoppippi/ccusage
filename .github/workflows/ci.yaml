@@ -23,7 +23,7 @@ jobs:
   lint-check:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
-    runs-on: blacksmith-32vcpu-ubuntu-2204-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -34,7 +34,7 @@ jobs:
   test:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
-    runs-on: blacksmith-32vcpu-ubuntu-2204-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     timeout-minutes: 30
     permissions:
       contents: read
@@ -87,15 +87,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: blacksmith-32vcpu-ubuntu-2204-arm
+          - os: blacksmith-32vcpu-ubuntu-2404-arm
             platform: linux
             arch: arm64
             binary: result/bin/ccusage
-          - os: ubuntu-24.04
+          - os: blacksmith-32vcpu-ubuntu-2404
             platform: linux
             arch: x64
             binary: result/bin/ccusage
-          - os: macos-latest
+          - os: blacksmith-12vcpu-macos-latest
             platform: darwin
             arch: arm64
             binary: rust/target/release/ccusage
@@ -107,7 +107,7 @@ jobs:
             platform: win32
             arch: arm64
             binary: rust/target/release/ccusage.exe
-          - os: windows-latest
+          - os: blacksmith-32vcpu-windows-2025
             platform: win32
             arch: x64
             binary: rust/target/release/ccusage.exe
@@ -170,7 +170,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-    runs-on: blacksmith-32vcpu-ubuntu-2204-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     outputs:
       urls: ${{ steps.publish.outputs.urls }}
 
@@ -202,9 +202,9 @@ jobs:
       matrix:
         os:
           - ubuntu-slim
-          - macos-latest
+          - blacksmith-12vcpu-macos-latest
+          - windows-11-arm
           - blacksmith-32vcpu-windows-2025
-          - windows-latest
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -376,7 +376,7 @@ jobs:
   schema-check:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix

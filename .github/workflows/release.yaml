@@ -13,15 +13,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: blacksmith-4vcpu-ubuntu-2404-arm
+          - os: blacksmith-32vcpu-ubuntu-2404-arm
             platform: linux
             arch: arm64
             binary: result/bin/ccusage
-          - os: ubuntu-24.04
+          - os: blacksmith-32vcpu-ubuntu-2404
             platform: linux
             arch: x64
             binary: result/bin/ccusage
-          - os: macos-latest
+          - os: blacksmith-12vcpu-macos-latest
             platform: darwin
             arch: arm64
             binary: rust/target/release/ccusage
@@ -33,7 +33,7 @@ jobs:
             platform: win32
             arch: arm64
             binary: rust/target/release/ccusage.exe
-          - os: windows-latest
+          - os: blacksmith-32vcpu-windows-2025
             platform: win32
             arch: x64
             binary: rust/target/release/ccusage.exe
@@ -88,7 +88,7 @@ jobs:
   npm:
     needs:
       - build-native-packages
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     timeout-minutes: 10
     permissions:
       contents: read
@@ -117,7 +117,7 @@ jobs:
   release:
     needs:
       - npm
-    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     permissions:
       contents: write
     steps:
