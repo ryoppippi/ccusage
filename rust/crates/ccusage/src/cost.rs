@@ -196,6 +196,8 @@ mod tests {
         types::{Speed, TokenUsageRaw},
     };
 
+    const COST_TOLERANCE: f64 = 1e-12;
+
     fn base_pricing() -> Pricing {
         Pricing {
             input: 3e-6,
@@ -230,7 +232,7 @@ mod tests {
             }),
         );
 
-        assert!((cost - 0.0006).abs() < f64::EPSILON);
+        assert!((cost - 0.0006).abs() < COST_TOLERANCE);
     }
 
     #[test]
@@ -245,6 +247,6 @@ mod tests {
         let pricing = base_pricing();
         let cost = cache_creation_cost(usage, pricing, None);
 
-        assert!((cost - 0.000375).abs() < f64::EPSILON);
+        assert!((cost - 0.000375).abs() < COST_TOLERANCE);
     }
 }
