@@ -62,6 +62,8 @@ fn group_json(
     let mut row = json!({
         period_key(kind): period,
         "inputTokens": input_tokens,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": group.cached_input_tokens,
         "cachedInputTokens": group.cached_input_tokens,
         "outputTokens": group.output_tokens,
         "reasoningOutputTokens": group.reasoning_output_tokens,
@@ -114,6 +116,8 @@ fn totals_json<'a>(
     }
     json!({
         "inputTokens": input,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": cached,
         "cachedInputTokens": cached,
         "outputTokens": output,
         "reasoningOutputTokens": reasoning,

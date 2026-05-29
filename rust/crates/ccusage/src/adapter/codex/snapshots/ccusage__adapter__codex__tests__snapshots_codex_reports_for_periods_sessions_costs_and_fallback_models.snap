@@ -6,6 +6,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
   "daily": {
     "daily": [
       {
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 110,
         "cachedInputTokens": 110,
         "costUSD": 0.00040425,
         "date": "2026-01-02",
@@ -25,6 +27,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
         "totalTokens": 227
       },
       {
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 0,
         "cachedInputTokens": 0,
         "costUSD": 0.0000065,
         "date": "2026-01-05",
@@ -45,6 +49,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
       }
     ],
     "totals": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 110,
       "cachedInputTokens": 110,
       "costUSD": 0.00041075,
       "inputTokens": 110,
@@ -56,6 +62,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
   "monthly": {
     "monthly": [
       {
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 110,
         "cachedInputTokens": 110,
         "costUSD": 0.00041075,
         "inputTokens": 110,
@@ -84,6 +92,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
       }
     ],
     "totals": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 110,
       "cachedInputTokens": 110,
       "costUSD": 0.00041075,
       "inputTokens": 110,
@@ -95,6 +105,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
   "sessionFast": {
     "sessions": [
       {
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 110,
         "cachedInputTokens": 110,
         "costUSD": 0.0008085,
         "directory": "/workspace/api",
@@ -117,6 +129,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
         "totalTokens": 227
       },
       {
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 0,
         "cachedInputTokens": 0,
         "costUSD": 0.000013,
         "directory": "/workspace/web",
@@ -140,6 +154,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
       }
     ],
     "totals": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 110,
       "cachedInputTokens": 110,
       "costUSD": 0.0008215,
       "inputTokens": 110,
@@ -150,6 +166,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
   },
   "weekly": {
     "totals": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 110,
       "cachedInputTokens": 110,
       "costUSD": 0.00041075,
       "inputTokens": 110,
@@ -159,6 +177,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
     },
     "weekly": [
       {
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 110,
         "cachedInputTokens": 110,
         "costUSD": 0.00040425,
         "inputTokens": 100,
@@ -178,6 +198,8 @@ expression: "serde_json::json!({\n    \"daily\":\n    report_json(&events, Agent
         "week": "2025-12-29"
       },
       {
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 0,
         "cachedInputTokens": 0,
         "costUSD": 0.0000065,
         "inputTokens": 10,

@@ -596,6 +596,8 @@ mod tests {
 
         assert_eq!(report["daily"][0]["date"], "2026-01-02");
         assert_eq!(report["daily"][0]["inputTokens"], 90);
+        assert_eq!(report["daily"][0]["cacheCreationTokens"], 0);
+        assert_eq!(report["daily"][0]["cacheReadTokens"], 10);
         assert_eq!(report["daily"][0]["cachedInputTokens"], 10);
         assert_eq!(report["daily"][0]["outputTokens"], 50);
         assert_eq!(report["daily"][0]["reasoningOutputTokens"], 0);
@@ -606,6 +608,8 @@ mod tests {
             10
         );
         assert_eq!(report["daily"][0]["costUSD"], json!(0.00061375));
+        assert_eq!(report["totals"]["cacheCreationTokens"], 0);
+        assert_eq!(report["totals"]["cacheReadTokens"], 10);
         assert_eq!(report["totals"]["costUSD"], json!(0.00061375));
     }
 
