@@ -40,4 +40,5 @@ mimalloc = "0.1.50"
 
 [dev-dependencies]
 ccusage-test-support = { path = "../ccusage-test-support" }
+filetime = "0.2"
 insta = { version = "1.47.2", features = ["json"] }
