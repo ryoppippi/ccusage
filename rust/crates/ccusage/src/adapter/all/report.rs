@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use crate::{
     cli::{AgentReportKind, SharedArgs, SortOrder},
     color, format_currency, format_models_multiline, format_number, json_float, print_box_title,
-    short_model_name, Align, Color, ModelBreakdown, Result, SimpleTable,
+    short_model_name, should_use_compact_layout, Align, Color, ModelBreakdown, Result, SimpleTable,
 };
 
 use super::types::AllRow;
@@ -76,8 +76,12 @@ pub(super) fn print_table(
     }
     let terminal_width = crate::terminal_width();
     let is_tty = std::io::stdout().is_terminal();
-    let compact =
-        shared.compact || (is_tty && terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD);
+    let compact = should_use_compact_layout(
+        shared,
+        is_tty,
+        terminal_width,
+        crate::USAGE_COMPACT_WIDTH_THRESHOLD,
+    );
     let (headers, aligns) = all_table_columns(kind, compact);
     let mut table = SimpleTable::new(headers, aligns, crate::terminal_style(shared))
         .with_terminal_width(terminal_width)

@@ -3,9 +3,9 @@ use std::io::IsTerminal;
 
 use crate::{
     adapter::opencode, cli::AgentReportKind, cli::SharedArgs, cli::WeekDay, format_currency,
-    format_models_multiline, format_number, json_value_u64, print_box_title, summarize_by_key,
-    summarize_summaries_by_bucket, totals_json, Align, BucketKind, Color, LoadedEntry, Result,
-    SimpleTable,
+    format_models_multiline, format_number, json_value_u64, print_box_title,
+    should_use_compact_layout, summarize_by_key, summarize_summaries_by_bucket, totals_json, Align,
+    BucketKind, Color, LoadedEntry, Result, SimpleTable,
 };
 
 pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
@@ -92,8 +92,12 @@ pub(crate) fn print_table_for_agent(
     }
     let terminal_width = crate::terminal_width();
     let is_tty = std::io::stdout().is_terminal();
-    let compact =
-        shared.compact || (is_tty && terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD);
+    let compact = should_use_compact_layout(
+        shared,
+        is_tty,
+        terminal_width,
+        crate::USAGE_COMPACT_WIDTH_THRESHOLD,
+    );
     print_box_title(
         &format!(
             "{agent_name} Token Usage Report - {}",

@@ -8,10 +8,10 @@ use crate::{
     color,
     fast::FxHashSet,
     format_currency, format_date, format_models_multiline, format_number, format_rfc3339_millis,
-    format_utc_second, hour_12, json_float, local_parts, print_box_title, terminal_width, utc_now,
-    Align, BurnRate, Color, LoadedEntry, Projection, Result, SessionBlock, SimpleTable,
-    TimestampMs, TokenCounts, BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_WARNING_THRESHOLD,
-    MILLIS_PER_HOUR, MILLIS_PER_MINUTE,
+    format_utc_second, hour_12, json_float, local_parts, print_box_title,
+    should_use_compact_layout, terminal_width, utc_now, Align, BurnRate, Color, LoadedEntry,
+    Projection, Result, SessionBlock, SimpleTable, TimestampMs, TokenCounts,
+    BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_WARNING_THRESHOLD, MILLIS_PER_HOUR, MILLIS_PER_MINUTE,
 };
 
 pub(crate) fn identify_session_blocks(
@@ -305,7 +305,12 @@ pub(crate) fn print_blocks_table(
     }
     let terminal_width = terminal_width();
     let is_tty = std::io::stdout().is_terminal();
-    let compact = shared.compact || (is_tty && terminal_width < BLOCKS_COMPACT_WIDTH_THRESHOLD);
+    let compact = should_use_compact_layout(
+        shared,
+        is_tty,
+        terminal_width,
+        BLOCKS_COMPACT_WIDTH_THRESHOLD,
+    );
     let actual_limit = parse_token_limit(token_limit, max_tokens);
     print_box_title("Claude Code Token Usage Report - Session Blocks", shared);
     let mut headers = vec!["Block Start", "Duration/Status", "Models", "Tokens"];
