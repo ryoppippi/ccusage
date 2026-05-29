@@ -1,4 +1,8 @@
-use std::{borrow::Cow, sync::OnceLock, time::Duration};
+use std::{
+    borrow::Cow,
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
+};
 
 use serde::Deserialize;
 
@@ -12,6 +16,7 @@ const LITELLM_PRICING_URL: &str =
 const MODELS_DEV_API_URL: &str = "https://models.dev/api.json";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
 const PRICING_FETCH_MAX_BYTES: u64 = 64 * 1024 * 1024;
+const MODELS_DEV_FAILURE_RETRY_AFTER: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Pricing {
@@ -60,12 +65,16 @@ struct ModelsDevProvider {
 
 struct ModelsDevPricingCache {
     pricing: OnceLock<PricingMap>,
+    last_failure: Mutex<Option<Instant>>,
+    failure_retry_after: Duration,
 }
 
 impl ModelsDevPricingCache {
-    const fn new() -> Self {
+    const fn new(failure_retry_after: Duration) -> Self {
         Self {
             pricing: OnceLock::new(),
+            last_failure: Mutex::new(None),
+            failure_retry_after,
         }
     }
 
@@ -76,9 +85,22 @@ impl ModelsDevPricingCache {
         if let Some(pricing) = self.pricing.get() {
             return Some(pricing);
         }
+        if self.last_failure.lock().is_ok_and(|last_failure| {
+            last_failure.is_some_and(|failed_at| failed_at.elapsed() < self.failure_retry_after)
+        }) {
+            return None;
+        }
 
-        let map = load_models_dev_pricing(fetch_json)?;
+        let Some(map) = load_models_dev_pricing(fetch_json) else {
+            if let Ok(mut last_failure) = self.last_failure.lock() {
+                *last_failure = Some(Instant::now());
+            }
+            return None;
+        };
         let _ = self.pricing.set(map);
+        if let Ok(mut last_failure) = self.last_failure.lock() {
+            *last_failure = None;
+        }
         self.pricing.get()
     }
 }
@@ -753,7 +775,8 @@ fn should_log_pricing_refresh_details() -> bool {
 }
 
 fn models_dev_pricing() -> Option<&'static PricingMap> {
-    static MODELS_DEV_PRICING: ModelsDevPricingCache = ModelsDevPricingCache::new();
+    static MODELS_DEV_PRICING: ModelsDevPricingCache =
+        ModelsDevPricingCache::new(MODELS_DEV_FAILURE_RETRY_AFTER);
     MODELS_DEV_PRICING.get_or_try_load(fetch_models_dev_json)
 }
 
@@ -816,6 +839,7 @@ fn fetch_json_url(url: &str) -> std::io::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::{Pricing, PricingMap, BUILD_TIME_PRICING_JSON};
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
     fn loads_embedded_claude_pricing() {
@@ -916,7 +940,7 @@ mod tests {
 
     #[test]
     fn retries_models_dev_pricing_after_fetch_failure() {
-        let cache = super::ModelsDevPricingCache::new();
+        let cache = super::ModelsDevPricingCache::new(std::time::Duration::ZERO);
 
         let failed = cache.get_or_try_load(|| {
             Err(std::io::Error::new(
@@ -957,6 +981,44 @@ mod tests {
         assert_eq!(gpt_retry.input, 0.000001);
         assert_eq!(gpt_retry.output, 0.000002);
         assert_eq!(pricing.context_limit_entry("gpt-retry"), Some(42));
+    }
+
+    #[test]
+    fn backs_off_models_dev_pricing_after_fetch_failure() {
+        let cache = super::ModelsDevPricingCache::new(std::time::Duration::from_secs(60));
+        let attempts = AtomicUsize::new(0);
+
+        let failed = cache.get_or_try_load(|| {
+            attempts.fetch_add(1, Ordering::Relaxed);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "temporary failure",
+            ))
+        });
+        assert!(failed.is_none());
+
+        let skipped = cache.get_or_try_load(|| {
+            attempts.fetch_add(1, Ordering::Relaxed);
+            Ok(r#"{
+                "openai": {
+                    "id": "openai",
+                    "name": "OpenAI",
+                    "models": {
+                        "gpt-skipped": {
+                            "id": "gpt-skipped",
+                            "name": "GPT Skipped",
+                            "cost": {
+                                "input": 1.0,
+                                "output": 2.0
+                            }
+                        }
+                    }
+                }
+            }"#
+            .to_string())
+        });
+        assert!(skipped.is_none());
+        assert_eq!(attempts.load(Ordering::Relaxed), 1);
     }
 
     #[test]
