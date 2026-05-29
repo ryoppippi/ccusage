@@ -36,7 +36,8 @@ pub(crate) use logger::{debug_log, log_level};
 pub(crate) use output::{
     format_currency, format_models_multiline, format_number, group_project_output, json_float,
     print_json_or_jq, print_missing_pricing_warnings, print_missing_pricing_warnings_for_models,
-    print_usage_table, session_summary_json, summary_json, totals_json, wants_json,
+    print_usage_table, session_summary_json, should_use_compact_layout, summary_json, totals_json,
+    wants_json,
 };
 pub(crate) use project_names::{format_project_name, parse_project_aliases, short_model_name};
 pub(crate) use summary::{
