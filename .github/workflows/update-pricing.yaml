@@ -2,7 +2,7 @@ name: update pricing
 
 on:
   schedule:
-    - cron: '0 3 * * 1'
+    - cron: '0 */12 * * *'
   workflow_dispatch:
 
 permissions:
@@ -15,9 +15,32 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix
+      - name: Capture current LiteLLM pricing JSON
+        run: |
+          rev="$(jq -r '.nodes.litellm.locked.rev' flake.lock)"
+          curl --fail --location --silent --show-error \
+            "https://raw.githubusercontent.com/BerriAI/litellm/${rev}/model_prices_and_context_window.json" \
+            --output /tmp/litellm-pricing-before.json
       - name: Update LiteLLM pricing input
         run: |
           nix flake update litellm
+      - name: Skip lock-only LiteLLM updates
+        run: |
+          rev="$(jq -r '.nodes.litellm.locked.rev' flake.lock)"
+          curl --fail --location --silent --show-error \
+            "https://raw.githubusercontent.com/BerriAI/litellm/${rev}/model_prices_and_context_window.json" \
+            --output /tmp/litellm-pricing-after.json
+
+          if cmp --silent /tmp/litellm-pricing-before.json /tmp/litellm-pricing-after.json; then
+            echo "LiteLLM pricing JSON is unchanged; skipping PR."
+            git checkout -- flake.lock
+          fi
+      - name: Validate updated pricing snapshot
+        run: |
+          if git diff --quiet; then
+            echo "Pricing snapshot is already up to date."
+            exit 0
+          fi
           nix flake check
       - name: Create pull request
         env:
