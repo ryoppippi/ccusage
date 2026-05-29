@@ -316,8 +316,25 @@ pub(crate) fn missing_pricing_warnings(rows: &[UsageSummary], offline: bool) -> 
         .iter()
         .flat_map(|row| &row.model_breakdowns)
         .filter(|breakdown| breakdown.missing_pricing)
-        .map(|breakdown| breakdown.model_name.as_str())
-        .collect::<BTreeSet<_>>();
+        .map(|breakdown| breakdown.model_name.as_str());
+
+    missing_pricing_warnings_for_models(models, offline)
+}
+
+pub(crate) fn print_missing_pricing_warnings_for_models<'a>(
+    models: impl IntoIterator<Item = &'a str>,
+    offline: bool,
+) {
+    for warning in missing_pricing_warnings_for_models(models, offline) {
+        eprintln!("{warning}");
+    }
+}
+
+pub(crate) fn missing_pricing_warnings_for_models<'a>(
+    models: impl IntoIterator<Item = &'a str>,
+    offline: bool,
+) -> Vec<String> {
+    let models = models.into_iter().collect::<BTreeSet<_>>();
 
     models
         .into_iter()

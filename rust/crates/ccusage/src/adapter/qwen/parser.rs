@@ -14,9 +14,9 @@ use super::paths;
 use crate::{
     apply_total_token_fallback, calculate_cost_for_usage,
     cli::{CostMode, SharedArgs},
-    format_date_tz, format_rfc3339_millis, json_value_u64, non_empty_json_string,
-    parse_ts_timestamp, parse_tz, LoadedEntry, PricingMap, Result, TimestampMs, TokenUsageRaw,
-    UsageEntry, UsageMessage,
+    format_date_tz, format_rfc3339_millis, json_value_u64, missing_pricing_model_for_candidates,
+    non_empty_json_string, parse_ts_timestamp, parse_tz, LoadedEntry, PricingMap, Result,
+    TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 const DEFAULT_QWEN_MODEL: &str = "unknown";
@@ -125,6 +125,7 @@ fn parse_line(
         ..display_usage
     };
     let cost = calculate_qwen_cost(&model, billable_usage, mode, pricing);
+    let missing_pricing_model = missing_qwen_pricing(&model, billable_usage, mode, pricing);
     let data = UsageEntry {
         session_id: Some(session_id.clone()),
         timestamp: timestamp_text,
@@ -151,7 +152,7 @@ fn parse_line(
         model: Some(model),
         message_count: None,
         usage_limit_reset_time: None,
-        missing_pricing_model: None,
+        missing_pricing_model,
         extra_total_tokens,
     })
 }
@@ -174,6 +175,31 @@ fn calculate_qwen_cost(
         }
     }
     0.0
+}
+
+fn missing_qwen_pricing(
+    model: &str,
+    usage: TokenUsageRaw,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> Option<String> {
+    if mode == CostMode::Display {
+        return None;
+    }
+    missing_pricing_model_for_candidates(
+        model,
+        qwen_model_candidates(model),
+        crate::total_usage_tokens(usage),
+        pricing,
+    )
+}
+
+fn qwen_model_candidates(model: &str) -> Vec<String> {
+    vec![
+        model.to_string(),
+        format!("qwen/{model}"),
+        format!("alibaba/{model}"),
+    ]
 }
 
 fn file_timestamp(file: &Path, shared: &SharedArgs) -> TimestampMs {

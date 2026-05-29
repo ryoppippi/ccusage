@@ -7,8 +7,8 @@ use super::{
     paths::paths,
 };
 use crate::{
-    calculate_cost_for_usage, cli::CostMode, format_date_tz, parse_tz, LoadedEntry, Result,
-    TokenUsageRaw, UsageEntry, UsageMessage,
+    calculate_cost_for_usage, cli::CostMode, format_date_tz, missing_pricing_model_for_usage,
+    parse_tz, LoadedEntry, Result, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn load_entries(
@@ -79,6 +79,8 @@ fn usage_entry_to_loaded(
         is_sidechain: None,
     };
     let cost = calculate_cost_for_usage(Some(&entry.model), cost_usage, None, mode, Some(pricing));
+    let missing_pricing_model =
+        missing_pricing_model_for_usage(Some(&entry.model), cost_usage, None, mode, Some(pricing));
     LoadedEntry {
         date: format_date_tz(entry.timestamp, tz),
         timestamp: entry.timestamp,
@@ -92,7 +94,7 @@ fn usage_entry_to_loaded(
         model: Some(entry.model),
         data,
         usage_limit_reset_time: None,
-        missing_pricing_model: None,
+        missing_pricing_model,
     }
 }
 

@@ -1,11 +1,13 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{json, Value};
 
 use crate::{
     cli::{AgentReportKind, CodexSpeed, SharedArgs},
-    color, format_currency, format_models_multiline, format_number, json_float, print_box_title,
-    Align, CodexGroup, CodexModelUsage, Color, PricingMap, Result, SimpleTable,
+    color, format_currency, format_models_multiline, format_number, json_float,
+    missing_pricing_model_for_token_total, print_box_title,
+    print_missing_pricing_warnings_for_models, Align, CodexGroup, CodexModelUsage, Color,
+    PricingMap, Result, SimpleTable,
 };
 
 pub(super) fn report_from_groups(
@@ -162,6 +164,36 @@ pub(crate) fn calculate_group_cost(
         .sum()
 }
 
+pub(crate) fn codex_model_missing_pricing(
+    model: &str,
+    usage: &CodexModelUsage,
+    pricing: &PricingMap,
+) -> bool {
+    missing_pricing_model_for_token_total(
+        Some(model),
+        usage
+            .total_tokens
+            .max(usage.input_tokens.saturating_add(usage.output_tokens)),
+        Some(pricing),
+    )
+    .is_some()
+}
+
+pub(crate) fn codex_missing_pricing_models(
+    groups: &BTreeMap<String, CodexGroup>,
+    pricing: &PricingMap,
+) -> Vec<String> {
+    let mut models = BTreeSet::new();
+    for group in groups.values() {
+        for (model, usage) in &group.models {
+            if codex_model_missing_pricing(model, usage, pricing) {
+                models.insert(model.clone());
+            }
+        }
+    }
+    models.into_iter().collect()
+}
+
 pub(super) fn print_table_from_groups(
     groups: &BTreeMap<String, CodexGroup>,
     kind: AgentReportKind,
@@ -255,5 +287,10 @@ pub(super) fn print_table_from_groups(
         color(shared, format_currency(total_cost), Color::Yellow),
     ]);
     table.print()?;
+    let missing_models = codex_missing_pricing_models(groups, pricing);
+    print_missing_pricing_warnings_for_models(
+        missing_models.iter().map(String::as_str),
+        shared.offline,
+    );
     Ok(())
 }

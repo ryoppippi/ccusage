@@ -4,8 +4,8 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
 use crate::{
-    calculate_cost_for_usage, cli::CostMode, format_date_tz, LoadedEntry, PricingMap,
-    TokenUsageRaw, UsageEntry, UsageMessage,
+    calculate_cost_for_usage, cli::CostMode, format_date_tz, missing_pricing_model_for_candidates,
+    LoadedEntry, PricingMap, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(super) fn row_to_entry(
@@ -58,6 +58,8 @@ pub(super) fn row_to_entry(
         is_sidechain: None,
     };
     let cost = calculate_goose_cost(&model, &provider_id, usage, reasoning_tokens, pricing);
+    let missing_pricing_model =
+        missing_goose_pricing(&model, &provider_id, usage, reasoning_tokens, pricing);
 
     Some(LoadedEntry {
         date: format_date_tz(timestamp, tz),
@@ -69,7 +71,7 @@ pub(super) fn row_to_entry(
         credits: None,
         model: Some(model),
         usage_limit_reset_time: None,
-        missing_pricing_model: None,
+        missing_pricing_model,
         extra_total_tokens: reasoning_tokens,
         message_count: None,
         data,
@@ -181,6 +183,29 @@ fn calculate_goose_cost(
         cost_usage,
         None,
         CostMode::Calculate,
+        Some(pricing),
+    )
+}
+
+fn missing_goose_pricing(
+    model: &str,
+    provider_id: &str,
+    usage: TokenUsageRaw,
+    reasoning_tokens: u64,
+    pricing: &PricingMap,
+) -> Option<String> {
+    let cost_usage = TokenUsageRaw {
+        output_tokens: usage.output_tokens.saturating_add(reasoning_tokens),
+        ..usage
+    };
+    let mut candidates = vec![model.to_string()];
+    if provider_id != "goose" {
+        candidates.push(format!("{provider_id}/{model}"));
+    }
+    missing_pricing_model_for_candidates(
+        model,
+        candidates,
+        crate::total_usage_tokens(cost_usage),
         Some(pricing),
     )
 }

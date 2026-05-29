@@ -13,7 +13,8 @@ pub(crate) use loader::load_codex_events;
 #[cfg(test)]
 pub(crate) use loader::load_codex_events_from_directory;
 pub(crate) use report::{
-    calculate_codex_model_cost, calculate_group_cost, non_cached_input_tokens,
+    calculate_codex_model_cost, calculate_group_cost, codex_model_missing_pricing,
+    non_cached_input_tokens,
 };
 pub(crate) use speed::resolve_codex_speed;
 
@@ -54,6 +55,8 @@ pub(crate) fn report_json(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::aggregate::load_groups_from_directory;
     use super::*;
     use crate::cli::SharedArgs;
@@ -198,6 +201,44 @@ mod tests {
         let fast = calculate_codex_model_cost("gpt-5.3-codex", &usage, &pricing, CodexSpeed::Fast);
 
         assert!((fast - (standard * 2.0)).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn identifies_codex_models_missing_pricing() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-known": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010
+                }
+            }"#,
+        );
+        let mut group = crate::CodexGroup::default();
+        group.models.insert(
+            "gpt-known".to_string(),
+            CodexModelUsage {
+                input_tokens: 100,
+                output_tokens: 5,
+                total_tokens: 105,
+                ..CodexModelUsage::default()
+            },
+        );
+        group.models.insert(
+            "gpt-unknown".to_string(),
+            CodexModelUsage {
+                input_tokens: 200,
+                output_tokens: 10,
+                total_tokens: 210,
+                ..CodexModelUsage::default()
+            },
+        );
+        let groups = BTreeMap::from([("2026-01-02".to_string(), group)]);
+
+        assert_eq!(
+            report::codex_missing_pricing_models(&groups, &pricing),
+            vec!["gpt-unknown".to_string()]
+        );
     }
 
     #[test]

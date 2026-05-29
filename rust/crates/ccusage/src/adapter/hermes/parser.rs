@@ -3,8 +3,9 @@ use std::{collections::HashSet, sync::Arc};
 use jiff::tz::TimeZone as JiffTimeZone;
 
 use crate::{
-    calculate_cost_for_usage, cli::CostMode, format_date_tz, format_rfc3339_millis, LoadedEntry,
-    PricingMap, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
+    calculate_cost_for_usage, cli::CostMode, format_date_tz, format_rfc3339_millis,
+    missing_pricing_model_for_candidates, LoadedEntry, PricingMap, TimestampMs, TokenUsageRaw,
+    UsageEntry, UsageMessage,
 };
 
 pub(super) struct HermesEntry {
@@ -143,6 +144,7 @@ pub(super) fn to_loaded_entry(
     pricing: &PricingMap,
 ) -> LoadedEntry {
     let cost = calculate_hermes_cost(&entry, pricing);
+    let missing_pricing_model = missing_hermes_pricing(&entry, pricing);
     let data = UsageEntry {
         session_id: Some(entry.session_id.clone()),
         timestamp: entry.timestamp_text.clone(),
@@ -169,7 +171,7 @@ pub(super) fn to_loaded_entry(
         message_count: Some(entry.message_count),
         model: Some(entry.model),
         usage_limit_reset_time: None,
-        missing_pricing_model: None,
+        missing_pricing_model,
         data,
     }
 }
@@ -195,6 +197,22 @@ fn calculate_hermes_cost(entry: &HermesEntry, pricing: &PricingMap) -> f64 {
         }
     }
     0.0
+}
+
+fn missing_hermes_pricing(entry: &HermesEntry, pricing: &PricingMap) -> Option<String> {
+    if entry.cost_usd.is_some_and(|cost| cost > 0.0) {
+        return None;
+    }
+    let usage = TokenUsageRaw {
+        output_tokens: entry.usage.output_tokens + entry.reasoning_tokens,
+        ..entry.usage
+    };
+    missing_pricing_model_for_candidates(
+        &entry.model,
+        model_candidates(entry),
+        crate::total_usage_tokens(usage),
+        Some(pricing),
+    )
 }
 
 fn model_candidates(entry: &HermesEntry) -> Vec<String> {

@@ -5,8 +5,8 @@ use serde_json::Value;
 
 use crate::{
     apply_total_token_fallback, calculate_cost, cli::CostMode, format_date_tz, json_value_u64,
-    non_empty_json_string, LoadedEntry, PricingMap, Result, TokenUsageRaw, UsageEntry,
-    UsageMessage,
+    missing_pricing_model_for_usage, non_empty_json_string, LoadedEntry, PricingMap, Result,
+    TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn read_thread_file(
@@ -116,6 +116,13 @@ fn parse_ledger_events(
             ..data.clone()
         };
         let cost = calculate_cost(&cost_data, mode, pricing);
+        let missing_pricing_model = missing_pricing_model_for_usage(
+            Some(&model),
+            cost_data.message.usage,
+            None,
+            mode,
+            pricing,
+        );
         entries.push(LoadedEntry {
             date: format_date_tz(timestamp, tz),
             timestamp,
@@ -128,7 +135,7 @@ fn parse_ledger_events(
             message_count: None,
             model: Some(model),
             usage_limit_reset_time: None,
-            missing_pricing_model: None,
+            missing_pricing_model,
             data,
         });
     }
@@ -218,6 +225,13 @@ fn parse_message_usage(
             ..data.clone()
         };
         let cost = calculate_cost(&cost_data, mode, pricing);
+        let missing_pricing_model = missing_pricing_model_for_usage(
+            Some(&model),
+            cost_data.message.usage,
+            None,
+            mode,
+            pricing,
+        );
         entries.push(LoadedEntry {
             date: format_date_tz(timestamp, tz),
             timestamp,
@@ -230,7 +244,7 @@ fn parse_message_usage(
             message_count: None,
             model: Some(model),
             usage_limit_reset_time: None,
-            missing_pricing_model: None,
+            missing_pricing_model,
             data,
         });
     }

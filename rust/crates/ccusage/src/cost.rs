@@ -44,12 +44,36 @@ pub(crate) fn missing_pricing_model_for_usage(
     if mode == CostMode::Display || (mode == CostMode::Auto && cost_usd.is_some()) {
         return None;
     }
+    missing_pricing_model_for_token_total(model, crate::total_usage_tokens(usage), pricing)
+}
+
+pub(crate) fn missing_pricing_model_for_token_total(
+    model: Option<&str>,
+    total_tokens: u64,
+    pricing: Option<&PricingMap>,
+) -> Option<String> {
+    if total_tokens == 0 {
+        return None;
+    }
     let model = model?;
-    if crate::total_usage_tokens(usage) == 0 {
+    let pricing = pricing?;
+    pricing.find(model).is_none().then(|| model.to_string())
+}
+
+pub(crate) fn missing_pricing_model_for_candidates(
+    model: &str,
+    candidates: impl IntoIterator<Item = String>,
+    total_tokens: u64,
+    pricing: Option<&PricingMap>,
+) -> Option<String> {
+    if total_tokens == 0 {
         return None;
     }
     let pricing = pricing?;
-    pricing.find(model).is_none().then(|| model.to_string())
+    candidates
+        .into_iter()
+        .all(|candidate| pricing.find(&candidate).is_none())
+        .then(|| model.to_string())
 }
 
 fn calculate_cost_from_tokens(

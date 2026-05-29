@@ -622,7 +622,7 @@ pub(super) fn codex_group_row(
                 cache_read_tokens: usage.cached_input_tokens,
                 extra_total_tokens: 0,
                 cost: codex::calculate_codex_model_cost(model, usage, pricing, speed),
-                missing_pricing: false,
+                missing_pricing: codex::codex_model_missing_pricing(model, usage, pricing),
             }
         })
         .collect();
