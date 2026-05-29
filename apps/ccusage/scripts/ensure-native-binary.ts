@@ -40,7 +40,12 @@ async function nativePackageIncludesBinary(packageRoot: string | undefined): Pro
 	if (packageRoot == null) {
 		return false;
 	}
-	const packageJson: unknown = await Bun.file(join(packageRoot, 'package.json')).json();
+	let packageJson: unknown;
+	try {
+		packageJson = await Bun.file(join(packageRoot, 'package.json')).json();
+	} catch {
+		return false;
+	}
 	if (!isRecord(packageJson)) {
 		return false;
 	}
