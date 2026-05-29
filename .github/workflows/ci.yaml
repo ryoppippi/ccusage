@@ -156,7 +156,7 @@ jobs:
       - name: Archive native package binary
         shell: bash
         run: tar -cf "ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar" "packages/ccusage-${{ matrix.platform }}-${{ matrix.arch }}/bin"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}
           path: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar
@@ -177,7 +177,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: ccusage-native-*
           path: ${{ runner.temp }}/native-packages
