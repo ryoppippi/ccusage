@@ -11,6 +11,7 @@ const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
 const PRICING_FETCH_MAX_BYTES: u64 = 64 * 1024 * 1024;
+const MODEL_DATE_SUFFIX_DIGITS: usize = 8;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Pricing {
@@ -651,7 +652,7 @@ fn suffix_starts_with_numeric_model_version(key: &str, suffix: &str) -> bool {
         return false;
     }
     let after_digits = rest.as_bytes().get(digit_len).copied();
-    !(digit_len == 8 && after_digits.is_none_or(is_pricing_key_boundary))
+    !(digit_len == MODEL_DATE_SUFFIX_DIGITS && after_digits.is_none_or(is_pricing_key_boundary))
 }
 
 /// Normalizes known model separator variants without allocating for canonical keys.
