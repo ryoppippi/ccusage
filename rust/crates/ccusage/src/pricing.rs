@@ -9,6 +9,7 @@ const BUILD_TIME_PRICING_JSON: &str =
 const FAST_MULTIPLIER_OVERRIDES_JSON: &str = include_str!("fast-multiplier-overrides.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+const MODELS_DEV_API_URL: &str = "https://models.dev/api.json";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
 const PRICING_FETCH_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
@@ -49,6 +50,31 @@ struct LiteLlmPricing {
 #[derive(Debug, Deserialize)]
 struct ProviderSpecificEntry {
     fast: Option<f64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevProvider {
+    models: FxHashMap<String, ModelsDevModel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevModel {
+    id: Option<String>,
+    cost: Option<ModelsDevCost>,
+    limit: Option<ModelsDevLimit>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevCost {
+    input: Option<f64>,
+    output: Option<f64>,
+    cache_read: Option<f64>,
+    cache_write: Option<f64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevLimit {
+    context: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -114,6 +140,29 @@ impl PricingMap {
                 }
             }
         }
+
+        let fetch_result = crate::progress::track_status(
+            log && crate::progress::usage_load_output_is_tty(),
+            "Refreshing fallback model pricing from models.dev...",
+            fetch_models_dev_json,
+        );
+
+        match fetch_result {
+            Ok(json) => {
+                if map.load_models_dev_json_missing(&json).is_none()
+                    && should_log_pricing_refresh_details()
+                {
+                    eprintln!("WARN  Failed to parse models.dev pricing; using LiteLLM pricing.");
+                }
+            }
+            Err(error) => {
+                if should_log_pricing_refresh_details() {
+                    eprintln!(
+                        "WARN  Failed to fetch models.dev pricing ({error}); using LiteLLM pricing."
+                    );
+                }
+            }
+        }
         map
     }
 
@@ -172,6 +221,59 @@ impl PricingMap {
             loaded_count += 1;
         }
         loaded_count
+    }
+
+    fn load_models_dev_json_missing(&mut self, json: &str) -> Option<usize> {
+        let Ok(raw) = serde_json::from_str::<FxHashMap<String, ModelsDevProvider>>(json) else {
+            return None;
+        };
+        let mut loaded_count = 0;
+        for provider in raw.into_values() {
+            for (model_key, model) in provider.models {
+                let model_id = model.id.unwrap_or(model_key);
+                if self.find(&model_id).is_some() {
+                    continue;
+                }
+                let Some(cost) = model.cost else {
+                    continue;
+                };
+                let Some(input) = cost.input else {
+                    continue;
+                };
+                let Some(output) = cost.output else {
+                    continue;
+                };
+                let input = input / 1_000_000.0;
+                let output = output / 1_000_000.0;
+                let cache_read_explicit = cost.cache_read.is_some();
+                self.entries.insert(
+                    model_id.clone(),
+                    Pricing {
+                        input,
+                        output,
+                        cache_create: cost
+                            .cache_write
+                            .map(|value| value / 1_000_000.0)
+                            .unwrap_or(input * 1.25),
+                        cache_read: cost
+                            .cache_read
+                            .map(|value| value / 1_000_000.0)
+                            .unwrap_or(input * 0.1),
+                        cache_read_explicit,
+                        input_above_200k: None,
+                        output_above_200k: None,
+                        cache_create_above_200k: None,
+                        cache_read_above_200k: None,
+                        fast_multiplier: 1.0,
+                    },
+                );
+                if let Some(context_limit) = model.limit.and_then(|limit| limit.context) {
+                    self.context_limits.insert(model_id, context_limit);
+                }
+                loaded_count += 1;
+            }
+        }
+        Some(loaded_count)
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
@@ -623,12 +725,20 @@ fn should_log_pricing_refresh_details() -> bool {
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
+    fetch_json_url(LITELLM_PRICING_URL)
+}
+
+fn fetch_models_dev_json() -> std::io::Result<String> {
+    fetch_json_url(MODELS_DEV_API_URL)
+}
+
+fn fetch_json_url(url: &str) -> std::io::Result<String> {
     let agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(PRICING_FETCH_TIMEOUT_SECONDS)))
         .build()
         .new_agent();
     let mut response = agent
-        .get(LITELLM_PRICING_URL)
+        .get(url)
         .call()
         .map_err(|error| std::io::Error::other(error.to_string()))?;
     if response.status().as_u16() != 200 {
@@ -738,6 +848,78 @@ mod tests {
         assert_eq!(loaded, 1);
         assert!(pricing.find("gpt-valid").is_some());
         assert_eq!(pricing.context_limit("gpt-valid"), Some(123));
+    }
+
+    #[test]
+    fn loads_missing_models_dev_pricing_without_overriding_litellm() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-primary": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010,
+                    "cache_read_input_token_cost": 0.0000001,
+                    "max_input_tokens": 123
+                }
+            }"#,
+        );
+
+        let models_dev_json = r#"{
+                "openai": {
+                    "id": "openai",
+                    "name": "OpenAI",
+                    "models": {
+                        "gpt-primary": {
+                            "id": "gpt-primary",
+                            "name": "GPT Primary",
+                            "cost": {
+                                "input": 9.0,
+                                "output": 90.0,
+                                "cache_read": 0.9,
+                                "cache_write": 11.25
+                            },
+                            "limit": {
+                                "context": 999
+                            }
+                        },
+                        "gpt-fallback": {
+                            "id": "gpt-fallback",
+                            "name": "GPT Fallback",
+                            "cost": {
+                                "input": 2.0,
+                                "output": 8.0,
+                                "cache_read": 0.2,
+                                "cache_write": 2.5
+                            },
+                            "limit": {
+                                "context": 456
+                            }
+                        }
+                    }
+                }
+            }"#;
+
+        assert_eq!(
+            pricing.load_models_dev_json_missing(models_dev_json),
+            Some(1)
+        );
+
+        let primary = pricing.find("gpt-primary").unwrap();
+        let fallback = pricing.find("gpt-fallback").unwrap();
+
+        assert_eq!(primary.input, 1e-6);
+        assert_eq!(primary.output, 10e-6);
+        assert_eq!(primary.cache_read, 0.1e-6);
+        assert_eq!(pricing.context_limit("gpt-primary"), Some(123));
+        assert!((fallback.input - 2e-6).abs() < f64::EPSILON);
+        assert!((fallback.output - 8e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_create - 2.5e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_read - 0.2e-6).abs() < f64::EPSILON);
+        assert!(fallback.cache_read_explicit);
+        assert_eq!(fallback.input_above_200k, None);
+        assert_eq!(fallback.output_above_200k, None);
+        assert_eq!(fallback.fast_multiplier, 1.0);
+        assert_eq!(pricing.context_limit("gpt-fallback"), Some(456));
     }
 
     #[test]
