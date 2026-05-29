@@ -37,14 +37,24 @@ in
         name = "ccusage-schema-gen";
         runtimeInputs = [
           pkgs.coreutils
+          pkgs.diffutils
           pkgs.oxfmt
           generateConfigSchema
         ];
+        # Generate the schema into a temp file and only overwrite the tracked
+        # files when the content actually differs. This keeps the formatter
+        # idempotent: rewriting an unchanged file bumps its mtime, which
+        # `treefmt --fail-on-change` (pre-push) reports as a spurious change.
         text = ''
-          generate-config-schema apps/ccusage/config-schema.json
-          oxfmt --write apps/ccusage/config-schema.json
-          if [ -d docs/public ]; then
-            cp apps/ccusage/config-schema.json docs/public/config-schema.json
+          tmp="$(mktemp --suffix=.json)"
+          trap 'rm -f "$tmp"' EXIT
+          generate-config-schema "$tmp"
+          oxfmt --write "$tmp"
+          if ! cmp -s "$tmp" apps/ccusage/config-schema.json; then
+            cp -f "$tmp" apps/ccusage/config-schema.json
+          fi
+          if [ -d docs/public ] && ! cmp -s apps/ccusage/config-schema.json docs/public/config-schema.json; then
+            cp -f apps/ccusage/config-schema.json docs/public/config-schema.json
           fi
         '';
       };
