@@ -1,4 +1,4 @@
-use std::{borrow::Cow, time::Duration};
+use std::{borrow::Cow, sync::OnceLock, time::Duration};
 
 use serde::Deserialize;
 
@@ -31,6 +31,7 @@ pub(crate) struct Pricing {
 pub(crate) struct PricingMap {
     entries: FxHashMap<String, Pricing>,
     context_limits: FxHashMap<String, u64>,
+    enable_models_dev_fallback: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,28 +142,7 @@ impl PricingMap {
             }
         }
 
-        let fetch_result = crate::progress::track_status(
-            log && crate::progress::usage_load_output_is_tty(),
-            "Refreshing fallback model pricing from models.dev...",
-            fetch_models_dev_json,
-        );
-
-        match fetch_result {
-            Ok(json) => {
-                if map.load_models_dev_json_missing(&json).is_none()
-                    && should_log_pricing_refresh_details()
-                {
-                    eprintln!("WARN  Failed to parse models.dev pricing; using LiteLLM pricing.");
-                }
-            }
-            Err(error) => {
-                if should_log_pricing_refresh_details() {
-                    eprintln!(
-                        "WARN  Failed to fetch models.dev pricing ({error}); using LiteLLM pricing."
-                    );
-                }
-            }
-        }
+        map.enable_models_dev_fallback = true;
         map
     }
 
@@ -231,7 +211,7 @@ impl PricingMap {
         for provider in raw.into_values() {
             for (model_key, model) in provider.models {
                 let model_id = model.id.unwrap_or(model_key);
-                if self.find(&model_id).is_some() {
+                if self.find_entry(&model_id).is_some() {
                     continue;
                 }
                 let Some(cost) = model.cost else {
@@ -277,6 +257,14 @@ impl PricingMap {
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
+        self.find_entry(model).or_else(|| {
+            self.enable_models_dev_fallback
+                .then(|| models_dev_pricing().and_then(|pricing| pricing.find_entry(model)))
+                .flatten()
+        })
+    }
+
+    fn find_entry(&self, model: &str) -> Option<Pricing> {
         self.entries.get(model).copied().or_else(|| {
             let normalized_model = normalized_pricing_key(model);
             self.entries
@@ -292,6 +280,17 @@ impl PricingMap {
     }
 
     pub(crate) fn context_limit(&self, model: &str) -> Option<u64> {
+        self.context_limit_entry(model).or_else(|| {
+            self.enable_models_dev_fallback
+                .then(|| {
+                    models_dev_pricing()
+                        .and_then(|pricing| pricing.context_limit_entry(model))
+                })
+                .flatten()
+        })
+    }
+
+    fn context_limit_entry(&self, model: &str) -> Option<u64> {
         self.context_limits.get(model).copied().or_else(|| {
             let normalized_model = normalized_pricing_key(model);
             self.context_limits
@@ -309,6 +308,11 @@ impl PricingMap {
     #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.entries.len()
+    }
+
+    #[cfg(test)]
+    fn models_dev_fallback_enabled(&self) -> bool {
+        self.enable_models_dev_fallback
     }
 
     fn put_builtin_pricing(&mut self, fast_multiplier_overrides: &FastMultiplierOverrides) {
@@ -724,6 +728,33 @@ fn should_log_pricing_refresh_details() -> bool {
     crate::log_level().is_some_and(|level| level >= 4)
 }
 
+fn models_dev_pricing() -> Option<&'static PricingMap> {
+    static MODELS_DEV_PRICING: OnceLock<Option<PricingMap>> = OnceLock::new();
+    MODELS_DEV_PRICING
+        .get_or_init(|| {
+            let json = match fetch_models_dev_json() {
+                Ok(json) => json,
+                Err(error) => {
+                    if should_log_pricing_refresh_details() {
+                        eprintln!(
+                            "WARN  Failed to fetch models.dev pricing ({error}); using LiteLLM pricing."
+                        );
+                    }
+                    return None;
+                }
+            };
+            let mut map = PricingMap::default();
+            if map.load_models_dev_json_missing(&json).is_none() {
+                if should_log_pricing_refresh_details() {
+                    eprintln!("WARN  Failed to parse models.dev pricing; using LiteLLM pricing.");
+                }
+                return None;
+            }
+            Some(map)
+        })
+        .as_ref()
+}
+
 fn fetch_pricing_json() -> std::io::Result<String> {
     fetch_json_url(LITELLM_PRICING_URL)
 }
@@ -848,6 +879,12 @@ mod tests {
         assert_eq!(loaded, 1);
         assert!(pricing.find("gpt-valid").is_some());
         assert_eq!(pricing.context_limit("gpt-valid"), Some(123));
+    }
+
+    #[test]
+    fn keeps_models_dev_fallback_disabled_for_embedded_and_offline_pricing() {
+        assert!(!PricingMap::load_embedded().models_dev_fallback_enabled());
+        assert!(!PricingMap::load(true, false).models_dev_fallback_enabled());
     }
 
     #[test]
