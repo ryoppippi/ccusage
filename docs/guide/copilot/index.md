@@ -26,6 +26,8 @@ pnpm dlx ccusage copilot --help
 
 The CLI reads Copilot OpenTelemetry JSONL files from `~/.copilot/otel/*.jsonl` and also includes the explicit file pointed to by `COPILOT_OTEL_FILE_EXPORTER_PATH`.
 
+Enable these variables before starting or resuming a Copilot CLI session. Sessions that ran without OpenTelemetry file export enabled do not produce local JSONL usage data for ccusage to read.
+
 ```bash
 export COPILOT_OTEL_ENABLED=true
 export COPILOT_OTEL_EXPORTER_TYPE=file
@@ -67,6 +69,8 @@ These views support `--json` for structured output, `--compact` for narrow termi
 
 ::: details No Copilot usage data found
 Ensure OpenTelemetry file export is enabled and the exporter path points to an existing `.jsonl` file, or place exported `.jsonl` files under `~/.copilot/otel/`.
+
+If you are using `copilot --resume`, set the OpenTelemetry environment variables before running the resume command. Earlier activity from sessions started without file export cannot be recovered by ccusage.
 :::
 
 ::: details Costs showing as $0.00

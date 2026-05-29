@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    io::{BufWriter, Write},
+    io::{self, BufWriter, IsTerminal, Write},
 };
 
 use serde_json::{json, Value};
@@ -13,6 +13,15 @@ use crate::{
 
 pub(crate) fn wants_json(shared: &SharedArgs) -> bool {
     shared.json || shared.jq.is_some()
+}
+
+pub(crate) fn should_use_compact_layout(
+    shared: &SharedArgs,
+    is_stdout_tty: bool,
+    terminal_width: usize,
+    compact_width_threshold: usize,
+) -> bool {
+    shared.compact || (is_stdout_tty && terminal_width < compact_width_threshold)
 }
 
 pub(crate) fn summary_json(row: &UsageSummary) -> Value {
@@ -142,7 +151,13 @@ pub(crate) fn print_usage_table(
         return Ok(());
     }
     let terminal_width = terminal_width();
-    let compact = shared.compact || terminal_width < USAGE_COMPACT_WIDTH_THRESHOLD;
+    let is_tty = io::stdout().is_terminal();
+    let compact = should_use_compact_layout(
+        shared,
+        is_tty,
+        terminal_width,
+        USAGE_COMPACT_WIDTH_THRESHOLD,
+    );
     let include_last_activity = rows.iter().any(|row| row.last_activity.is_some());
     print_box_title(title, shared);
     let mut headers = if compact {
@@ -413,6 +428,30 @@ pub(crate) fn format_currency(value: f64) -> String {
 mod tests {
     use super::*;
     use crate::ModelBreakdown;
+
+    #[test]
+    fn narrow_non_tty_output_does_not_auto_compact() {
+        let shared = SharedArgs::default();
+
+        assert!(!should_use_compact_layout(&shared, false, 80, 100));
+    }
+
+    #[test]
+    fn narrow_tty_output_auto_compacts() {
+        let shared = SharedArgs::default();
+
+        assert!(should_use_compact_layout(&shared, true, 80, 100));
+    }
+
+    #[test]
+    fn compact_flag_forces_compact_for_non_tty_output() {
+        let shared = SharedArgs {
+            compact: true,
+            ..SharedArgs::default()
+        };
+
+        assert!(should_use_compact_layout(&shared, false, 120, 100));
+    }
 
     #[test]
     fn empty_usage_table_message_is_provider_agnostic() {
