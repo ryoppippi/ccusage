@@ -260,6 +260,23 @@ impl PricingMap {
             },
         );
         self.entries.insert(
+            "claude-opus-4-8".to_string(),
+            Pricing {
+                input: 5e-6,
+                output: 25e-6,
+                cache_create: 6.25e-6,
+                cache_read: 0.5e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("claude-opus-4-8")
+                    .unwrap_or(1.0),
+            },
+        );
+        self.entries.insert(
             "claude-haiku-4-5".to_string(),
             Pricing {
                 input: 1e-6,
@@ -550,7 +567,12 @@ impl PricingMap {
         self.context_limits
             .insert("grok-4.3".to_string(), 1_000_000);
         self.context_limits.insert("gpt-5.4".to_string(), 1_050_000);
-        for model in ["claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6"] {
+        for model in [
+            "claude-opus-4-8",
+            "claude-opus-4-7",
+            "claude-opus-4-6",
+            "claude-sonnet-4-6",
+        ] {
             self.context_limits.insert(model.to_string(), 1_000_000);
         }
         self.context_limits
@@ -591,14 +613,45 @@ fn contains_pricing_key(value: &str, key: &str) -> bool {
             .checked_sub(1)
             .and_then(|before| value.as_bytes().get(before))
             .copied();
-        let after = value.as_bytes().get(index + key.len()).copied();
-        before.is_none_or(is_pricing_key_boundary) && after.is_none_or(is_pricing_key_boundary)
+        let suffix = &value[index + key.len()..];
+        before.is_none_or(is_pricing_key_boundary) && suffix_allows_pricing_key_match(key, suffix)
     })
 }
 
 /// Treats punctuation separators as boundaries, but not adjacent version digits.
 fn is_pricing_key_boundary(byte: u8) -> bool {
     !byte.is_ascii_alphanumeric()
+}
+
+fn suffix_allows_pricing_key_match(key: &str, suffix: &str) -> bool {
+    let Some(separator) = suffix.as_bytes().first().copied() else {
+        return true;
+    };
+    if !is_pricing_key_boundary(separator) {
+        return false;
+    }
+    !suffix_starts_with_numeric_model_version(key, suffix)
+}
+
+fn suffix_starts_with_numeric_model_version(key: &str, suffix: &str) -> bool {
+    if !key.as_bytes().last().is_some_and(u8::is_ascii_digit) {
+        return false;
+    }
+    if !matches!(suffix.as_bytes().first(), Some(b'-' | b'.')) {
+        return false;
+    }
+
+    let rest = &suffix[1..];
+    let digit_len = rest
+        .as_bytes()
+        .iter()
+        .take_while(|byte| byte.is_ascii_digit())
+        .count();
+    if digit_len == 0 {
+        return false;
+    }
+    let after_digits = rest.as_bytes().get(digit_len).copied();
+    !(digit_len == 8 && after_digits.is_none_or(is_pricing_key_boundary))
 }
 
 /// Normalizes known model separator variants without allocating for canonical keys.
@@ -807,6 +860,13 @@ mod tests {
                 .fast_multiplier,
             6.0
         );
+        assert_eq!(
+            pricing
+                .find("anthropic.claude-opus-4-8")
+                .unwrap()
+                .fast_multiplier,
+            2.0
+        );
     }
 
     #[test]
@@ -825,6 +885,18 @@ mod tests {
                 .input,
             5e-6
         );
+    }
+
+    #[test]
+    fn embedded_pricing_resolves_opus_48_dot_model_names() {
+        let pricing = PricingMap::load_embedded();
+
+        let opus_48 = pricing.find("claude-opus-4.8-20260528").unwrap();
+        assert_eq!(opus_48.input, 5e-6);
+        assert_eq!(opus_48.output, 25e-6);
+        assert_eq!(opus_48.cache_create, 6.25e-6);
+        assert_eq!(opus_48.cache_read, 0.5e-6);
+        assert_eq!(pricing.context_limit("claude-opus-4.8"), Some(1_000_000));
     }
 
     #[test]
@@ -885,7 +957,31 @@ mod tests {
             },
         );
 
-        assert_eq!(pricing.find("claude-opus-4.70").unwrap().input, 15e-6);
+        assert!(pricing.find("claude-opus-4.70").is_none());
+    }
+
+    #[test]
+    fn fuzzy_match_does_not_fall_back_across_numeric_model_versions() {
+        let mut pricing = PricingMap::default();
+        pricing.entries.insert(
+            "claude-opus-4".to_string(),
+            Pricing {
+                input: 15e-6,
+                output: 75e-6,
+                cache_create: 18.75e-6,
+                cache_read: 1.5e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+
+        assert!(pricing.find("claude-opus-4.8-20260528").is_none());
+        assert!(pricing.find("claude-opus-4.70").is_none());
+        assert!(pricing.find("claude-opus-4-20250514").is_some());
     }
 
     #[test]
@@ -939,6 +1035,10 @@ mod tests {
                     "input_cost_per_token": 0.000005,
                     "output_cost_per_token": 0.000025
                 },
+                "claude-opus-4.8-20260528": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                },
                 "claude-opus-4-70": {
                     "input_cost_per_token": 0.000005,
                     "output_cost_per_token": 0.000025
@@ -966,6 +1066,13 @@ mod tests {
                 .unwrap()
                 .fast_multiplier,
             6.0
+        );
+        assert_eq!(
+            pricing
+                .find("claude-opus-4.8-20260528")
+                .unwrap()
+                .fast_multiplier,
+            2.0
         );
         assert_eq!(
             pricing.find("claude-opus-4-70").unwrap().fast_multiplier,
