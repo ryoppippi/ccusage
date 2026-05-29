@@ -11,7 +11,7 @@ use memchr::memmem;
 use serde::Deserialize;
 
 use crate::{
-    calculate_cost_for_usage,
+    calculate_cost_for_usage_with_cache_creation_input_tokens,
     cli::{CostMode, SharedArgs},
     fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
     format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
@@ -20,7 +20,8 @@ use crate::{
 };
 
 use super::{
-    chunk_file_indexes_by_size, has_unsupported_null_field, is_semver_prefix,
+    cache_creation_input_tokens_from_line_bytes, chunk_file_indexes_by_size,
+    has_unsupported_null_field, is_semver_prefix,
     paths::{claude_paths, extract_project, usage_files},
     usage_dedupe_hash,
 };
@@ -273,12 +274,14 @@ fn read_daily_usage_file(
             continue;
         }
         let usage = data.message.usage;
-        let cost = calculate_cost_for_usage(
+        let cache_creation_input_tokens = cache_creation_input_tokens_from_line_bytes(line);
+        let cost = calculate_cost_for_usage_with_cache_creation_input_tokens(
             data.message.model.as_deref(),
             usage,
             data.cost_usd,
             mode,
             pricing,
+            cache_creation_input_tokens,
         );
         let missing_pricing_model = missing_pricing_model_for_usage(
             data.message.model.as_deref(),

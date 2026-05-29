@@ -12,10 +12,12 @@ use std::{
 use jiff::tz::TimeZone as JiffTimeZone;
 use memchr::memmem;
 use rustc_hash::FxHasher;
+use serde_json::Value;
 
 use crate::{
-    calculate_cost,
+    calculate_cost_with_cache_creation_input_tokens,
     cli::{CostMode, SharedArgs},
+    cost::CacheCreationInputTokens,
     debug_log,
     fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
     format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
@@ -362,7 +364,13 @@ fn read_usage_file(
             continue;
         }
         let date = format_date_tz(timestamp, tz);
-        let cost = calculate_cost(&data, mode, pricing);
+        let cache_creation_input_tokens = cache_creation_input_tokens_from_line_bytes(line);
+        let cost = calculate_cost_with_cache_creation_input_tokens(
+            &data,
+            mode,
+            pricing,
+            cache_creation_input_tokens,
+        );
         let missing_pricing_model = missing_pricing_model_for_usage(
             data.message.model.as_deref(),
             data.message.usage,
@@ -398,6 +406,45 @@ fn read_usage_file(
         });
     }
     loaded_file
+}
+
+pub(super) fn cache_creation_input_tokens_from_line_bytes(
+    line: &[u8],
+) -> Option<CacheCreationInputTokens> {
+    let value = serde_json::from_slice::<Value>(line).ok()?;
+    cache_creation_input_tokens_from_root(&value)
+}
+
+fn cache_creation_input_tokens_from_root(root: &Value) -> Option<CacheCreationInputTokens> {
+    let usage = root
+        .get("message")
+        .and_then(|message| message.get("usage"))
+        .or_else(|| {
+            root.get("message")
+                .and_then(|message| message.get("message"))
+                .and_then(|message| message.get("usage"))
+        })
+        .or_else(|| {
+            root.get("data")
+                .and_then(|data| data.get("message"))
+                .and_then(|message| message.get("message"))
+                .and_then(|message| message.get("usage"))
+        })?;
+    cache_creation_input_tokens_from_usage(usage)
+}
+
+fn cache_creation_input_tokens_from_usage(usage: &Value) -> Option<CacheCreationInputTokens> {
+    let cache_creation = usage.get("cache_creation")?.as_object()?;
+    Some(CacheCreationInputTokens {
+        ephemeral_5m_input_tokens: cache_creation
+            .get("ephemeral_5m_input_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or_default(),
+        ephemeral_1h_input_tokens: cache_creation
+            .get("ephemeral_1h_input_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or_default(),
+    })
 }
 
 fn update_loaded_file_timestamp(loaded_file: &mut LoadedFile, timestamp: TimestampMs) {
@@ -555,8 +602,9 @@ mod tests {
     use std::{path::Path, sync::Arc};
 
     use super::{
-        extract_session_parts, has_unsupported_null_field, paths::is_project_path_segment,
-        push_deduped_entry, usage_files,
+        cache_creation_input_tokens_from_line_bytes, extract_session_parts,
+        has_unsupported_null_field, paths::is_project_path_segment, push_deduped_entry,
+        usage_files,
     };
     use crate::{LoadedEntry, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage};
     use ccusage_test_support::fs_fixture;
@@ -644,6 +692,28 @@ mod tests {
         assert!(!has_unsupported_null_field(
             br#"{"message":{"content":null,"usage":{"input_tokens":0}}}"#
         ));
+    }
+
+    #[test]
+    fn parses_cache_creation_input_token_split_from_usage_line() {
+        let cache_creation_input_tokens = cache_creation_input_tokens_from_line_bytes(
+            br#"{"message":{"usage":{"cache_creation":{"ephemeral_5m_input_tokens":7,"ephemeral_1h_input_tokens":11}}}}"#,
+        )
+        .expect("cache creation split should parse");
+
+        assert_eq!(cache_creation_input_tokens.ephemeral_5m_input_tokens, 7);
+        assert_eq!(cache_creation_input_tokens.ephemeral_1h_input_tokens, 11);
+    }
+
+    #[test]
+    fn parses_cache_creation_input_token_split_from_agent_progress_line() {
+        let cache_creation_input_tokens = cache_creation_input_tokens_from_line_bytes(
+            br#"{"data":{"message":{"message":{"usage":{"cache_creation":{"ephemeral_5m_input_tokens":3,"ephemeral_1h_input_tokens":19}}}}}}"#,
+        )
+        .expect("cache creation split should parse");
+
+        assert_eq!(cache_creation_input_tokens.ephemeral_5m_input_tokens, 3);
+        assert_eq!(cache_creation_input_tokens.ephemeral_1h_input_tokens, 19);
     }
 
     #[test]
