@@ -26,6 +26,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value != null && !Array.isArray(value);
 }
 
+async function expectedVersion(): Promise<string> {
+	const packageJson: unknown = await Bun.file(
+		join(repoRoot, 'apps', 'ccusage', 'package.json'),
+	).json();
+	if (!isRecord(packageJson) || typeof packageJson.version !== 'string') {
+		throw new TypeError('apps/ccusage/package.json version is not configured');
+	}
+	return packageJson.version;
+}
+
 async function nativePackageIncludesBinary(packageRoot: string | undefined): Promise<boolean> {
 	if (packageRoot == null) {
 		return false;
@@ -38,20 +48,29 @@ async function nativePackageIncludesBinary(packageRoot: string | undefined): Pro
 	return Array.isArray(files) && files.includes(`bin/${binaryName}`);
 }
 
-async function canRunVersion(binary: string | undefined): Promise<boolean> {
+async function hasExpectedVersion(binary: string | undefined, version: string): Promise<boolean> {
 	if (binary == null) {
 		return false;
 	}
 	const result = await Bun.$`${binary} --version`.quiet().nothrow();
-	return result.exitCode === 0;
+	if (result.exitCode !== 0) {
+		return false;
+	}
+	const actualVersion = result.stdout.toString().trim().split(/\s+/).at(-1);
+	return actualVersion === version;
 }
 
-if ((await nativePackageIncludesBinary(nativePackageRoot)) && (await canRunVersion(nativeBinary))) {
+const version = await expectedVersion();
+
+if (
+	(await nativePackageIncludesBinary(nativePackageRoot)) &&
+	(await hasExpectedVersion(nativeBinary, version))
+) {
 	process.exit(0);
 }
 
 await Bun.$`cargo build --manifest-path ${join(repoRoot, 'rust', 'Cargo.toml')} --release --bin ccusage`;
 
-if (!(await canRunVersion(cargoBinary))) {
-	throw new Error(`${cargoBinary} did not run --version after cargo build`);
+if (!(await hasExpectedVersion(cargoBinary, version))) {
+	throw new Error(`${cargoBinary} did not report version ${version} after cargo build`);
 }
