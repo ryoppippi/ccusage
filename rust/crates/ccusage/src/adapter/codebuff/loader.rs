@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use jiff::tz::TimeZone as JiffTimeZone;
 
 use super::{
-    parser::{calculate_codebuff_cost, load_chat_file, CodebuffEntry},
+    parser::{calculate_codebuff_cost, load_chat_file, missing_codebuff_pricing, CodebuffEntry},
     paths::discover_chat_files,
 };
 use crate::{
@@ -43,6 +43,7 @@ fn to_loaded_entry(
     pricing: &PricingMap,
 ) -> LoadedEntry {
     let cost = calculate_codebuff_cost(&entry, pricing);
+    let missing_pricing_model = missing_codebuff_pricing(&entry, pricing);
     let data = UsageEntry {
         session_id: Some(entry.session_id.clone()),
         timestamp: entry.timestamp_text.clone(),
@@ -68,6 +69,7 @@ fn to_loaded_entry(
         credits: (entry.credits > 0.0).then_some(entry.credits),
         model: Some(entry.model),
         usage_limit_reset_time: None,
+        missing_pricing_model,
         message_count: None,
         data,
     }
@@ -210,6 +212,7 @@ mod tests {
             credits: Some(1.25),
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
             message_count: None,
         };
         let rows = summarize_entries(&[entry], AgentReportKind::Daily).unwrap();

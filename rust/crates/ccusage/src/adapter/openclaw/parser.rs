@@ -189,6 +189,7 @@ fn openclaw_entry_to_loaded(entry: OpenClawEntry, tz: Option<&JiffTimeZone>) -> 
         model: Some(entry.model),
         data,
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
     }
 }
 

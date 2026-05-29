@@ -4,7 +4,8 @@ use serde_json::Value;
 
 use crate::{
     apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_rfc3339_millis,
-    json_value_u64, parse_ts_timestamp, PricingMap, Result, TokenUsageRaw,
+    json_value_u64, missing_pricing_model_for_candidates, parse_ts_timestamp, PricingMap, Result,
+    TokenUsageRaw,
 };
 
 #[derive(Clone)]
@@ -154,6 +155,19 @@ pub(super) fn calculate_droid_cost(entry: &DroidEntry, pricing: &PricingMap) -> 
         }
     }
     0.0
+}
+
+pub(super) fn missing_droid_pricing(entry: &DroidEntry, pricing: &PricingMap) -> Option<String> {
+    let usage = TokenUsageRaw {
+        output_tokens: entry.usage.output_tokens + entry.reasoning_tokens,
+        ..entry.usage
+    };
+    missing_pricing_model_for_candidates(
+        &entry.model,
+        droid_model_candidates(entry),
+        crate::total_usage_tokens(usage),
+        Some(pricing),
+    )
 }
 
 fn droid_model_candidates(entry: &DroidEntry) -> Vec<String> {

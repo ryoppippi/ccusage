@@ -5,8 +5,8 @@ use serde_json::Value;
 
 use crate::{
     apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
-    json_value_u64, non_empty_json_string, LoadedEntry, PricingMap, TimestampMs, TokenUsageRaw,
-    UsageEntry, UsageMessage,
+    json_value_u64, missing_pricing_model_for_candidates, non_empty_json_string, LoadedEntry,
+    PricingMap, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(super) fn message_value_to_entry(
@@ -87,6 +87,8 @@ pub(super) fn message_value_to_entry(
         ..data.clone()
     };
     let cost = calculate_kilo_cost(&cost_data, provider.as_deref(), mode, pricing);
+    let missing_pricing_model =
+        missing_kilo_pricing(&cost_data, provider.as_deref(), mode, pricing);
     Some(LoadedEntry {
         date: format_date_tz(timestamp, tz),
         timestamp,
@@ -98,6 +100,7 @@ pub(super) fn message_value_to_entry(
         credits: None,
         model: Some(model),
         usage_limit_reset_time: None,
+        missing_pricing_model,
         message_count: None,
         data,
     })
@@ -150,6 +153,24 @@ fn calculate_kilo_cost_from_tokens(
         }
     }
     0.0
+}
+
+fn missing_kilo_pricing(
+    data: &UsageEntry,
+    provider: Option<&str>,
+    mode: CostMode,
+    pricing: &PricingMap,
+) -> Option<String> {
+    if mode == CostMode::Display || data.cost_usd.is_some_and(|cost| cost > 0.0) {
+        return None;
+    }
+    let model = data.message.model.as_deref()?;
+    missing_pricing_model_for_candidates(
+        model,
+        model_candidates(model, provider),
+        crate::total_usage_tokens(data.message.usage),
+        Some(pricing),
+    )
 }
 
 fn model_candidates(model: &str, provider: Option<&str>) -> Vec<String> {

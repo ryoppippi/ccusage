@@ -410,6 +410,7 @@ fn aggregates_model_breakdowns_across_agents() {
                         cache_creation_tokens: 1,
                         cache_read_tokens: 2,
                         cost: 0.01,
+                        missing_pricing: true,
                         ..ModelBreakdown::default()
                     },
                     ModelBreakdown {
@@ -440,6 +441,7 @@ fn aggregates_model_breakdowns_across_agents() {
     assert_eq!(rows[0].model_breakdowns[1].cache_creation_tokens, 1);
     assert_eq!(rows[0].model_breakdowns[1].cache_read_tokens, 4);
     assert_eq!(rows[0].model_breakdowns[1].cost, 0.04);
+    assert!(rows[0].model_breakdowns[1].missing_pricing);
 }
 
 #[test]

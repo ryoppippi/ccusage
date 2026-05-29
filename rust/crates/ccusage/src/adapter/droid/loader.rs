@@ -3,7 +3,7 @@ use std::{collections::HashSet, sync::Arc};
 use jiff::tz::TimeZone as JiffTimeZone;
 
 use super::{
-    parser::{calculate_droid_cost, load_settings_file, DroidEntry},
+    parser::{calculate_droid_cost, load_settings_file, missing_droid_pricing, DroidEntry},
     paths::discover_settings_files,
 };
 use crate::{
@@ -45,6 +45,7 @@ fn to_loaded_entry(
     pricing: &PricingMap,
 ) -> LoadedEntry {
     let cost = calculate_droid_cost(&entry, pricing);
+    let missing_pricing_model = missing_droid_pricing(&entry, pricing);
     let data = UsageEntry {
         session_id: Some(entry.session_id.clone()),
         timestamp: entry.timestamp_text.clone(),
@@ -70,6 +71,7 @@ fn to_loaded_entry(
         extra_total_tokens: entry.reasoning_tokens,
         model: Some(entry.model),
         usage_limit_reset_time: None,
+        missing_pricing_model,
         message_count: None,
         data,
     }
@@ -265,6 +267,7 @@ mod tests {
             extra_total_tokens: 5,
             model: Some("claude-sonnet-4".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
             message_count: None,
         };
         let rows = summarize_entries(&[entry], AgentReportKind::Daily).unwrap();

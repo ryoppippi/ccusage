@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use crate::{
     apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_rfc3339_millis,
-    parse_ts_timestamp, PricingMap, Result, TokenUsageRaw,
+    missing_pricing_model_for_candidates, parse_ts_timestamp, PricingMap, Result, TokenUsageRaw,
 };
 
 const DEFAULT_CODEBUFF_MODEL: &str = "codebuff-unknown";
@@ -416,6 +416,29 @@ pub(super) fn calculate_codebuff_cost(entry: &CodebuffEntry, pricing: &PricingMa
         usage,
         None,
         CostMode::Calculate,
+        Some(pricing),
+    )
+}
+
+pub(super) fn missing_codebuff_pricing(
+    entry: &CodebuffEntry,
+    pricing: &PricingMap,
+) -> Option<String> {
+    let usage = TokenUsageRaw {
+        output_tokens: entry
+            .usage
+            .output_tokens
+            .saturating_add(entry.extra_total_tokens),
+        ..entry.usage
+    };
+    let mut candidates = vec![entry.model.clone()];
+    if entry.provider != "unknown" && !entry.model.starts_with(&format!("{}/", entry.provider)) {
+        candidates.push(format!("{}/{}", entry.provider, entry.model));
+    }
+    missing_pricing_model_for_candidates(
+        &entry.model,
+        candidates,
+        crate::total_usage_tokens(usage),
         Some(pricing),
     )
 }

@@ -14,8 +14,9 @@ use crate::{
     calculate_cost_for_usage,
     cli::{CostMode, SharedArgs},
     fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
-    format_date_tz, log_level, parse_ts_timestamp, parse_tz, ModelBreakdown, PricingMap, Result,
-    Speed, TimestampMs, TokenCounts, TokenUsageRaw, UsageSummary,
+    format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
+    ModelBreakdown, PricingMap, Result, Speed, TimestampMs, TokenCounts, TokenUsageRaw,
+    UsageSummary,
 };
 
 use super::{
@@ -113,6 +114,7 @@ struct DailyLoadedEntry {
     usage: TokenUsageRaw,
     cost: f64,
     model: Option<String>,
+    missing_pricing_model: Option<String>,
     message_id: Option<String>,
     request_id: Option<String>,
     is_sidechain: Option<bool>,
@@ -278,6 +280,13 @@ fn read_daily_usage_file(
             mode,
             pricing,
         );
+        let missing_pricing_model = missing_pricing_model_for_usage(
+            data.message.model.as_deref(),
+            usage,
+            data.cost_usd,
+            mode,
+            pricing,
+        );
         let model = data.message.model.as_ref().and_then(|model| {
             if model == "<synthetic>" {
                 None
@@ -293,6 +302,7 @@ fn read_daily_usage_file(
             usage,
             cost,
             model,
+            missing_pricing_model,
             message_id: data.message.id,
             request_id: data.request_id,
             is_sidechain: data.is_sidechain,
@@ -463,6 +473,9 @@ impl DailyAccumulator {
             breakdown.cache_creation_tokens += entry.usage.cache_creation_input_tokens;
             breakdown.cache_read_tokens += entry.usage.cache_read_input_tokens;
             breakdown.cost += entry.cost;
+            if entry.missing_pricing_model.is_some() {
+                breakdown.missing_pricing = true;
+            }
         }
     }
 
@@ -580,6 +593,7 @@ mod tests {
             },
             cost: 0.0,
             model: Some("claude-sonnet-4-20250514".to_string()),
+            missing_pricing_model: None,
             message_id: Some(fixture.message_id.to_string()),
             request_id: Some(fixture.request_id.to_string()),
             is_sidechain: Some(fixture.is_sidechain),

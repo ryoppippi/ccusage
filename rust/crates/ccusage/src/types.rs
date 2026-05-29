@@ -81,6 +81,8 @@ pub(crate) struct ModelBreakdown {
     #[serde(skip_serializing)]
     pub(crate) extra_total_tokens: u64,
     pub(crate) cost: f64,
+    #[serde(skip_serializing)]
+    pub(crate) missing_pricing: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +99,7 @@ pub(crate) struct LoadedEntry {
     pub(crate) message_count: Option<u64>,
     pub(crate) model: Option<String>,
     pub(crate) usage_limit_reset_time: Option<TimestampMs>,
+    pub(crate) missing_pricing_model: Option<String>,
 }
 
 #[derive(Debug)]

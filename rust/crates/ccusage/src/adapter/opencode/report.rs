@@ -208,6 +208,7 @@ mod tests {
                 cache_read_tokens: 5,
                 extra_total_tokens: 7,
                 cost: 0.25,
+                missing_pricing: false,
             }],
             project: None,
             versions: Some(vec!["1.0.0".to_string()]),
