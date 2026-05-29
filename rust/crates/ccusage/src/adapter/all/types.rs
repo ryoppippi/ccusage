@@ -148,6 +148,7 @@ fn merge_model_breakdowns(
         b.cache_read_tokens += item.cache_read_tokens;
         b.extra_total_tokens += item.extra_total_tokens;
         b.cost += item.cost;
+        b.missing_pricing |= item.missing_pricing;
     }
     breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
     breakdowns
@@ -173,6 +174,7 @@ pub(super) fn aggregate_model_breakdowns(rows: &[AllRow]) -> Vec<ModelBreakdown>
             b.cache_read_tokens += item.cache_read_tokens;
             b.extra_total_tokens += item.extra_total_tokens;
             b.cost += item.cost;
+            b.missing_pricing |= item.missing_pricing;
         }
     }
     breakdowns

@@ -9,8 +9,8 @@ use serde_json::Value;
 
 use crate::{
     apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
-    json_value_u64, non_empty_json_string, LoadedEntry, PricingMap, Result, TimestampMs,
-    TokenUsageRaw, UsageEntry, UsageMessage,
+    json_value_u64, missing_pricing_model_for_candidates, non_empty_json_string, LoadedEntry,
+    PricingMap, Result, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 const DEFAULT_MODEL: &str = "kimi-for-coding";
@@ -175,6 +175,7 @@ pub(super) fn kimi_entry_to_loaded(
         speed: None,
     };
     let cost = calculate_kimi_cost(&entry, mode, pricing, usage);
+    let missing_pricing_model = missing_kimi_pricing(&entry, mode, pricing, usage);
     let data = UsageEntry {
         session_id: Some(entry.session_id.clone()),
         timestamp: entry.timestamp_text,
@@ -201,6 +202,7 @@ pub(super) fn kimi_entry_to_loaded(
         message_count: None,
         model: Some(entry.model),
         usage_limit_reset_time: None,
+        missing_pricing_model,
         data,
     }
 }
@@ -228,6 +230,23 @@ fn calculate_kimi_cost(
             0.0
         }
     }
+}
+
+fn missing_kimi_pricing(
+    entry: &KimiUsageEntry,
+    mode: CostMode,
+    pricing: &PricingMap,
+    usage: TokenUsageRaw,
+) -> Option<String> {
+    if mode == CostMode::Display {
+        return None;
+    }
+    missing_pricing_model_for_candidates(
+        &entry.model,
+        model_candidates(entry),
+        crate::total_usage_tokens(usage).saturating_add(entry.extra_total_tokens),
+        Some(pricing),
+    )
 }
 
 fn model_candidates(entry: &KimiUsageEntry) -> Vec<String> {

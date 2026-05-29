@@ -5,8 +5,8 @@ use serde_json::Value;
 
 use crate::{
     apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
-    json_value_u64, non_empty_json_string, LoadedEntry, PricingMap, TokenUsageRaw, UsageEntry,
-    UsageMessage,
+    json_value_u64, missing_pricing_model_for_candidates, non_empty_json_string, LoadedEntry,
+    PricingMap, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn message_value_to_entry(
@@ -70,6 +70,8 @@ pub(crate) fn message_value_to_entry(
     };
     let cost =
         calculate_open_code_cost(&model, &provider, cost_usage, data.cost_usd, mode, pricing);
+    let missing_pricing_model =
+        missing_open_code_pricing(&model, &provider, cost_usage, data.cost_usd, mode, pricing);
     let loaded_session_id = data
         .session_id
         .clone()
@@ -86,6 +88,7 @@ pub(crate) fn message_value_to_entry(
         message_count: None,
         model: Some(model),
         usage_limit_reset_time: None,
+        missing_pricing_model,
         data,
     })
 }
@@ -109,6 +112,25 @@ fn calculate_open_code_cost(
         }
     }
     0.0
+}
+
+fn missing_open_code_pricing(
+    model: &str,
+    provider: &str,
+    usage: TokenUsageRaw,
+    cost_usd: Option<f64>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> Option<String> {
+    if mode == CostMode::Display || cost_usd.is_some_and(|cost| cost > 0.0) {
+        return None;
+    }
+    missing_pricing_model_for_candidates(
+        model,
+        open_code_model_candidates(model, provider),
+        crate::total_usage_tokens(usage),
+        pricing,
+    )
 }
 
 fn open_code_model_candidates(model: &str, provider: &str) -> Vec<String> {
