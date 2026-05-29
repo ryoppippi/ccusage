@@ -36,6 +36,8 @@ in
             typos
             typos-lsp
             oxfmt
+            actionlint
+            zizmor
             oxlint
             prek
             gitleaks
