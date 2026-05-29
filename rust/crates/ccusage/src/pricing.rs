@@ -211,7 +211,7 @@ impl PricingMap {
         for provider in raw.into_values() {
             for (model_key, model) in provider.models {
                 let model_id = model.id.unwrap_or(model_key);
-                if self.find_entry(&model_id).is_some() {
+                if self.entries.contains_key(&model_id) {
                     continue;
                 }
                 let Some(cost) = model.cost else {
@@ -897,6 +897,11 @@ mod tests {
                     "output_cost_per_token": 0.000010,
                     "cache_read_input_token_cost": 0.0000001,
                     "max_input_tokens": 123
+                },
+                "openrouter/gpt-alias": {
+                    "input_cost_per_token": 0.000003,
+                    "output_cost_per_token": 0.000030,
+                    "max_input_tokens": 321
                 }
             }"#,
         );
@@ -931,6 +936,17 @@ mod tests {
                             "limit": {
                                 "context": 456
                             }
+                        },
+                        "gpt-alias": {
+                            "id": "gpt-alias",
+                            "name": "GPT Alias",
+                            "cost": {
+                                "input": 4.0,
+                                "output": 16.0
+                            },
+                            "limit": {
+                                "context": 654
+                            }
                         }
                     }
                 }
@@ -938,11 +954,12 @@ mod tests {
 
         assert_eq!(
             pricing.load_models_dev_json_missing(models_dev_json),
-            Some(1)
+            Some(2)
         );
 
         let primary = pricing.find("gpt-primary").unwrap();
         let fallback = pricing.find("gpt-fallback").unwrap();
+        let alias = pricing.entries.get("gpt-alias").unwrap();
 
         assert_eq!(primary.input, 1e-6);
         assert_eq!(primary.output, 10e-6);
@@ -957,6 +974,8 @@ mod tests {
         assert_eq!(fallback.output_above_200k, None);
         assert_eq!(fallback.fast_multiplier, 1.0);
         assert_eq!(pricing.context_limit("gpt-fallback"), Some(456));
+        assert!((alias.input - 4e-6).abs() < f64::EPSILON);
+        assert_eq!(pricing.context_limits.get("gpt-alias"), Some(&654));
     }
 
     #[test]
