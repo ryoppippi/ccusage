@@ -163,11 +163,7 @@ fn calculate_qwen_cost(
     mode: CostMode,
     pricing: Option<&PricingMap>,
 ) -> f64 {
-    for candidate in [
-        model.to_string(),
-        format!("qwen/{model}"),
-        format!("alibaba/{model}"),
-    ] {
+    for candidate in qwen_model_candidates(model) {
         if mode == CostMode::Display
             || pricing.is_some_and(|pricing| pricing.find(&candidate).is_some())
         {
