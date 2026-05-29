@@ -58,6 +58,31 @@ struct ModelsDevProvider {
     models: FxHashMap<String, ModelsDevModel>,
 }
 
+struct ModelsDevPricingCache {
+    pricing: OnceLock<PricingMap>,
+}
+
+impl ModelsDevPricingCache {
+    const fn new() -> Self {
+        Self {
+            pricing: OnceLock::new(),
+        }
+    }
+
+    fn get_or_try_load<F>(&self, fetch_json: F) -> Option<&PricingMap>
+    where
+        F: FnOnce() -> std::io::Result<String>,
+    {
+        if let Some(pricing) = self.pricing.get() {
+            return Some(pricing);
+        }
+
+        let map = load_models_dev_pricing(fetch_json)?;
+        let _ = self.pricing.set(map);
+        self.pricing.get()
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct ModelsDevModel {
     id: Option<String>,
@@ -728,30 +753,33 @@ fn should_log_pricing_refresh_details() -> bool {
 }
 
 fn models_dev_pricing() -> Option<&'static PricingMap> {
-    static MODELS_DEV_PRICING: OnceLock<Option<PricingMap>> = OnceLock::new();
-    MODELS_DEV_PRICING
-        .get_or_init(|| {
-            let json = match fetch_models_dev_json() {
-                Ok(json) => json,
-                Err(error) => {
-                    if should_log_pricing_refresh_details() {
-                        eprintln!(
-                            "WARN  Failed to fetch models.dev pricing ({error}); using LiteLLM pricing."
-                        );
-                    }
-                    return None;
-                }
-            };
-            let mut map = PricingMap::default();
-            if map.load_models_dev_json_missing(&json).is_none() {
-                if should_log_pricing_refresh_details() {
-                    eprintln!("WARN  Failed to parse models.dev pricing; using LiteLLM pricing.");
-                }
-                return None;
+    static MODELS_DEV_PRICING: ModelsDevPricingCache = ModelsDevPricingCache::new();
+    MODELS_DEV_PRICING.get_or_try_load(fetch_models_dev_json)
+}
+
+fn load_models_dev_pricing<F>(fetch_json: F) -> Option<PricingMap>
+where
+    F: FnOnce() -> std::io::Result<String>,
+{
+    let json = match fetch_json() {
+        Ok(json) => json,
+        Err(error) => {
+            if should_log_pricing_refresh_details() {
+                eprintln!(
+                    "WARN  Failed to fetch models.dev pricing ({error}); using LiteLLM pricing."
+                );
             }
-            Some(map)
-        })
-        .as_ref()
+            return None;
+        }
+    };
+    let mut map = PricingMap::default();
+    if map.load_models_dev_json_missing(&json).is_none() {
+        if should_log_pricing_refresh_details() {
+            eprintln!("WARN  Failed to parse models.dev pricing; using LiteLLM pricing.");
+        }
+        return None;
+    }
+    Some(map)
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
@@ -884,6 +912,51 @@ mod tests {
     fn keeps_models_dev_fallback_disabled_for_embedded_and_offline_pricing() {
         assert!(!PricingMap::load_embedded().models_dev_fallback_enabled());
         assert!(!PricingMap::load(true, false).models_dev_fallback_enabled());
+    }
+
+    #[test]
+    fn retries_models_dev_pricing_after_fetch_failure() {
+        let cache = super::ModelsDevPricingCache::new();
+
+        let failed = cache.get_or_try_load(|| {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "temporary failure",
+            ))
+        });
+        assert!(failed.is_none());
+
+        let pricing = cache
+            .get_or_try_load(|| {
+                Ok(r#"{
+                    "openai": {
+                        "id": "openai",
+                        "name": "OpenAI",
+                        "models": {
+                            "gpt-retry": {
+                                "id": "gpt-retry",
+                                "name": "GPT Retry",
+                                "cost": {
+                                    "input": 1.0,
+                                    "output": 2.0
+                                },
+                                "limit": {
+                                    "context": 42
+                                }
+                            }
+                        }
+                    }
+                }"#
+                .to_string())
+            })
+            .expect("models.dev retry should cache successful pricing");
+
+        let gpt_retry = pricing
+            .find_entry("gpt-retry")
+            .expect("successful retry should load pricing");
+        assert_eq!(gpt_retry.input, 0.000001);
+        assert_eq!(gpt_retry.output, 0.000002);
+        assert_eq!(pricing.context_limit_entry("gpt-retry"), Some(42));
     }
 
     #[test]
