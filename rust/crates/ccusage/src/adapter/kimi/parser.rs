@@ -201,6 +201,7 @@ pub(super) fn kimi_entry_to_loaded(
         message_count: None,
         model: Some(entry.model),
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
         data,
     }
 }

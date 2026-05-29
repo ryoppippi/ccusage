@@ -983,8 +983,19 @@ mod tests {
         );
 
         assert!(pricing.find("claude-opus-4.8-20260528").is_none());
+        assert!(pricing.find("claude-opus-4-9").is_none());
+        assert!(pricing.find("claude-opus-5").is_none());
         assert!(pricing.find("claude-opus-4.70").is_none());
         assert!(pricing.find("claude-opus-4-20250514").is_some());
+    }
+
+    #[test]
+    fn fuzzy_match_allows_date_like_suffixes_for_known_numeric_model_versions() {
+        let pricing = PricingMap::load_embedded();
+
+        assert!(pricing.find("claude-opus-4-8-20270898").is_some());
+        assert!(pricing.find("claude-opus-4-9").is_none());
+        assert!(pricing.find("claude-opus-5").is_none());
     }
 
     #[test]

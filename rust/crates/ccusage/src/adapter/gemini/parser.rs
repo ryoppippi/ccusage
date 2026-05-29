@@ -379,6 +379,7 @@ pub(super) fn event_to_loaded(
         message_count: None,
         model: Some(event.model),
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
         data,
     }
 }

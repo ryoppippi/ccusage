@@ -113,6 +113,7 @@ mod tests {
             credits: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
             extra_total_tokens: 30,
             message_count: None,
         };

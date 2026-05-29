@@ -128,6 +128,7 @@ fn parse_ledger_events(
             message_count: None,
             model: Some(model),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
             data,
         });
     }
@@ -229,6 +230,7 @@ fn parse_message_usage(
             message_count: None,
             model: Some(model),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
             data,
         });
     }

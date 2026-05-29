@@ -34,6 +34,24 @@ pub(crate) fn calculate_cost_for_usage(
     }
 }
 
+pub(crate) fn missing_pricing_model_for_usage(
+    model: Option<&str>,
+    usage: crate::TokenUsageRaw,
+    cost_usd: Option<f64>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> Option<String> {
+    if mode == CostMode::Display || (mode == CostMode::Auto && cost_usd.is_some()) {
+        return None;
+    }
+    let model = model?;
+    if crate::total_usage_tokens(usage) == 0 {
+        return None;
+    }
+    let pricing = pricing?;
+    pricing.find(model).is_none().then(|| model.to_string())
+}
+
 fn calculate_cost_from_tokens(
     model: Option<&str>,
     usage: crate::TokenUsageRaw,

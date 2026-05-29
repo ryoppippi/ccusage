@@ -169,6 +169,7 @@ pub(super) fn to_loaded_entry(
         message_count: Some(entry.message_count),
         model: Some(entry.model),
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
         data,
     }
 }

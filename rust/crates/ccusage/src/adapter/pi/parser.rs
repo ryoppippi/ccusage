@@ -89,6 +89,7 @@ pub(crate) fn read_session_file(
             model,
             data,
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
         });
     }
     Ok(entries)

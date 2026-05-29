@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use crate::{
     cli::{AgentReportKind, SharedArgs, SortOrder},
     color, format_currency, format_models_multiline, format_number, json_float, print_box_title,
-    short_model_name, Align, Color, ModelBreakdown, Result, SimpleTable,
+    short_model_name, Align, Color, ModelBreakdown, Result, SimpleTable, UsageSummary,
 };
 
 use super::types::AllRow;
@@ -167,11 +167,37 @@ pub(super) fn print_table(
         ]);
     }
     table.print()?;
+    crate::print_missing_pricing_warnings(&all_rows_as_usage_summaries(rows), shared.offline);
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");
     }
     Ok(())
+}
+
+fn all_rows_as_usage_summaries(rows: &[AllRow]) -> Vec<UsageSummary> {
+    rows.iter()
+        .map(|row| UsageSummary {
+            date: None,
+            month: None,
+            week: None,
+            session_id: None,
+            project_path: None,
+            last_activity: None,
+            input_tokens: row.input_tokens,
+            output_tokens: row.output_tokens,
+            cache_creation_tokens: row.cache_creation_tokens,
+            cache_read_tokens: row.cache_read_tokens,
+            extra_total_tokens: row.total_tokens.saturating_sub(table_total_tokens(row)),
+            total_cost: row.total_cost,
+            credits: None,
+            message_count: None,
+            models_used: row.models_used.clone(),
+            model_breakdowns: row.model_breakdowns.clone(),
+            project: None,
+            versions: None,
+        })
+        .collect()
 }
 
 pub(super) fn all_report_title(

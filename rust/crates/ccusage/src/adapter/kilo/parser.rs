@@ -98,6 +98,7 @@ pub(super) fn message_value_to_entry(
         credits: None,
         model: Some(model),
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
         message_count: None,
         data,
     })

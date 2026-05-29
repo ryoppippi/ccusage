@@ -151,6 +151,7 @@ fn parse_line(
         model: Some(model),
         message_count: None,
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
         extra_total_tokens,
     })
 }
@@ -314,6 +315,7 @@ mod tests {
             message_count: None,
             model: Some("model:1".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
         };
 
         assert_eq!(

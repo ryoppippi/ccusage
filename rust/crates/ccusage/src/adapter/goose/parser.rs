@@ -69,6 +69,7 @@ pub(super) fn row_to_entry(
         credits: None,
         model: Some(model),
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
         extra_total_tokens: reasoning_tokens,
         message_count: None,
         data,

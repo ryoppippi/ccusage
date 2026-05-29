@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     io::{BufWriter, Write},
 };
 
@@ -293,6 +293,7 @@ pub(crate) fn print_usage_table(
     }
     table.push(total_row);
     table.print()?;
+    print_missing_pricing_warnings(rows, shared.offline);
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");
@@ -302,6 +303,36 @@ pub(crate) fn print_usage_table(
 
 fn empty_usage_table_message() -> &'static str {
     "No usage data found."
+}
+
+pub(crate) fn print_missing_pricing_warnings(rows: &[UsageSummary], offline: bool) {
+    for warning in missing_pricing_warnings(rows, offline) {
+        eprintln!("{warning}");
+    }
+}
+
+pub(crate) fn missing_pricing_warnings(rows: &[UsageSummary], offline: bool) -> Vec<String> {
+    let models = rows
+        .iter()
+        .flat_map(|row| &row.model_breakdowns)
+        .filter(|breakdown| breakdown.missing_pricing)
+        .map(|breakdown| breakdown.model_name.as_str())
+        .collect::<BTreeSet<_>>();
+
+    models
+        .into_iter()
+        .map(|model| {
+            if offline {
+                format!(
+                    "WARN  Missing embedded pricing for {model}; cost excludes this model. Run without --offline or update ccusage after pricing is added."
+                )
+            } else {
+                format!(
+                    "WARN  Missing pricing for {model}; cost excludes this model. Update pricing or run again after LiteLLM has the model."
+                )
+            }
+        })
+        .collect()
 }
 
 pub(crate) fn json_float(value: f64) -> Value {
@@ -453,6 +484,34 @@ mod tests {
     }
 
     #[test]
+    fn missing_pricing_warnings_deduplicate_models() {
+        let mut row = snapshot_summary("2026-01-02", None, None);
+        row.model_breakdowns[0].missing_pricing = true;
+        row.model_breakdowns[1].missing_pricing = true;
+
+        assert_eq!(
+            missing_pricing_warnings(&[row], false),
+            vec![
+                "WARN  Missing pricing for claude-sonnet-4-20250514; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
+                "WARN  Missing pricing for gpt-5.2-codex; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
+            ]
+        );
+    }
+
+    #[test]
+    fn missing_pricing_warnings_mention_embedded_pricing_offline() {
+        let mut row = snapshot_summary("2026-01-02", None, None);
+        row.model_breakdowns[0].missing_pricing = true;
+
+        assert_eq!(
+            missing_pricing_warnings(&[row], true),
+            vec![
+                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Run without --offline or update ccusage after pricing is added.",
+            ]
+        );
+    }
+
+    #[test]
     fn snapshots_session_summary_json_with_present_and_missing_options() {
         let mut row = snapshot_summary("session-a", None, None);
         row.date = None;
@@ -528,6 +587,7 @@ mod tests {
                     cache_read_tokens: 10,
                     extra_total_tokens: 0,
                     cost: 0.3,
+                    missing_pricing: false,
                 },
                 ModelBreakdown {
                     model_name: "claude-sonnet-4-20250514".to_string(),
@@ -537,6 +597,7 @@ mod tests {
                     cache_read_tokens: 0,
                     extra_total_tokens: 0,
                     cost: 0.12,
+                    missing_pricing: false,
                 },
             ],
             project: project.map(str::to_string),

@@ -86,6 +86,7 @@ pub(crate) fn message_value_to_entry(
         message_count: None,
         model: Some(model),
         usage_limit_reset_time: None,
+        missing_pricing_model: None,
         data,
     })
 }
