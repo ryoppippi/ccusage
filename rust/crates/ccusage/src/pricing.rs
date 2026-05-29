@@ -283,8 +283,7 @@ impl PricingMap {
         self.context_limit_entry(model).or_else(|| {
             self.enable_models_dev_fallback
                 .then(|| {
-                    models_dev_pricing()
-                        .and_then(|pricing| pricing.context_limit_entry(model))
+                    models_dev_pricing().and_then(|pricing| pricing.context_limit_entry(model))
                 })
                 .flatten()
         })
