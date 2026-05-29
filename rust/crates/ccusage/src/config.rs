@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
 };
@@ -7,13 +8,14 @@ use serde_json::{Map, Value};
 
 use crate::{
     cli::{
-        normalize_date_bound, BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs, SharedArgs,
-        SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
+        normalize_date_bound, BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs,
+        PricingOverride, SharedArgs, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay,
+        WeeklyArgs,
     },
     config_schema::{
         BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
-        ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay, DailySpecificOptions,
-        OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions,
+        ConfigPricingOverride, ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay,
+        DailySpecificOptions, OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions,
         WeeklySpecificOptions,
     },
 };
@@ -454,6 +456,75 @@ fn apply_shared_options(shared: &mut SharedArgs, options: SharedOptions) {
     if let Some(single_thread) = options.single_thread {
         shared.single_thread = single_thread;
     }
+    if let Some(pricing_overrides) = options.pricing_overrides {
+        merge_pricing_overrides(&mut shared.pricing_overrides, pricing_overrides);
+    }
+}
+
+fn merge_pricing_overrides(
+    current: &mut BTreeMap<String, PricingOverride>,
+    incoming: BTreeMap<String, ConfigPricingOverride>,
+) {
+    for (model, incoming_override) in incoming {
+        let entry = current.entry(model).or_default();
+        merge_override_fields(entry, incoming_override);
+    }
+}
+
+fn merge_override_fields(target: &mut PricingOverride, source: ConfigPricingOverride) {
+    if source.input_cost_per_token.is_some() {
+        target.input_cost_per_token = source.input_cost_per_token;
+    }
+    if source.output_cost_per_token.is_some() {
+        target.output_cost_per_token = source.output_cost_per_token;
+    }
+    if source.cache_creation_input_token_cost.is_some() {
+        target.cache_creation_input_token_cost = source.cache_creation_input_token_cost;
+    }
+    if source.cache_read_input_token_cost.is_some() {
+        target.cache_read_input_token_cost = source.cache_read_input_token_cost;
+    }
+    if source.input_cost_per_token_above_200k_tokens.is_some() {
+        target.input_cost_per_token_above_200k_tokens =
+            source.input_cost_per_token_above_200k_tokens;
+    }
+    if source.output_cost_per_token_above_200k_tokens.is_some() {
+        target.output_cost_per_token_above_200k_tokens =
+            source.output_cost_per_token_above_200k_tokens;
+    }
+    if source.cache_creation_input_token_cost_above_200k_tokens.is_some() {
+        target.cache_creation_input_token_cost_above_200k_tokens =
+            source.cache_creation_input_token_cost_above_200k_tokens;
+    }
+    if source.cache_read_input_token_cost_above_200k_tokens.is_some() {
+        target.cache_read_input_token_cost_above_200k_tokens =
+            source.cache_read_input_token_cost_above_200k_tokens;
+    }
+    if source.max_input_tokens.is_some() {
+        target.max_input_tokens = source.max_input_tokens;
+    }
+    if source.fast_multiplier.is_some() {
+        target.fast_multiplier = source.fast_multiplier;
+    }
+}
+
+impl From<ConfigPricingOverride> for PricingOverride {
+    fn from(value: ConfigPricingOverride) -> Self {
+        Self {
+            input_cost_per_token: value.input_cost_per_token,
+            output_cost_per_token: value.output_cost_per_token,
+            cache_creation_input_token_cost: value.cache_creation_input_token_cost,
+            cache_read_input_token_cost: value.cache_read_input_token_cost,
+            input_cost_per_token_above_200k_tokens: value.input_cost_per_token_above_200k_tokens,
+            output_cost_per_token_above_200k_tokens: value.output_cost_per_token_above_200k_tokens,
+            cache_creation_input_token_cost_above_200k_tokens: value
+                .cache_creation_input_token_cost_above_200k_tokens,
+            cache_read_input_token_cost_above_200k_tokens: value
+                .cache_read_input_token_cost_above_200k_tokens,
+            max_input_tokens: value.max_input_tokens,
+            fast_multiplier: value.fast_multiplier,
+        }
+    }
 }
 
 impl From<ConfigCostMode> for CostMode {
@@ -755,6 +826,75 @@ mod tests {
         );
 
         assert_eq!(open_claw_path.as_deref(), Some("/tmp/openclaw"));
+    }
+
+    #[test]
+    fn merge_pricing_overrides_field_level_preserves_parent_fields() {
+        use ccusage_cli::PricingOverride;
+        use crate::config_schema::ConfigPricingOverride;
+
+        let mut current = BTreeMap::new();
+        current.insert(
+            "[pi] gpt-5.4".to_string(),
+            PricingOverride {
+                input_cost_per_token: Some(2.5e-6),
+                output_cost_per_token: Some(1.5e-5),
+                ..Default::default()
+            },
+        );
+
+        // Child config only sets max_input_tokens for the same model
+        let mut incoming = BTreeMap::new();
+        incoming.insert(
+            "[pi] gpt-5.4".to_string(),
+            ConfigPricingOverride {
+                max_input_tokens: Some(1_000_000),
+                ..Default::default()
+            },
+        );
+
+        merge_pricing_overrides(&mut current, incoming);
+
+        let result = &current["[pi] gpt-5.4"];
+        // Parent fields preserved
+        assert_eq!(result.input_cost_per_token, Some(2.5e-6));
+        assert_eq!(result.output_cost_per_token, Some(1.5e-5));
+        // Child field applied
+        assert_eq!(result.max_input_tokens, Some(1_000_000));
+    }
+
+    #[test]
+    fn merge_pricing_overrides_child_overrides_parent_field() {
+        use ccusage_cli::PricingOverride;
+        use crate::config_schema::ConfigPricingOverride;
+
+        let mut current = BTreeMap::new();
+        current.insert(
+            "model-a".to_string(),
+            PricingOverride {
+                input_cost_per_token: Some(3e-6),
+                output_cost_per_token: Some(15e-6),
+                cache_read_input_token_cost: Some(3e-7),
+                ..Default::default()
+            },
+        );
+
+        // Child overrides just input, leaves others alone
+        let mut incoming = BTreeMap::new();
+        incoming.insert(
+            "model-a".to_string(),
+            ConfigPricingOverride {
+                input_cost_per_token: Some(2e-6),
+                ..Default::default()
+            },
+        );
+
+        merge_pricing_overrides(&mut current, incoming);
+
+        let result = &current["model-a"];
+        assert_eq!(result.input_cost_per_token, Some(2e-6)); // overridden
+        assert_eq!(result.output_cost_per_token, Some(15e-6)); // preserved
+        assert_eq!(result.cache_read_input_token_cost, Some(3e-7)); // preserved
     }
 
     fn context(value: Value, raw: &str, agent: Option<&str>, report: &str) -> ConfigContext {

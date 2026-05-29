@@ -813,6 +813,8 @@ mod tests {
         let entries = adapter::pi::read_session_file(
             &fixture.path("sessions/project-a/prefix_session-a.jsonl"),
             parse_tz(Some("UTC")).as_ref(),
+            CostMode::Display,
+            None,
         )
         .unwrap();
 

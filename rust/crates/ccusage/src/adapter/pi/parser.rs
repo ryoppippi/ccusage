@@ -4,13 +4,16 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
 use crate::{
-    apply_total_token_fallback, format_date_tz, json_value_u64, non_empty_json_string, LoadedEntry,
-    Result, TokenUsageRaw, UsageEntry, UsageMessage,
+    apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
+    json_value_u64, missing_pricing_model_for_usage, non_empty_json_string, LoadedEntry,
+    PricingMap, Result, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn read_session_file(
     path: &Path,
     tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
 ) -> Result<Vec<LoadedEntry>> {
     let content = fs::read_to_string(path)?;
     let project = extract_project(path);
@@ -57,11 +60,18 @@ pub(crate) fn read_session_file(
         }
         let model =
             non_empty_json_string(message.get("model")).map(|model| format!("[pi] {model}"));
-        let cost = usage_value
+        let display_cost = usage_value
             .get("cost")
             .and_then(|cost| cost.get("total"))
-            .and_then(Value::as_f64)
-            .unwrap_or(0.0);
+            .and_then(Value::as_f64);
+        let cost = calculate_cost_for_usage(model.as_deref(), usage, display_cost, mode, pricing);
+        let missing_pricing_model = missing_pricing_model_for_usage(
+            model.as_deref(),
+            usage,
+            display_cost,
+            mode,
+            pricing,
+        );
         let data = UsageEntry {
             session_id: Some(session_id.clone()),
             timestamp: timestamp_text,
@@ -71,7 +81,7 @@ pub(crate) fn read_session_file(
                 model: model.clone(),
                 id: None,
             },
-            cost_usd: Some(cost),
+            cost_usd: display_cost,
             request_id: None,
             is_api_error_message: None,
             is_sidechain: None,
@@ -89,7 +99,7 @@ pub(crate) fn read_session_file(
             model,
             data,
             usage_limit_reset_time: None,
-            missing_pricing_model: None,
+            missing_pricing_model,
         });
     }
     Ok(entries)
@@ -164,10 +174,59 @@ mod tests {
         });
         let file = fixture.path("sessions/project-a/agent_session-a.jsonl");
 
-        let entries = read_session_file(&file, None).unwrap();
+        let entries = read_session_file(&file, None, CostMode::Display, None).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.output_tokens, 333);
         assert_eq!(entries[0].extra_total_tokens, 0);
+    }
+
+    #[test]
+    fn sets_missing_pricing_model_when_model_not_in_pricing() {
+        let fixture = fs_fixture!({
+            "sessions/project-a/agent_session-a.jsonl": r#"{"type":"message","timestamp":"2026-01-02T00:00:00.000Z","message":{"role":"assistant","model":"unknown-model-xyz","usage":{"input":100,"output":200}}}"#,
+        });
+        let file = fixture.path("sessions/project-a/agent_session-a.jsonl");
+
+        // Use Calculate mode with an empty PricingMap so model won't be found
+        let pricing = PricingMap::default();
+        let entries =
+            read_session_file(&file, None, CostMode::Calculate, Some(&pricing)).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(
+            entries[0].missing_pricing_model.as_deref(),
+            Some("[pi] unknown-model-xyz")
+        );
+    }
+
+    #[test]
+    fn no_missing_pricing_model_in_display_mode() {
+        let fixture = fs_fixture!({
+            "sessions/project-a/agent_session-a.jsonl": r#"{"type":"message","timestamp":"2026-01-02T00:00:00.000Z","message":{"role":"assistant","model":"unknown-model-xyz","usage":{"input":100,"output":200}}}"#,
+        });
+        let file = fixture.path("sessions/project-a/agent_session-a.jsonl");
+
+        let pricing = PricingMap::default();
+        let entries =
+            read_session_file(&file, None, CostMode::Display, Some(&pricing)).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].missing_pricing_model, None);
+    }
+
+    #[test]
+    fn no_missing_pricing_model_when_auto_mode_has_display_cost() {
+        let fixture = fs_fixture!({
+            "sessions/project-a/agent_session-a.jsonl": r#"{"type":"message","timestamp":"2026-01-02T00:00:00.000Z","message":{"role":"assistant","model":"unknown-model-xyz","usage":{"input":100,"output":200,"cost":{"total":0.05}}}}"#,
+        });
+        let file = fixture.path("sessions/project-a/agent_session-a.jsonl");
+
+        let pricing = PricingMap::default();
+        let entries = read_session_file(&file, None, CostMode::Auto, Some(&pricing)).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        // In Auto mode with a display cost present, no missing pricing warning
+        assert_eq!(entries[0].missing_pricing_model, None);
     }
 }

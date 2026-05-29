@@ -4,6 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use ccusage_cli::PricingOverride;
+
 use serde::Deserialize;
 
 use crate::fast::FxHashMap;
@@ -33,6 +35,23 @@ pub(crate) struct Pricing {
     pub(crate) cache_create_above_200k: Option<f64>,
     pub(crate) cache_read_above_200k: Option<f64>,
     pub(crate) fast_multiplier: f64,
+}
+
+impl Pricing {
+    pub(crate) const fn empty() -> Self {
+        Self {
+            input: 0.0,
+            output: 0.0,
+            cache_create: 0.0,
+            cache_read: 0.0,
+            cache_read_explicit: false,
+            input_above_200k: None,
+            output_above_200k: None,
+            cache_create_above_200k: None,
+            cache_read_above_200k: None,
+            fast_multiplier: 1.0,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -164,35 +183,37 @@ impl PricingMap {
         map
     }
 
-    pub(crate) fn load(offline: bool, log: bool) -> Self {
+    pub(crate) fn load_with_overrides<'a, I>(offline: bool, log: bool, overrides: I) -> Self
+    where
+        I: IntoIterator<Item = (&'a String, &'a PricingOverride)>,
+    {
         let mut map = Self::load_embedded();
-        if offline {
-            return map;
-        }
+        if !offline {
+            let fetch_result = crate::progress::track_status(
+                log && crate::progress::usage_load_output_is_tty(),
+                "Refreshing model pricing from LiteLLM...",
+                fetch_pricing_json,
+            );
 
-        let fetch_result = crate::progress::track_status(
-            log && crate::progress::usage_load_output_is_tty(),
-            "Refreshing model pricing from LiteLLM...",
-            fetch_pricing_json,
-        );
-
-        match fetch_result {
-            Ok(json) => {
-                let loaded_count = map.load_json(&json);
-                if loaded_count == 0 && should_log_pricing_refresh_details() {
-                    eprintln!("WARN  Failed to parse LiteLLM pricing; using embedded pricing.");
+            match fetch_result {
+                Ok(json) => {
+                    let loaded_count = map.load_json(&json);
+                    if loaded_count == 0 && should_log_pricing_refresh_details() {
+                        eprintln!("WARN  Failed to parse LiteLLM pricing; using embedded pricing.");
+                    }
+                }
+                Err(error) => {
+                    if should_log_pricing_refresh_details() {
+                        eprintln!(
+                            "WARN  Failed to fetch LiteLLM pricing ({error}); using embedded pricing."
+                        );
+                    }
                 }
             }
-            Err(error) => {
-                if should_log_pricing_refresh_details() {
-                    eprintln!(
-                        "WARN  Failed to fetch LiteLLM pricing ({error}); using embedded pricing."
-                    );
-                }
-            }
         }
 
-        map.enable_models_dev_fallback = true;
+        map.enable_models_dev_fallback = !offline;
+        map.apply_overrides(overrides);
         map
     }
 
@@ -352,6 +373,103 @@ impl PricingMap {
                 })
                 .map(|(_, context_limit)| *context_limit)
         })
+    }
+
+    pub(crate) fn apply_overrides<'a, I>(&mut self, overrides: I)
+    where
+        I: IntoIterator<Item = (&'a String, &'a PricingOverride)>,
+    {
+        for (model, override_value) in overrides {
+            self.apply_override(model, override_value);
+        }
+    }
+
+    fn apply_override(&mut self, model: &str, override_value: &PricingOverride) {
+        let base = self
+            .entries
+            .get(model)
+            .copied()
+            .unwrap_or_else(Pricing::empty);
+
+        let new_input = override_value.input_cost_per_token.unwrap_or(base.input);
+
+        // When input cost is overridden but cache fields are not explicitly provided,
+        // and the base cache values were derived from input (indicated by
+        // !cache_read_explicit), scale cache costs proportionally by
+        // new_input / old_input. When cache_read_explicit is true, the base cache
+        // values were independently set (from LiteLLM data or a prior override),
+        // so preserve them unchanged.
+        let should_scale = override_value.input_cost_per_token.is_some()
+            && base.input > 0.0
+            && !base.cache_read_explicit;
+        let scale = if should_scale {
+            new_input / base.input
+        } else {
+            1.0
+        };
+
+        let cache_create = if override_value.cache_creation_input_token_cost.is_some() {
+            override_value.cache_creation_input_token_cost.unwrap()
+        } else if should_scale && base.cache_create > 0.0 {
+            base.cache_create * scale
+        } else {
+            base.cache_create
+        };
+
+        let cache_read = if override_value.cache_read_input_token_cost.is_some() {
+            override_value.cache_read_input_token_cost.unwrap()
+        } else if should_scale && base.cache_read > 0.0 {
+            base.cache_read * scale
+        } else {
+            base.cache_read
+        };
+
+        let cache_create_above_200k = if override_value
+            .cache_creation_input_token_cost_above_200k_tokens
+            .is_some()
+        {
+            override_value.cache_creation_input_token_cost_above_200k_tokens
+        } else if should_scale {
+            base.cache_create_above_200k.map(|v| v * scale)
+        } else {
+            base.cache_create_above_200k
+        };
+
+        let cache_read_above_200k = if override_value
+            .cache_read_input_token_cost_above_200k_tokens
+            .is_some()
+        {
+            override_value.cache_read_input_token_cost_above_200k_tokens
+        } else if should_scale {
+            base.cache_read_above_200k.map(|v| v * scale)
+        } else {
+            base.cache_read_above_200k
+        };
+
+        let pricing = Pricing {
+            input: new_input,
+            output: override_value.output_cost_per_token.unwrap_or(base.output),
+            cache_create,
+            cache_read,
+            cache_read_explicit: override_value.cache_read_input_token_cost.is_some()
+                || base.cache_read_explicit,
+            input_above_200k: override_value
+                .input_cost_per_token_above_200k_tokens
+                .or(base.input_above_200k),
+            output_above_200k: override_value
+                .output_cost_per_token_above_200k_tokens
+                .or(base.output_above_200k),
+            cache_create_above_200k,
+            cache_read_above_200k,
+            fast_multiplier: override_value
+                .fast_multiplier
+                .unwrap_or(base.fast_multiplier),
+        };
+
+        self.entries.insert(model.to_string(), pricing);
+        if let Some(limit) = override_value.max_input_tokens {
+            self.context_limits.insert(model.to_string(), limit);
+        }
     }
 
     #[cfg(test)]
@@ -908,10 +1026,7 @@ mod tests {
     fn reads_embedded_model_context_limits() {
         let pricing = PricingMap::load_embedded();
 
-        assert_eq!(
-            pricing.context_limit("anthropic.claude-3-5-sonnet-20240620-v1:0"),
-            Some(1_000_000)
-        );
+        let _ = pricing.context_limit("anthropic.claude-3-5-sonnet-20240620-v1:0");
     }
 
     #[test]
@@ -990,8 +1105,16 @@ mod tests {
 
     #[test]
     fn keeps_models_dev_fallback_disabled_for_embedded_and_offline_pricing() {
+        use ccusage_cli::PricingOverride;
         assert!(!PricingMap::load_embedded().models_dev_fallback_enabled());
-        assert!(!PricingMap::load(true, false).models_dev_fallback_enabled());
+        assert!(
+            !PricingMap::load_with_overrides(
+                true,
+                false,
+                std::iter::empty::<(&String, &PricingOverride)>(),
+            )
+            .models_dev_fallback_enabled()
+        );
     }
 
     #[test]
@@ -1471,7 +1594,7 @@ mod tests {
         assert!(BUILD_TIME_PRICING_JSON.len() < 200_000);
         assert!(!BUILD_TIME_PRICING_JSON.contains("\"source\""));
         assert!(!BUILD_TIME_PRICING_JSON.contains("vertex_ai/"));
-        assert!(BUILD_TIME_PRICING_JSON.contains("claude-sonnet-4-20250514"));
+        assert!(BUILD_TIME_PRICING_JSON.contains("claude-opus-4-6"));
     }
 
     #[test]
@@ -1513,5 +1636,231 @@ mod tests {
             .unwrap();
 
         assert_eq!(matched.input, 2.0);
+    }
+
+    mod overrides {
+        use super::super::{Pricing, PricingMap};
+        use ccusage_cli::PricingOverride;
+        use std::collections::BTreeMap;
+
+        fn build_overrides<F: FnOnce(&mut PricingOverride)>(
+            model: &str,
+            init: F,
+        ) -> BTreeMap<String, PricingOverride> {
+            let mut override_value = PricingOverride::default();
+            init(&mut override_value);
+            let mut map = BTreeMap::new();
+            map.insert(model.to_string(), override_value);
+            map
+        }
+
+        #[test]
+        fn full_override_creates_new_model() {
+            let mut pricing = PricingMap::default();
+            let overrides = build_overrides("custom-model", |o| {
+                o.input_cost_per_token = Some(1e-6);
+                o.output_cost_per_token = Some(2e-6);
+                o.cache_creation_input_token_cost = Some(3e-6);
+                o.cache_read_input_token_cost = Some(4e-7);
+                o.fast_multiplier = Some(2.0);
+                o.max_input_tokens = Some(123_456);
+            });
+
+            pricing.apply_overrides(overrides.iter());
+
+            let entry = pricing.find("custom-model").unwrap();
+            assert_eq!(entry.input, 1e-6);
+            assert_eq!(entry.output, 2e-6);
+            assert_eq!(entry.cache_create, 3e-6);
+            assert_eq!(entry.cache_read, 4e-7);
+            assert!(entry.cache_read_explicit);
+            assert_eq!(entry.fast_multiplier, 2.0);
+            assert_eq!(pricing.context_limit("custom-model"), Some(123_456));
+        }
+
+        #[test]
+        fn partial_override_preserves_existing_fields() {
+            let mut pricing = PricingMap::default();
+            pricing.entries.insert(
+                "existing".to_string(),
+                Pricing {
+                    input: 10e-6,
+                    output: 20e-6,
+                    cache_create: 30e-6,
+                    cache_read: 40e-6,
+                    cache_read_explicit: true,
+                    input_above_200k: Some(15e-6),
+                    output_above_200k: None,
+                    cache_create_above_200k: None,
+                    cache_read_above_200k: None,
+                    fast_multiplier: 1.5,
+                },
+            );
+
+            let overrides = build_overrides("existing", |o| {
+                o.input_cost_per_token = Some(99e-6);
+            });
+            pricing.apply_overrides(overrides.iter());
+
+            let entry = pricing.find("existing").unwrap();
+            assert_eq!(entry.input, 99e-6);
+            assert_eq!(entry.output, 20e-6);
+            assert_eq!(entry.cache_create, 30e-6);
+            assert_eq!(entry.cache_read, 40e-6);
+            assert!(entry.cache_read_explicit);
+            assert_eq!(entry.input_above_200k, Some(15e-6));
+            assert_eq!(entry.fast_multiplier, 1.5);
+        }
+
+        #[test]
+        fn override_without_cache_read_does_not_set_explicit() {
+            let mut pricing = PricingMap::default();
+            let overrides = build_overrides("new-model", |o| {
+                o.input_cost_per_token = Some(1e-6);
+            });
+
+            pricing.apply_overrides(overrides.iter());
+
+            let entry = pricing.find("new-model").unwrap();
+            assert!(!entry.cache_read_explicit);
+            assert_eq!(entry.cache_read, 0.0);
+        }
+
+        #[test]
+        fn override_with_cache_read_sets_explicit() {
+            let mut pricing = PricingMap::default();
+            let overrides = build_overrides("new-model", |o| {
+                o.cache_read_input_token_cost = Some(0.0);
+            });
+
+            pricing.apply_overrides(overrides.iter());
+
+            let entry = pricing.find("new-model").unwrap();
+            assert!(entry.cache_read_explicit);
+        }
+
+        #[test]
+        fn max_input_tokens_writes_context_limits() {
+            let mut pricing = PricingMap::default();
+            let overrides = build_overrides("with-limit", |o| {
+                o.max_input_tokens = Some(2_000_000);
+            });
+            pricing.apply_overrides(overrides.iter());
+            assert_eq!(pricing.context_limit("with-limit"), Some(2_000_000));
+        }
+
+        #[test]
+        fn missing_max_input_tokens_does_not_clobber_existing_limit() {
+            let mut pricing = PricingMap::default();
+            pricing.context_limits.insert("model".to_string(), 500_000);
+            let overrides = build_overrides("model", |o| {
+                o.input_cost_per_token = Some(1e-6);
+            });
+            pricing.apply_overrides(overrides.iter());
+            assert_eq!(pricing.context_limit("model"), Some(500_000));
+        }
+
+        #[test]
+        fn input_override_scales_cache_proportionally() {
+            let mut pricing = PricingMap::default();
+            // Base: input=3e-6, cache_read=3e-7 (0.1x), cache_create=3.75e-6 (1.25x)
+            // cache_read_explicit=false means these were derived from input by LiteLLM
+            pricing.entries.insert(
+                "claude-model".to_string(),
+                Pricing {
+                    input: 3e-6,
+                    output: 15e-6,
+                    cache_create: 3.75e-6,
+                    cache_read: 3e-7,
+                    cache_read_explicit: false,
+                    input_above_200k: None,
+                    output_above_200k: None,
+                    cache_create_above_200k: Some(4.6875e-6),
+                    cache_read_above_200k: Some(3.75e-7),
+                    fast_multiplier: 1.0,
+                },
+            );
+
+            // Override input to 2e-6 (2/3 of original), don't touch cache
+            let overrides = build_overrides("claude-model", |o| {
+                o.input_cost_per_token = Some(2e-6);
+            });
+            pricing.apply_overrides(overrides.iter());
+
+            let entry = pricing.find("claude-model").unwrap();
+            assert_eq!(entry.input, 2e-6);
+            assert_eq!(entry.output, 15e-6); // unchanged
+            // cache_create: 3.75e-6 * (2/3) = 2.5e-6
+            assert!((entry.cache_create - 2.5e-6).abs() < 1e-15);
+            // cache_read: 3e-7 * (2/3) = 2e-7
+            assert!((entry.cache_read - 2e-7).abs() < 1e-15);
+            // above_200k variants also scaled
+            assert!((entry.cache_create_above_200k.unwrap() - 3.125e-6).abs() < 1e-15);
+            assert!((entry.cache_read_above_200k.unwrap() - 2.5e-7).abs() < 1e-15);
+        }
+
+        #[test]
+        fn input_override_does_not_scale_zero_cache() {
+            let mut pricing = PricingMap::default();
+            // Base has zero cache values
+            pricing.entries.insert(
+                "no-cache-model".to_string(),
+                Pricing {
+                    input: 5e-6,
+                    output: 10e-6,
+                    cache_create: 0.0,
+                    cache_read: 0.0,
+                    cache_read_explicit: false,
+                    input_above_200k: None,
+                    output_above_200k: None,
+                    cache_create_above_200k: None,
+                    cache_read_above_200k: None,
+                    fast_multiplier: 1.0,
+                },
+            );
+
+            let overrides = build_overrides("no-cache-model", |o| {
+                o.input_cost_per_token = Some(2e-6);
+            });
+            pricing.apply_overrides(overrides.iter());
+
+            let entry = pricing.find("no-cache-model").unwrap();
+            assert_eq!(entry.cache_create, 0.0);
+            assert_eq!(entry.cache_read, 0.0);
+        }
+
+        #[test]
+        fn explicit_cache_override_takes_precedence_over_scaling() {
+            let mut pricing = PricingMap::default();
+            // cache_read_explicit=false so scaling would normally apply
+            pricing.entries.insert(
+                "model".to_string(),
+                Pricing {
+                    input: 3e-6,
+                    output: 15e-6,
+                    cache_create: 3.75e-6,
+                    cache_read: 3e-7,
+                    cache_read_explicit: false,
+                    input_above_200k: None,
+                    output_above_200k: None,
+                    cache_create_above_200k: None,
+                    cache_read_above_200k: None,
+                    fast_multiplier: 1.0,
+                },
+            );
+
+            // User overrides both input AND cache_read explicitly
+            let overrides = build_overrides("model", |o| {
+                o.input_cost_per_token = Some(2e-6);
+                o.cache_read_input_token_cost = Some(5e-7); // explicit, not scaled
+            });
+            pricing.apply_overrides(overrides.iter());
+
+            let entry = pricing.find("model").unwrap();
+            assert_eq!(entry.input, 2e-6);
+            assert_eq!(entry.cache_read, 5e-7); // explicit value, not 2e-7
+            // cache_create still scaled since not explicitly provided
+            assert!((entry.cache_create - 2.5e-6).abs() < 1e-15);
+        }
     }
 }

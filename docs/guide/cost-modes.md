@@ -345,3 +345,4 @@ After understanding cost modes:
 
 - Explore [Configuration](/guide/configuration) for environment setup
 - Learn about [Claude Code](/guide/claude/) data paths for custom Claude Code directories
+- Set per-model prices via [Pricing Overrides](/guide/config-files#pricing-overrides) for private or proxied models
