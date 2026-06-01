@@ -406,7 +406,7 @@ mod tests {
             &shared,
             &[fixture.path("config-a"), fixture.path("config-b")],
             None,
-            false,
+            true,
         )
         .unwrap();
 
@@ -414,6 +414,8 @@ mod tests {
         assert_eq!(daily.len(), 2);
         assert_eq!(entries[0].project.as_ref(), "project-a");
         assert_eq!(entries[1].project.as_ref(), "project-b");
+        assert_eq!(daily[0].project.as_deref(), Some("project-a"));
+        assert_eq!(daily[1].project.as_deref(), Some("project-b"));
     }
 
     #[test]
