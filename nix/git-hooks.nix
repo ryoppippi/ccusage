@@ -30,7 +30,7 @@ in
           hooks = {
             renovate-config-validator = {
               enable = true;
-              entry = "${lib.getExe pkgs.renovate} --strict config-validator";
+              entry = "${lib.getExe' pkgs.renovate "renovate-config-validator"} --strict";
               files = "renovate\\.json5?$";
               pass_filenames = false;
               stages = [
