@@ -175,9 +175,9 @@ mod tests {
     fn loads_cowork_daily_summaries_from_local_agent_sessions() {
         let _lock = COWORK_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
-            "workspace/session/local_111/.claude/projects/project-a/session-a.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","version":"2.1.142","sessionId":"session-a","message":{"id":"msg_a","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_a","costUSD":0.01}"#,
+            "local-agent-mode-sessions/workspace/session/local_111/.claude/projects/project-a/session-a.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","version":"2.1.142","sessionId":"session-a","message":{"id":"msg_a","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_a","costUSD":0.01}"#,
         });
-        let _guard = CoworkConfigDirGuard::set(fixture.root());
+        let _guard = CoworkConfigDirGuard::set(&fixture.path("local-agent-mode-sessions"));
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -198,9 +198,9 @@ mod tests {
     fn loads_cowork_entries_with_session_and_project_metadata() {
         let _lock = COWORK_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
-            "workspace/session/local_111/.claude/projects/project-a/session-a.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","version":"2.1.142","sessionId":"session-a","message":{"id":"msg_a","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_a","costUSD":0.01}"#,
+            "local-agent-mode-sessions/workspace/session/local_111/.claude/projects/project-a/session-a.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","version":"2.1.142","sessionId":"session-a","message":{"id":"msg_a","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_a","costUSD":0.01}"#,
         });
-        let _guard = CoworkConfigDirGuard::set(fixture.root());
+        let _guard = CoworkConfigDirGuard::set(&fixture.path("local-agent-mode-sessions"));
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -219,9 +219,9 @@ mod tests {
     fn builds_cowork_session_report_with_session_metadata() {
         let _lock = COWORK_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
-            "workspace/session/local_111/.claude/projects/project-a/session-a.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","version":"2.1.142","sessionId":"session-a","message":{"id":"msg_a","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_a","costUSD":0.01}"#,
+            "local-agent-mode-sessions/workspace/session/local_111/.claude/projects/project-a/session-a.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","version":"2.1.142","sessionId":"session-a","message":{"id":"msg_a","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_a","costUSD":0.01}"#,
         });
-        let _guard = CoworkConfigDirGuard::set(fixture.root());
+        let _guard = CoworkConfigDirGuard::set(&fixture.path("local-agent-mode-sessions"));
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),

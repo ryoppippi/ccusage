@@ -28,6 +28,9 @@ fn cowork_paths_from_env(env_paths: &str) -> Result<Vec<PathBuf>> {
             }
             continue;
         }
+        if !is_cowork_sessions_root(&path) {
+            continue;
+        }
         for discovered in cowork_paths_from_root(&path) {
             if seen.insert(discovered.clone()) {
                 paths.push(discovered);
@@ -41,6 +44,12 @@ fn cowork_paths_from_env(env_paths: &str) -> Result<Vec<PathBuf>> {
     }
     paths.sort_by_cached_key(|path| path.to_string_lossy().into_owned());
     Ok(paths)
+}
+
+fn is_cowork_sessions_root(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name == "local-agent-mode-sessions")
 }
 
 pub(crate) fn cowork_paths_from_root(root: &Path) -> Vec<PathBuf> {
@@ -129,14 +138,14 @@ mod tests {
     #[test]
     fn sorts_mixed_env_paths_globally() {
         let fixture = fs_fixture!({
-            "root/local_b/.claude/projects/project-b/session-b.jsonl": "",
-            "root/local_c/.claude/projects/project-c/session-c.jsonl": "",
+            "local-agent-mode-sessions/local_b/.claude/projects/project-b/session-b.jsonl": "",
+            "local-agent-mode-sessions/local_c/.claude/projects/project-c/session-c.jsonl": "",
             "a-direct/.claude/projects/project-a/session-a.jsonl": "",
         });
 
         let paths = super::cowork_paths_from_env(&format!(
             "{},{}",
-            fixture.path("root").display(),
+            fixture.path("local-agent-mode-sessions").display(),
             fixture.path("a-direct/.claude").display()
         ))
         .unwrap();
@@ -145,10 +154,23 @@ mod tests {
             paths,
             vec![
                 fixture.path("a-direct/.claude"),
-                fixture.path("root/local_b/.claude"),
-                fixture.path("root/local_c/.claude"),
+                fixture.path("local-agent-mode-sessions/local_b/.claude"),
+                fixture.path("local-agent-mode-sessions/local_c/.claude"),
             ]
         );
+    }
+
+    #[test]
+    fn rejects_arbitrary_env_roots_before_recursive_discovery() {
+        let fixture = fs_fixture!({
+            "home/local_111/.claude/projects/project-a/session-a.jsonl": "",
+        });
+
+        let error = super::cowork_paths_from_env(&fixture.path("home").display().to_string())
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("No valid Cowork data directories found in COWORK_CONFIG_DIR"));
     }
 
     #[test]
