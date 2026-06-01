@@ -32,6 +32,7 @@
 ### Task 1: Add CLI Parser Support
 
 **Files:**
+
 - Modify: `rust/crates/ccusage-cli/src/types.rs`
 - Modify: `rust/crates/ccusage-cli/src/parser.rs`
 - Modify: `rust/crates/ccusage-cli/src/tests.rs`
@@ -137,6 +138,7 @@ git commit -m "feat(cowork): add CLI command parser"
 ### Task 2: Refactor Claude Loaders for Reuse
 
 **Files:**
+
 - Modify: `rust/crates/ccusage/src/adapter/claude/mod.rs`
 - Modify: `rust/crates/ccusage/src/adapter/claude/daily.rs`
 - Modify: `rust/crates/ccusage/src/adapter/claude/paths.rs`
@@ -385,6 +387,7 @@ git commit -m "refactor(claude): share compatible usage loaders"
 ### Task 3: Add Cowork Path Discovery
 
 **Files:**
+
 - Create: `rust/crates/ccusage/src/adapter/cowork/paths.rs`
 - Create: `rust/crates/ccusage/src/adapter/cowork/mod.rs`
 - Modify: `rust/crates/ccusage/src/adapter/mod.rs`
@@ -605,6 +608,7 @@ git commit -m "feat(cowork): discover local agent sessions"
 ### Task 4: Add Cowork Runtime Adapter
 
 **Files:**
+
 - Modify: `rust/crates/ccusage/src/adapter/cowork/mod.rs`
 - Modify: `rust/crates/ccusage/src/main.rs`
 - Modify: `rust/crates/ccusage/src/progress.rs`
@@ -945,6 +949,7 @@ git commit -m "feat(cowork): add usage report adapter"
 ### Task 5: Add Cowork to All-Agent Reports
 
 **Files:**
+
 - Modify: `rust/crates/ccusage/src/adapter/all/loader.rs`
 - Modify: `rust/crates/ccusage/src/adapter/all/tests.rs`
 
@@ -1080,6 +1085,7 @@ git commit -m "feat(cowork): include source in all-agent reports"
 ### Task 6: Add Source README and User-Facing Docs
 
 **Files:**
+
 - Create: `rust/crates/ccusage/src/adapter/cowork/README.md`
 - Modify: `README.md`
 - Modify: `apps/ccusage/README.md`
@@ -1170,6 +1176,7 @@ git commit -m "docs(cowork): document usage source"
 ### Task 7: Final Verification and Cleanup
 
 **Files:**
+
 - No planned source edits unless verification exposes issues.
 
 - [ ] **Step 1: Run formatter**

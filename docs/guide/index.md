@@ -72,24 +72,24 @@ Each data source page covers the details that only apply to that source, includi
 
 ccusage reads from local coding CLI data directories:
 
-| Agent        | ID         | Default data location                           |
-| ------------ | ---------- | ----------------------------------------------- |
-| Claude Code  | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
+| Agent        | ID         | Default data location                                            |
+| ------------ | ---------- | ---------------------------------------------------------------- |
+| Claude Code  | `claude`   | `~/.config/claude/projects/`, `~/.claude/`                       |
 | Cowork       | `cowork`   | `~/Library/Application Support/Claude/local-agent-mode-sessions` |
-| Codex        | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
-| OpenCode     | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
-| Amp          | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
-| Droid        | `droid`    | `${DROID_SESSIONS_DIR:-~/.factory/sessions}`    |
-| Codebuff     | `codebuff` | `${CODEBUFF_DATA_DIR:-~/.config/manicode}`      |
-| Hermes Agent | `hermes`   | `${HERMES_HOME:-~/.hermes}/state.db`            |
-| pi-agent     | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
-| Goose        | `goose`    | Standard Goose data roots or `GOOSE_PATH_ROOT`  |
-| OpenClaw     | `openclaw` | `${OPENCLAW_DIR:-~/.openclaw}`                  |
-| Kilo         | `kilo`     | `${KILO_DATA_DIR:-~/.local/share/kilo}`         |
-| Kimi         | `kimi`     | `${KIMI_DATA_DIR:-~/.kimi}`                     |
-| Qwen         | `qwen`     | `${QWEN_DATA_DIR:-~/.qwen}`                     |
-| Copilot CLI  | `copilot`  | `~/.copilot/otel/*.jsonl`                       |
-| Gemini CLI   | `gemini`   | `${GEMINI_DATA_DIR:-~/.gemini/tmp}`             |
+| Codex        | `codex`    | `${CODEX_HOME:-~/.codex}`                                        |
+| OpenCode     | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`                  |
+| Amp          | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`                            |
+| Droid        | `droid`    | `${DROID_SESSIONS_DIR:-~/.factory/sessions}`                     |
+| Codebuff     | `codebuff` | `${CODEBUFF_DATA_DIR:-~/.config/manicode}`                       |
+| Hermes Agent | `hermes`   | `${HERMES_HOME:-~/.hermes}/state.db`                             |
+| pi-agent     | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`                          |
+| Goose        | `goose`    | Standard Goose data roots or `GOOSE_PATH_ROOT`                   |
+| OpenClaw     | `openclaw` | `${OPENCLAW_DIR:-~/.openclaw}`                                   |
+| Kilo         | `kilo`     | `${KILO_DATA_DIR:-~/.local/share/kilo}`                          |
+| Kimi         | `kimi`     | `${KIMI_DATA_DIR:-~/.kimi}`                                      |
+| Qwen         | `qwen`     | `${QWEN_DATA_DIR:-~/.qwen}`                                      |
+| Copilot CLI  | `copilot`  | `~/.copilot/otel/*.jsonl`                                        |
+| Gemini CLI   | `gemini`   | `${GEMINI_DATA_DIR:-~/.gemini/tmp}`                              |
 
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
 Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.

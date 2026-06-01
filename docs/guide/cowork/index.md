@@ -21,8 +21,8 @@ Most users can start with unified reports such as `ccusage daily`. Add the `cowo
 
 ccusage discovers Cowork data from Claude Desktop's local agent mode sessions:
 
-| Source | Default path |
-| ------ | ------------ |
+| Source | Default path                                                     |
+| ------ | ---------------------------------------------------------------- |
 | Cowork | `~/Library/Application Support/Claude/local-agent-mode-sessions` |
 
 The expected session layout is:
@@ -42,20 +42,20 @@ Cowork is intentionally separate from Claude Code in unified reports. If the sam
 
 ## Report Views
 
-| Focused view              | Description                    | See also                                |
-| ------------------------- | ------------------------------ | --------------------------------------- |
-| `ccusage cowork daily`    | Aggregate usage by date        | [Daily Usage](/guide/daily-reports)     |
-| `ccusage cowork monthly`  | Aggregate usage by month       | [Monthly Usage](/guide/monthly-reports) |
-| `ccusage cowork session`  | Group usage by Cowork session  | [Session Usage](/guide/session-reports) |
+| Focused view             | Description                   | See also                                |
+| ------------------------ | ----------------------------- | --------------------------------------- |
+| `ccusage cowork daily`   | Aggregate usage by date       | [Daily Usage](/guide/daily-reports)     |
+| `ccusage cowork monthly` | Aggregate usage by month      | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage cowork session` | Group usage by Cowork session | [Session Usage](/guide/session-reports) |
 
 Cowork does not expose a focused weekly command. Use `ccusage weekly` to include Cowork in the unified weekly report.
 
 ## Environment Variables
 
-| Variable             | Description |
-| -------------------- | ----------- |
-| `COWORK_CONFIG_DIR`  | Override Cowork data discovery |
-| `LOG_LEVEL`          | Adjust verbosity (0 silent ... 5 trace) |
+| Variable            | Description                             |
+| ------------------- | --------------------------------------- |
+| `COWORK_CONFIG_DIR` | Override Cowork data discovery          |
+| `LOG_LEVEL`         | Adjust verbosity (0 silent ... 5 trace) |
 
 ### Custom Cowork Paths
 
