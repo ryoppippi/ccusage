@@ -510,6 +510,98 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        // Z.AI GLM models (pricing from https://docs.z.ai/guides/overview/pricing)
+        self.entries.insert(
+            "glm-5.1".to_string(),
+            Pricing {
+                input: 1.4e-6,
+                output: 4.4e-6,
+                cache_create: 1.4e-6,
+                cache_read: 0.26e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "glm-5".to_string(),
+            Pricing {
+                input: 1.0e-6,
+                output: 3.2e-6,
+                cache_create: 1.0e-6,
+                cache_read: 0.2e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "glm-5-turbo".to_string(),
+            Pricing {
+                input: 1.2e-6,
+                output: 4.0e-6,
+                cache_create: 1.2e-6,
+                cache_read: 0.24e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "glm-4.7".to_string(),
+            Pricing {
+                input: 0.6e-6,
+                output: 2.2e-6,
+                cache_create: 0.6e-6,
+                cache_read: 0.11e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "glm-4.6".to_string(),
+            Pricing {
+                input: 0.6e-6,
+                output: 2.2e-6,
+                cache_create: 0.6e-6,
+                cache_read: 0.11e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "glm-4.5".to_string(),
+            Pricing {
+                input: 0.6e-6,
+                output: 2.2e-6,
+                cache_create: 0.6e-6,
+                cache_read: 0.11e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+
         self.context_limits.insert("gpt-5.5".to_string(), 1_050_000);
         self.context_limits
             .insert("grok-4.3".to_string(), 1_000_000);
@@ -597,6 +689,27 @@ mod tests {
         assert!(pricing.find("gpt-5.5").is_some());
         assert!(pricing.find("grok-4.3").is_some());
         assert_eq!(pricing.context_limit("grok-4.3"), Some(1_000_000));
+    }
+
+    #[test]
+    fn embedded_pricing_includes_glm_models() {
+        let pricing = PricingMap::load_embedded();
+
+        let glm_51 = pricing.find("glm-5.1").unwrap();
+        assert_eq!(glm_51.input, 1.4e-6);
+        assert_eq!(glm_51.output, 4.4e-6);
+        assert_eq!(glm_51.cache_read, 0.26e-6);
+        assert!(glm_51.cache_read_explicit);
+
+        let glm_5 = pricing.find("glm-5").unwrap();
+        assert_eq!(glm_5.input, 1.0e-6);
+        assert_eq!(glm_5.output, 3.2e-6);
+        assert_eq!(glm_5.cache_read, 0.2e-6);
+
+        assert!(pricing.find("glm-5-turbo").is_some());
+        assert!(pricing.find("glm-4.7").is_some());
+        assert!(pricing.find("glm-4.6").is_some());
+        assert!(pricing.find("glm-4.5").is_some());
     }
 
     #[test]
