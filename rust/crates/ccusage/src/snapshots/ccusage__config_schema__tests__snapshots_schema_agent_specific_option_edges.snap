@@ -778,6 +778,7 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
     "codex",
     "commands",
     "copilot",
+    "cowork",
     "defaults",
     "droid",
     "gemini",

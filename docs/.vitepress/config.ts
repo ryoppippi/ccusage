@@ -69,6 +69,7 @@ export default defineConfig({
 					text: 'Data Sources',
 					items: [
 						{ text: 'Claude Code', link: '/guide/claude/' },
+						{ text: 'Cowork', link: '/guide/cowork/' },
 						{ text: 'Codex', link: '/guide/codex/' },
 						{ text: 'OpenCode', link: '/guide/opencode/' },
 						{ text: 'Amp', link: '/guide/amp/' },

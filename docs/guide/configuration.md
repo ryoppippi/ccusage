@@ -109,7 +109,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
+Configure Claude Code, Cowork, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json
@@ -122,6 +122,13 @@ Configure Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-a
 		"commands": {
 			"daily": {
 				"instances": true
+			}
+		}
+	},
+	"cowork": {
+		"commands": {
+			"session": {
+				"json": true
 			}
 		}
 	},
@@ -140,7 +147,7 @@ Configure Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-a
 }
 ```
 
-Source sections apply to focused commands such as `ccusage codex daily` and `ccusage amp session`. They are also used by unified reports such as `ccusage daily`, where each source receives its own merged options before data is loaded.
+Source sections apply to focused commands such as `ccusage cowork session`, `ccusage codex daily`, and `ccusage amp session`. They are also used by unified reports such as `ccusage daily`, where each source receives its own merged options before data is loaded.
 
 ### Team Collaboration
 

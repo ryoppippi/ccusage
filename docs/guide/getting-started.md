@@ -45,6 +45,7 @@ Use a data source namespace when you want the same report focused on one source:
 
 ```bash
 ccusage claude daily
+ccusage cowork daily
 ccusage codex daily
 ccusage opencode weekly
 ccusage amp session
@@ -101,6 +102,7 @@ Now that you have your first unified view, explore these features:
 4. **[Session Usage](/guide/session-reports)** - Analyze individual conversations
 5. **[Configuration](/guide/configuration)** - Customize ccusage behavior
 6. **[Claude Code](/guide/claude/)** - Claude Code-specific setup and features
+7. **[Cowork](/guide/cowork/)** - Claude Desktop Cowork local agent sessions
 
 ## Common Use Cases
 
@@ -114,6 +116,7 @@ ccusage daily --since 2026-05-01 --until 2026-05-16
 
 ```bash
 ccusage codex daily
+ccusage cowork session
 ccusage claude monthly
 ```
 
@@ -163,6 +166,7 @@ If ccusage shows no data, check:
 1. **A supported coding CLI is installed and used** - ccusage reads from local usage files
 2. **Data directory exists** - Common locations:
    - Claude Code: `~/.config/claude/projects/` or `~/.claude/projects/`
+   - Cowork: `~/Library/Application Support/Claude/local-agent-mode-sessions`
    - Codex: `${CODEX_HOME:-~/.codex}`
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
@@ -183,6 +187,7 @@ If your agent data is in a custom location, set the matching environment variabl
 
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
+export COWORK_CONFIG_DIR="/path/to/local-agent-mode-sessions"
 export CODEX_HOME="/path/to/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
@@ -202,6 +207,7 @@ Each source-specific path variable can also contain comma-separated directories:
 
 ```bash
 export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
+export COWORK_CONFIG_DIR="/path/to/local-agent-mode-sessions,/archive/cowork/.claude"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export DROID_SESSIONS_DIR="/path/to/factory/sessions,/archive/factory/sessions"

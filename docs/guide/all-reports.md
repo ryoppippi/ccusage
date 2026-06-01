@@ -25,7 +25,7 @@ ccusage daily --all
 
 ## How Unified Views Work
 
-ccusage detects local usage files from Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI. The same daily, weekly, monthly, and session views can run in two modes:
+ccusage detects local usage files from Claude Code, Cowork, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI. The same daily, weekly, monthly, and session views can run in two modes:
 
 | Mode    | Command example        | What it shows                           |
 | ------- | ---------------------- | --------------------------------------- |
@@ -40,6 +40,7 @@ Unified tables include an **Agent** column so you can compare sources in one vie
 | Source       | Namespace  | Example focused view      |
 | ------------ | ---------- | ------------------------- |
 | Claude Code  | `claude`   | `ccusage claude daily`    |
+| Cowork       | `cowork`   | `ccusage cowork daily`    |
 | Codex        | `codex`    | `ccusage codex daily`     |
 | OpenCode     | `opencode` | `ccusage opencode weekly` |
 | Amp          | `amp`      | `ccusage amp session`     |
@@ -62,6 +63,7 @@ Use a source namespace when you want source-specific options or when you are deb
 ```bash
 ccusage codex daily --speed fast
 ccusage claude daily --mode display
+ccusage cowork session
 ccusage opencode session --json
 ccusage amp monthly --compact
 ccusage droid session

@@ -9,6 +9,7 @@ ccusage detects supported data source files from conventional locations by defau
 | Variable                          | Agent        | Default                            |
 | --------------------------------- | ------------ | ---------------------------------- |
 | `CLAUDE_CONFIG_DIR`               | Claude Code  | `~/.config/claude` and `~/.claude` |
+| `COWORK_CONFIG_DIR`               | Cowork       | `~/Library/Application Support/Claude/local-agent-mode-sessions` |
 | `CODEX_HOME`                      | Codex        | `~/.codex`                         |
 | `OPENCODE_DATA_DIR`               | OpenCode     | `~/.local/share/opencode`          |
 | `AMP_DATA_DIR`                    | Amp          | `~/.local/share/amp`               |
@@ -28,6 +29,7 @@ Example:
 
 ```bash
 export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
+export COWORK_CONFIG_DIR="/path/to/local-agent-mode-sessions,/archive/cowork/.claude"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export DROID_SESSIONS_DIR="/path/to/factory/sessions,/archive/factory/sessions"
@@ -49,6 +51,10 @@ Empty entries, directories that do not exist, and missing explicit files are ski
 ## CLAUDE_CONFIG_DIR
 
 Specifies where ccusage should look for Claude Code data. See [Claude Code](/guide/claude/) for default paths, multiple-directory behavior, and Claude-specific examples.
+
+## COWORK_CONFIG_DIR
+
+Specifies where ccusage should look for Cowork local agent session data. See [Cowork](/guide/cowork/) for the default Claude Desktop path and accepted override shapes.
 
 ## LOG_LEVEL
 
@@ -210,7 +216,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|DROID|CODEBUFF|HERMES|PI_AGENT|GOOSE|OPENCLAW|KILO|KIMI|QWEN|COPILOT|GEMINI|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|COWORK|CODEX|OPENCODE|AMP|DROID|CODEBUFF|HERMES|PI_AGENT|GOOSE|OPENCLAW|KILO|KIMI|QWEN|COPILOT|GEMINI|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug

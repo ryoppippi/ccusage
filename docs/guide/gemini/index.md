@@ -2,7 +2,7 @@
 
 > Gemini CLI support is experimental while the Gemini CLI log format continues to evolve.
 
-ccusage can read Gemini CLI chat logs as one of its supported local data sources. Gemini uses the same unified and focused report model as Claude Code, Codex, OpenCode, Amp, pi-agent, and GitHub Copilot CLI.
+ccusage can read Gemini CLI chat logs as one of its supported local data sources. Gemini uses the same unified and focused report model as Claude Code, Cowork, Codex, OpenCode, Amp, pi-agent, and GitHub Copilot CLI.
 
 ## Focused Views
 

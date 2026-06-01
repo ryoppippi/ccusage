@@ -34,6 +34,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) pi: Option<PiConfig>,
     /// Goose configuration.
     pub(crate) goose: Option<GooseConfig>,
+    /// Cowork configuration.
+    pub(crate) cowork: Option<CoworkConfig>,
     /// OpenClaw configuration.
     pub(crate) openclaw: Option<OpenClawConfig>,
     /// Kilo configuration.
@@ -193,6 +195,21 @@ pub(crate) struct GooseConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GooseCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CoworkConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<CoworkCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CoworkCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -1005,6 +1022,7 @@ mod tests {
         assert!(schema_property(&schema, &["codebuff", "defaults", "speed"]).is_none());
         assert!(schema_property(&schema, &["pi", "defaults", "piPath"]).is_some());
         assert!(schema_property(&schema, &["goose", "defaults", "piPath"]).is_none());
+        assert!(schema_property(&schema, &["cowork", "defaults", "speed"]).is_none());
         assert!(schema_property(&schema, &["openclaw", "defaults", "openClawPath"]).is_some());
         assert!(schema_property(&schema, &["kilo", "defaults", "openClawPath"]).is_none());
         assert!(schema_property(&schema, &["gemini", "defaults", "openClawPath"]).is_none());
@@ -1042,9 +1060,9 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
-                "droid",
+                "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "cowork",
+                "defaults", "droid", "gemini", "goose", "hermes", "kilo", "kimi", "opencode",
+                "openclaw", "pi", "qwen",
             ],
         );
         assert!(
@@ -1134,6 +1152,13 @@ mod tests {
             "goose": {
                 "commands": {
                     "daily": {
+                        "json": true
+                    }
+                }
+            },
+            "cowork": {
+                "commands": {
+                    "session": {
                         "json": true
                     }
                 }

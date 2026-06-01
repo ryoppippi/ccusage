@@ -243,6 +243,7 @@ fn is_agent_command(command: &str) -> bool {
             | "pi"
             | "goose"
             | "kilo"
+            | "cowork"
             | "qwen"
             | "copilot"
             | "gemini"
@@ -755,6 +756,15 @@ mod tests {
         );
 
         assert_eq!(open_claw_path.as_deref(), Some("/tmp/openclaw"));
+    }
+
+    #[test]
+    fn detects_cowork_as_agent_config_namespace() {
+        let command = detect_config_command(&["cowork".to_string(), "session".to_string()]);
+
+        assert_eq!(command.raw, "cowork session");
+        assert_eq!(command.agent.as_deref(), Some("cowork"));
+        assert_eq!(command.report, "session");
     }
 
     fn context(value: Value, raw: &str, agent: Option<&str>, report: &str) -> ConfigContext {
