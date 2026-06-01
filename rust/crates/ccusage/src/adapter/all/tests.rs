@@ -12,7 +12,7 @@ use serde_json::json;
 use super::*;
 use crate::{
     cli::{AgentReportKind, CodexSpeed},
-    Align, CodexGroup, CodexModelUsage, ModelBreakdown, PricingMap,
+    Align, CodexGroup, CodexModelUsage, ModelBreakdown, PricingMap, UsageSummary,
 };
 
 fn test_agent_rows(agent: &'static str) -> AgentRows {
@@ -129,6 +129,91 @@ fn aggregates_daily_agent_rows_by_period() {
     assert_eq!(breakdowns[0].agent, "claude");
     assert_eq!(breakdowns[0].period, "2026-01-02");
     assert_eq!(breakdowns[1].agent, "codex");
+}
+
+#[test]
+fn aggregates_claude_and_cowork_as_distinct_daily_agents() {
+    let rows = aggregate_rows(
+        vec![
+            AllRow {
+                period: "2026-01-02".to_string(),
+                agent: "claude",
+                models_used: vec!["claude-sonnet-4-20250514".to_string()],
+                input_tokens: 100,
+                output_tokens: 20,
+                cache_creation_tokens: 5,
+                cache_read_tokens: 10,
+                total_tokens: 135,
+                total_cost: 0.02,
+                metadata: None,
+                metadata_agents: Some(vec!["claude"]),
+                agent_breakdowns: None,
+                model_breakdowns: Vec::new(),
+            },
+            AllRow {
+                period: "2026-01-02".to_string(),
+                agent: "cowork",
+                models_used: vec!["claude-sonnet-4-20250514".to_string()],
+                input_tokens: 50,
+                output_tokens: 15,
+                cache_creation_tokens: 2,
+                cache_read_tokens: 3,
+                total_tokens: 70,
+                total_cost: 0.01,
+                metadata: None,
+                metadata_agents: Some(vec!["cowork"]),
+                agent_breakdowns: None,
+                model_breakdowns: Vec::new(),
+            },
+        ],
+        AgentReportKind::Daily,
+    );
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].metadata_agents, Some(vec!["claude", "cowork"]));
+    let breakdowns = rows[0].agent_breakdowns.as_ref().unwrap();
+    assert_eq!(breakdowns.len(), 2);
+    assert_eq!(breakdowns[0].agent, "claude");
+    assert_eq!(breakdowns[1].agent, "cowork");
+    assert_eq!(breakdowns[0].input_tokens, 100);
+    assert_eq!(breakdowns[1].input_tokens, 50);
+}
+
+#[test]
+fn includes_cowork_session_project_path_and_last_activity_metadata() {
+    let rows = super::loader::summary_rows(
+        "cowork",
+        vec![UsageSummary {
+            date: None,
+            month: None,
+            week: None,
+            session_id: Some("session-a".to_string()),
+            project_path: Some("/workspace/project-a".to_string()),
+            last_activity: Some("2026-01-02".to_string()),
+            input_tokens: 100,
+            output_tokens: 25,
+            cache_creation_tokens: 10,
+            cache_read_tokens: 5,
+            extra_total_tokens: 0,
+            total_cost: 0.01,
+            credits: None,
+            message_count: None,
+            models_used: vec!["claude-sonnet-4-20250514".to_string()],
+            model_breakdowns: Vec::new(),
+            project: None,
+            versions: None,
+        }],
+    );
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].period, "session-a");
+    assert_eq!(
+        rows[0].metadata,
+        Some(json!({
+            "lastActivity": "2026-01-02",
+            "projectPath": "/workspace/project-a",
+        }))
+    );
 }
 
 #[test]
