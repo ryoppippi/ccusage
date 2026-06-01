@@ -40,6 +40,7 @@ fn cowork_paths_from_env(env_paths: &str) -> Result<Vec<PathBuf>> {
             "No valid Cowork data directories found in COWORK_CONFIG_DIR. Expected each path to be a Cowork local-agent-mode-sessions directory, a .claude config directory containing 'projects/', or the 'projects/' directory itself: {env_paths}"
         )));
     }
+    paths.sort_by_cached_key(|path| path.to_string_lossy().into_owned());
     Ok(paths)
 }
 
@@ -70,6 +71,7 @@ fn collect_cowork_paths(dir: &Path, paths: &mut Vec<PathBuf>) {
             let config = path.join(".claude");
             if config.join("projects").is_dir() {
                 paths.push(config);
+                continue;
             }
         }
         collect_cowork_paths(&path, paths);
@@ -123,6 +125,47 @@ mod tests {
                 fixture.path("other/.claude"),
             ]
         );
+    }
+
+    #[test]
+    fn sorts_mixed_env_paths_globally() {
+        let fixture = fs_fixture!({
+            "root/local_b/.claude/projects/project-b/session-b.jsonl": "",
+            "root/local_c/.claude/projects/project-c/session-c.jsonl": "",
+            "a-direct/.claude/projects/project-a/session-a.jsonl": "",
+        });
+
+        let paths = super::cowork_paths_from_env(&format!(
+            "{},{}",
+            fixture.path("root").display(),
+            fixture.path("a-direct/.claude").display()
+        ))
+        .unwrap();
+
+        assert_eq!(
+            paths,
+            vec![
+                fixture.path("a-direct/.claude"),
+                fixture.path("root/local_b/.claude"),
+                fixture.path("root/local_c/.claude"),
+            ]
+        );
+    }
+
+    #[test]
+    fn dedupes_equivalent_direct_claude_and_projects_env_paths() {
+        let fixture = fs_fixture!({
+            "direct/.claude/projects/project-a/session-a.jsonl": "",
+        });
+
+        let paths = super::cowork_paths_from_env(&format!(
+            "{},{}",
+            fixture.path("direct/.claude").display(),
+            fixture.path("direct/.claude/projects").display()
+        ))
+        .unwrap();
+
+        assert_eq!(paths, vec![fixture.path("direct/.claude")]);
     }
 
     #[test]
