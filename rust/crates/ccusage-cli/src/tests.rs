@@ -767,6 +767,15 @@ fn parses_legacy_colon_agent_commands() {
 }
 
 #[test]
+fn parses_legacy_colon_cowork_command() {
+    let cli = parse(&["ccusage", "cowork:monthly"]);
+    let Some(Command::Cowork(args)) = cli.command else {
+        panic!("expected cowork command");
+    };
+    assert_eq!(args.kind, AgentReportKind::Monthly);
+}
+
+#[test]
 fn rejects_report_flag_aliases_with_guidance() {
     let error = parse_error(&["ccusage", "--daily"]);
     assert_eq!(
@@ -790,6 +799,15 @@ fn rejects_unsupported_agent_reports_with_guidance() {
     assert_eq!(
         error,
         "The \"blocks\" report is only available for Claude Code usage.\nUse \"ccusage codex daily\" for Codex usage reports."
+    );
+}
+
+#[test]
+fn rejects_unsupported_legacy_colon_cowork_report_with_guidance() {
+    let error = parse_error(&["ccusage", "cowork:weekly"]);
+    assert_eq!(
+        error,
+        "The \"weekly\" report is not available for Cowork usage.\nUse \"ccusage cowork daily\" for Cowork usage reports."
     );
 }
 
@@ -888,9 +906,12 @@ fn parses_cowork_report_commands() {
 }
 
 #[test]
-fn rejects_unknown_cowork_report_command() {
+fn rejects_unsupported_cowork_report_with_guidance() {
     let error = parse_error(&["ccusage", "cowork", "weekly"]);
-    assert_eq!(error, "Unknown cowork command 'weekly'");
+    assert_eq!(
+        error,
+        "The \"weekly\" report is not available for Cowork usage.\nUse \"ccusage cowork daily\" for Cowork usage reports."
+    );
 }
 
 #[test]

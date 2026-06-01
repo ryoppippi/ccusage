@@ -648,14 +648,10 @@ fn normalize_legacy_agent_command_args(args: &mut Vec<String>) {
     let Some((agent, report)) = command.split_once(':') else {
         return;
     };
-    if !legacy_agent_report_supported(agent, report) {
+    if !is_agent_command(agent) {
         return;
     }
     args.splice(0..1, [agent.to_string(), report.to_string()]);
-}
-
-fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
-    agent_report_supported(agent, report)
 }
 
 fn report_flag_alias_error(args: &[String]) -> Option<String> {
@@ -793,6 +789,7 @@ fn is_agent_command(command: &str) -> bool {
             | "copilot"
             | "gemini"
             | "kimi"
+            | "cowork"
             | "qwen"
             | "openclaw"
     )
@@ -807,7 +804,7 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
         "amp" | "droid" | "codebuff" | "hermes" | "pi" | "goose" | "kilo" | "copilot"
-        | "gemini" | "kimi" | "qwen" | "openclaw" => {
+        | "gemini" | "kimi" | "qwen" | "cowork" | "openclaw" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -830,6 +827,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
         "qwen" => "Qwen",
+        "cowork" => "Cowork",
         "openclaw" => "OpenClaw",
         _ => unreachable!("agent is prevalidated"),
     }
