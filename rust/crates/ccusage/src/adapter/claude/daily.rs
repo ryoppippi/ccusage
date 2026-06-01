@@ -21,17 +21,17 @@ use crate::{
 
 use super::{
     chunk_file_indexes_by_size, has_unsupported_null_field, is_semver_prefix,
-    paths::{claude_paths, extract_project, usage_files},
+    paths::{extract_project, usage_files},
     usage_dedupe_hash,
 };
 
-pub(super) fn load_daily_summaries_inner(
+pub(super) fn load_daily_summaries_from_paths(
     shared: &SharedArgs,
+    paths: &[PathBuf],
     project_filter: Option<&str>,
     group_by_project: bool,
 ) -> Result<Vec<UsageSummary>> {
-    let paths = claude_paths()?;
-    let files = usage_files(&paths, project_filter);
+    let files = usage_files(paths, project_filter);
     if files.is_empty() {
         return Ok(Vec::new());
     }

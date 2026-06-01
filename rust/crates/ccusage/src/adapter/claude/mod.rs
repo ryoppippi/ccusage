@@ -23,6 +23,8 @@ use crate::{
     UsageSummary,
 };
 
+#[allow(unused_imports)]
+pub(crate) use paths::normalize_claude_config_path;
 #[cfg(test)]
 pub(crate) use paths::timestamp_from_line;
 pub(crate) use paths::{
@@ -35,7 +37,8 @@ pub(crate) fn load_entries(
     project_filter: Option<&str>,
 ) -> Result<Vec<LoadedEntry>> {
     progress::track_usage_load(progress::UsageLoadAgent::Claude, shared.json, || {
-        load_entries_inner(shared, project_filter)
+        let paths = claude_paths()?;
+        load_entries_from_paths(shared, &paths, project_filter, "Claude")
     })
 }
 
@@ -45,19 +48,39 @@ pub(crate) fn load_daily_summaries(
     group_by_project: bool,
 ) -> Result<Vec<UsageSummary>> {
     progress::track_usage_load(progress::UsageLoadAgent::Claude, shared.json, || {
-        daily::load_daily_summaries_inner(shared, project_filter, group_by_project)
+        let paths = claude_paths()?;
+        daily::load_daily_summaries_from_paths(shared, &paths, project_filter, group_by_project)
     })
+}
+
+pub(crate) fn load_daily_summaries_from_paths(
+    shared: &SharedArgs,
+    paths: &[PathBuf],
+    project_filter: Option<&str>,
+    group_by_project: bool,
+) -> Result<Vec<UsageSummary>> {
+    daily::load_daily_summaries_from_paths(shared, paths, project_filter, group_by_project)
+}
+
+pub(crate) fn load_entries_from_paths(
+    shared: &SharedArgs,
+    paths: &[PathBuf],
+    project_filter: Option<&str>,
+    debug_label: &str,
+) -> Result<Vec<LoadedEntry>> {
+    load_entries_inner(shared, paths, project_filter, debug_label)
 }
 
 fn load_entries_inner(
     shared: &SharedArgs,
+    paths: &[PathBuf],
     project_filter: Option<&str>,
+    debug_label: &str,
 ) -> Result<Vec<LoadedEntry>> {
-    let paths = claude_paths()?;
     debug_log(
         shared,
         format!(
-            "Scanning Claude data directories: {}",
+            "Scanning {debug_label} data directories: {}",
             paths
                 .iter()
                 .map(|path| path.display().to_string())
@@ -65,7 +88,7 @@ fn load_entries_inner(
                 .join(", ")
         ),
     );
-    let files = usage_files(&paths, project_filter);
+    let files = usage_files(paths, project_filter);
     debug_log(shared, format!("Found {} JSONL usage files", files.len()));
     if files.is_empty() {
         return Ok(Vec::new());

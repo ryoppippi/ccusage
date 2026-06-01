@@ -384,6 +384,39 @@ mod tests {
     }
 
     #[test]
+    fn loads_claude_compatible_entries_from_explicit_config_paths() {
+        let fixture = fs_fixture!({
+            "config-a/projects/project-a/session-a.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","message":{"id":"msg_a","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_a","costUSD":0.01}"#,
+            "config-b/projects/project-b/session-b.jsonl": r#"{"timestamp":"2025-01-11T10:00:00.000Z","message":{"id":"msg_b","model":"claude-sonnet-4-20250514","usage":{"input_tokens":20,"output_tokens":30,"cache_creation_input_tokens":4,"cache_read_input_tokens":2}},"requestId":"req_b","costUSD":0.04}"#,
+        });
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+
+        let entries = adapter::claude::load_entries_from_paths(
+            &shared,
+            &[fixture.path("config-a"), fixture.path("config-b")],
+            None,
+            "Test",
+        )
+        .unwrap();
+        let daily = adapter::claude::load_daily_summaries_from_paths(
+            &shared,
+            &[fixture.path("config-a"), fixture.path("config-b")],
+            None,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(daily.len(), 2);
+        assert_eq!(entries[0].project.as_ref(), "project-a");
+        assert_eq!(entries[1].project.as_ref(), "project-b");
+    }
+
+    #[test]
     fn loads_daily_summaries_like_loaded_entry_aggregation() {
         let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
