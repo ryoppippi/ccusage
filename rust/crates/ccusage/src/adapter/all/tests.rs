@@ -152,6 +152,21 @@ fn aggregates_claude_and_cowork_as_distinct_daily_agents() {
             },
             AllRow {
                 period: "2026-01-02".to_string(),
+                agent: "codex",
+                models_used: vec!["gpt-5".to_string()],
+                input_tokens: 25,
+                output_tokens: 10,
+                cache_creation_tokens: 0,
+                cache_read_tokens: 4,
+                total_tokens: 39,
+                total_cost: 0.01,
+                metadata: None,
+                metadata_agents: Some(vec!["codex"]),
+                agent_breakdowns: None,
+                model_breakdowns: Vec::new(),
+            },
+            AllRow {
+                period: "2026-01-02".to_string(),
                 agent: "cowork",
                 models_used: vec!["claude-sonnet-4-20250514".to_string()],
                 input_tokens: 50,
@@ -170,13 +185,18 @@ fn aggregates_claude_and_cowork_as_distinct_daily_agents() {
     );
 
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].metadata_agents, Some(vec!["claude", "cowork"]));
+    assert_eq!(
+        rows[0].metadata_agents,
+        Some(vec!["claude", "cowork", "codex"])
+    );
     let breakdowns = rows[0].agent_breakdowns.as_ref().unwrap();
-    assert_eq!(breakdowns.len(), 2);
+    assert_eq!(breakdowns.len(), 3);
     assert_eq!(breakdowns[0].agent, "claude");
     assert_eq!(breakdowns[1].agent, "cowork");
+    assert_eq!(breakdowns[2].agent, "codex");
     assert_eq!(breakdowns[0].input_tokens, 100);
     assert_eq!(breakdowns[1].input_tokens, 50);
+    assert_eq!(breakdowns[2].input_tokens, 25);
 }
 
 #[test]
@@ -578,7 +598,17 @@ fn report_title_uses_detected_agents_even_when_filtered_rows_are_sparse() {
 
     assert_eq!(
         title,
-        "Coding (Agent) CLI Usage Report - Daily\nDetected: Amp, Claude, Codex, OpenCode, pi-agent"
+        "Coding (Agent) CLI Usage Report - Daily\nDetected: Claude, Codex, OpenCode, Amp, pi-agent"
+    );
+}
+
+#[test]
+fn all_report_title_uses_canonical_detected_agent_order_and_cowork_label() {
+    let title = all_report_title(AgentReportKind::Daily, &[], &["codex", "cowork", "claude"]);
+
+    assert_eq!(
+        title,
+        "Coding (Agent) CLI Usage Report - Daily\nDetected: Claude, Cowork, Codex"
     );
 }
 
@@ -626,6 +656,27 @@ fn all_table_rows_match_main_agent_breakdown_display() {
         ),
         vec!["", "- Codex", "- gpt-5", "100", "20", "$0.01"]
     );
+}
+
+#[test]
+fn all_table_row_uses_cowork_label() {
+    let row = AllRow {
+        period: "2026-01-02".to_string(),
+        agent: "cowork",
+        models_used: vec!["claude-sonnet-4-20250514".to_string()],
+        input_tokens: 100,
+        output_tokens: 20,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 10,
+        total_tokens: 130,
+        total_cost: 0.01,
+        metadata: None,
+        metadata_agents: Some(vec!["cowork"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    };
+
+    assert_eq!(all_table_row(&row, true, true)[1], "- Cowork");
 }
 
 #[test]

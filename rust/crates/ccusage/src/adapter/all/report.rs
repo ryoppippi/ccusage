@@ -9,7 +9,7 @@ use crate::{
     UsageSummary,
 };
 
-use super::types::AllRow;
+use super::types::{compare_agents, AllRow};
 
 pub(super) fn report_json(rows: &[AllRow], kind: AgentReportKind) -> Value {
     json!({
@@ -243,6 +243,8 @@ fn detected_agent_labels(rows: &[AllRow], detected_agents: &[&'static str]) -> S
     if agents.is_empty() {
         return "None".to_string();
     }
+    let mut agents = agents.into_iter().collect::<Vec<_>>();
+    agents.sort_by(|a, b| compare_agents(a, b));
     agents
         .into_iter()
         .map(agent_label)
@@ -413,6 +415,7 @@ fn agent_label(agent: &str) -> &str {
     match agent {
         "all" => "All",
         "claude" => "Claude",
+        "cowork" => "Cowork",
         "codex" => "Codex",
         "opencode" => "OpenCode",
         "amp" => "Amp",

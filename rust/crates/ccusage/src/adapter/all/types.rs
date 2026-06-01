@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{cmp::Ordering, collections::BTreeSet};
 
 use serde_json::Value;
 
@@ -42,6 +42,24 @@ pub(super) struct LoadedAgentRows {
     pub(super) index: usize,
     pub(super) agent: &'static str,
     pub(super) agent_rows: AgentRows,
+}
+
+const AGENT_ORDER: &[&str] = &[
+    "claude", "cowork", "codex", "opencode", "amp", "droid", "codebuff", "hermes", "pi", "goose",
+    "openclaw", "kilo", "copilot", "gemini", "kimi", "qwen",
+];
+
+pub(super) fn compare_agents(a: &str, b: &str) -> Ordering {
+    match (agent_order_index(a), agent_order_index(b)) {
+        (Some(a), Some(b)) => a.cmp(&b),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => a.cmp(b),
+    }
+}
+
+fn agent_order_index(agent: &str) -> Option<usize> {
+    AGENT_ORDER.iter().position(|known| *known == agent)
 }
 
 #[derive(Default)]
@@ -91,9 +109,11 @@ impl AllAccumulator {
         for breakdown in &mut agent_breakdowns {
             breakdown.period = period.clone();
         }
-        agent_breakdowns.sort_by(|a, b| a.agent.cmp(b.agent));
+        agent_breakdowns.sort_by(|a, b| compare_agents(a.agent, b.agent));
         let mut model_breakdowns = aggregate_model_breakdowns(&agent_breakdowns);
         model_breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
+        let mut metadata_agents = self.agents.into_iter().collect::<Vec<_>>();
+        metadata_agents.sort_by(|a, b| compare_agents(a, b));
         AllRow {
             period,
             agent: "all",
@@ -105,7 +125,7 @@ impl AllAccumulator {
             total_tokens: self.total_tokens,
             total_cost: self.total_cost,
             metadata: None,
-            metadata_agents: Some(self.agents.into_iter().collect()),
+            metadata_agents: Some(metadata_agents),
             agent_breakdowns: Some(agent_breakdowns),
             model_breakdowns,
         }
