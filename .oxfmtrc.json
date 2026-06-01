@@ -1,4 +1,5 @@
 {
+	"$schema": "https://unpkg.com/oxfmt/configuration_schema.json",
 	"useTabs": true,
 	"singleQuote": true,
 	"ignorePatterns": ["dist", "target", "node_modules", "coverage", ".git"]

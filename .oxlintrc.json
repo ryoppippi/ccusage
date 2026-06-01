@@ -1,4 +1,5 @@
 {
+	"$schema": "https://unpkg.com/oxlint/configuration_schema.json",
 	"ignorePatterns": [
 		"dist",
 		"target",
