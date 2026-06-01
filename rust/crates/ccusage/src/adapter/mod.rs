@@ -4,6 +4,7 @@ pub(crate) mod claude;
 pub(crate) mod codebuff;
 pub(crate) mod codex;
 pub(crate) mod copilot;
+pub(crate) mod cowork;
 pub(crate) mod droid;
 pub(crate) mod gemini;
 pub(crate) mod goose;
