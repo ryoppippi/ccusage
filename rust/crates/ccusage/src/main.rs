@@ -143,7 +143,7 @@ fn main() -> Result<()> {
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
         Some(Command::Gemini(args)) => adapter::gemini::run(args),
         Some(Command::Kimi(args)) => adapter::kimi::run(args),
-        Some(Command::Cowork(_args)) => Err(cli_error("cowork runtime is not implemented yet")),
+        Some(Command::Cowork(args)) => adapter::cowork::run(args),
         Some(Command::OpenClaw(args)) => adapter::openclaw::run(args),
         None => {
             let args = AgentCommandArgs {

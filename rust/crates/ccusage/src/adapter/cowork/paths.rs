@@ -2,16 +2,15 @@ use std::path::{Path, PathBuf};
 
 use crate::Result;
 
-#[allow(dead_code)]
 pub(crate) fn cowork_paths() -> Result<Vec<PathBuf>> {
     if let Ok(env_paths) = std::env::var("COWORK_CONFIG_DIR") {
         return cowork_paths_from_env(&env_paths);
     }
     let home =
         crate::home::home_dir().ok_or_else(|| crate::cli_error("home directory is not set"))?;
-    Ok(cowork_paths_from_root(
-        &home.join("Library/Application Support/Claude/local-agent-mode-sessions"),
-    ))
+    Ok(cowork_paths_from_root(&home.join(
+        "Library/Application Support/Claude/local-agent-mode-sessions",
+    )))
 }
 
 fn cowork_paths_from_env(env_paths: &str) -> Result<Vec<PathBuf>> {
