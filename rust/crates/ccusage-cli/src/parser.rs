@@ -263,6 +263,13 @@ fn parse_command(
             STANDARD_AGENT_REPORTS,
             Command::Qwen,
         ),
+        "cowork" => parse_basic_agent_command(
+            parser,
+            shared,
+            "cowork",
+            STANDARD_AGENT_REPORTS,
+            Command::Cowork,
+        ),
         "openclaw" => parse_openclaw_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
@@ -629,6 +636,7 @@ fn is_command(arg: &str) -> bool {
             | "copilot"
             | "gemini"
             | "kimi"
+            | "cowork"
             | "qwen"
     )
 }

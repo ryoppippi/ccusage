@@ -201,6 +201,7 @@ fn command_snapshot(command: Option<Command>) -> Value {
         Some(Command::Gemini(args)) => agent_command_snapshot("gemini", args),
         Some(Command::Kimi(args)) => agent_command_snapshot("kimi", args),
         Some(Command::Qwen(args)) => agent_command_snapshot("qwen", args),
+        Some(Command::Cowork(args)) => agent_command_snapshot("cowork", args),
         Some(Command::OpenClaw(args)) => agent_command_snapshot("openclaw", args),
     }
 }
@@ -860,6 +861,36 @@ fn parses_qwen_session_options() {
     };
     assert_eq!(args.kind, AgentReportKind::Session);
     assert!(args.shared.json);
+}
+
+#[test]
+fn parses_cowork_default_command() {
+    let cli = parse(&["ccusage", "cowork"]);
+    let Some(Command::Cowork(args)) = cli.command else {
+        panic!("expected Cowork command");
+    };
+    assert_eq!(args.kind, AgentReportKind::Daily);
+}
+
+#[test]
+fn parses_cowork_report_commands() {
+    for (report, expected) in [
+        ("daily", AgentReportKind::Daily),
+        ("monthly", AgentReportKind::Monthly),
+        ("session", AgentReportKind::Session),
+    ] {
+        let cli = parse(&["ccusage", "cowork", report]);
+        let Some(Command::Cowork(args)) = cli.command else {
+            panic!("expected Cowork command for {report}");
+        };
+        assert_eq!(args.kind, expected);
+    }
+}
+
+#[test]
+fn rejects_unknown_cowork_report_command() {
+    let error = parse_error(&["ccusage", "cowork", "weekly"]);
+    assert_eq!(error, "Unknown cowork command 'weekly'");
 }
 
 #[test]
