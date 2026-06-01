@@ -6,6 +6,7 @@ Session usage shows usage grouped by individual conversations, threads, or sessi
 
 ```bash
 ccusage session
+ccusage cowork session
 ccusage codex session
 ccusage opencode session
 ccusage amp session

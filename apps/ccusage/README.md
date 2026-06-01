@@ -87,6 +87,7 @@ bunx ccusage statusline  # Claude Code status line for hooks (Beta)
 # Source-focused reports and options
 bunx ccusage claude daily --mode display
 bunx ccusage cowork daily
+bunx ccusage cowork monthly
 bunx ccusage cowork session
 bunx ccusage codex daily --speed fast
 bunx ccusage opencode weekly

@@ -25,7 +25,7 @@ ccusage daily --all
 
 ## How Unified Views Work
 
-ccusage detects local usage files from Claude Code, Cowork, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI. The same daily, weekly, monthly, and session views can run in two modes:
+ccusage detects local usage files from Claude Code, Cowork, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI. Unified daily, weekly, monthly, and session views include every supported source they can load. Focused views use a source namespace and vary by source.
 
 | Mode    | Command example        | What it shows                           |
 | ------- | ---------------------- | --------------------------------------- |

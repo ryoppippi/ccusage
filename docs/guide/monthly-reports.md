@@ -6,6 +6,7 @@ Monthly usage aggregates coding (agent) CLI usage by calendar month, providing a
 
 ```bash
 ccusage monthly
+ccusage cowork monthly
 ccusage codex monthly
 ccusage amp monthly
 ccusage pi monthly

@@ -14,6 +14,7 @@ ccusage daily
 ccusage
 
 # Focus on one source:
+ccusage cowork daily
 ccusage codex daily
 ccusage opencode daily
 ccusage amp daily
