@@ -2,9 +2,9 @@
 
 ![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI.
+**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Grok Build, Qwen, GitHub Copilot CLI, and Gemini CLI.
 
-The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, Gemini CLI, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
+The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Grok Build, Qwen, Gemini CLI, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
 
 ## The Problem
 
@@ -19,7 +19,7 @@ Modern coding (agent) CLI usage is split across several local data formats. That
 
 ccusage reads the local usage files that coding CLIs already generate and provides:
 
-- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI in one CLI
+- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Grok Build, Qwen, GitHub Copilot CLI, and Gemini CLI in one CLI
 - **Usage Views** - Daily, weekly, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
 - **Focused Data Source Views** - Start with all detected sources, then narrow the same usage views to one source when needed
@@ -86,6 +86,7 @@ ccusage reads from local coding CLI data directories:
 | OpenClaw     | `openclaw` | `${OPENCLAW_DIR:-~/.openclaw}`                  |
 | Kilo         | `kilo`     | `${KILO_DATA_DIR:-~/.local/share/kilo}`         |
 | Kimi         | `kimi`     | `${KIMI_DATA_DIR:-~/.kimi}`                     |
+| Grok Build   | `grok`     | `${GROK_HOME:-~/.grok}`                         |
 | Qwen         | `qwen`     | `${QWEN_DATA_DIR:-~/.qwen}`                     |
 | Copilot CLI  | `copilot`  | `~/.copilot/otel/*.jsonl`                       |
 | Gemini CLI   | `gemini`   | `${GEMINI_DATA_DIR:-~/.gemini/tmp}`             |
@@ -93,7 +94,7 @@ ccusage reads from local coding CLI data directories:
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
 Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.
 
-Some coding agents have been investigated but are not supported because their local files do not contain reliable token usage. See [Source Support Q&A](/guide/source-support-qa) for the current notes on Antigravity CLI, Grok CLI, and Devin CLI.
+Some coding agents have been investigated but are not supported because their local files do not contain reliable token usage. See [Source Support Q&A](/guide/source-support-qa) for the current notes on Antigravity CLI and Devin CLI.
 
 ## Report Shape
 
@@ -121,6 +122,7 @@ ccusage goose daily
 ccusage openclaw daily
 ccusage kilo daily
 ccusage kimi daily
+ccusage grok daily
 ccusage qwen daily
 ccusage copilot daily
 ccusage gemini daily

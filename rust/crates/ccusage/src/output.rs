@@ -395,10 +395,7 @@ fn push_breakdown_rows(
     shared: &SharedArgs,
 ) {
     for breakdown in &row.model_breakdowns {
-        let total = breakdown.input_tokens
-            + breakdown.output_tokens
-            + breakdown.cache_creation_tokens
-            + breakdown.cache_read_tokens;
+        let total = model_breakdown_total_tokens(breakdown);
         let mut values = if compact {
             vec![
                 color(
@@ -440,6 +437,14 @@ fn push_breakdown_rows(
         }
         table.push(values);
     }
+}
+
+fn model_breakdown_total_tokens(breakdown: &crate::ModelBreakdown) -> u64 {
+    breakdown.input_tokens
+        + breakdown.output_tokens
+        + breakdown.cache_creation_tokens
+        + breakdown.cache_read_tokens
+        + breakdown.extra_total_tokens
 }
 
 pub(crate) fn format_models_multiline(models: &[String]) -> String {
@@ -530,6 +535,21 @@ mod tests {
         }]);
 
         assert_eq!(totals["totalTokens"], 172);
+    }
+
+    #[test]
+    fn model_breakdown_total_includes_extra_tokens() {
+        assert_eq!(
+            model_breakdown_total_tokens(&ModelBreakdown {
+                input_tokens: 100,
+                output_tokens: 50,
+                cache_creation_tokens: 10,
+                cache_read_tokens: 5,
+                extra_total_tokens: 7,
+                ..ModelBreakdown::default()
+            }),
+            172
+        );
     }
 
     #[test]

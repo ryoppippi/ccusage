@@ -9,6 +9,7 @@ ccusage monthly
 ccusage codex monthly
 ccusage amp monthly
 ccusage pi monthly
+ccusage grok monthly
 ccusage qwen monthly
 ```
 

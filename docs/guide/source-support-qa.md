@@ -17,7 +17,7 @@ A source is a good fit when its local files include most of the following:
 
 Local transcript text alone is not enough. A transcript can be useful for debugging, but it does not reveal tokenizer behavior, hidden system context, cached input, tool-call overhead, or provider-side accounting.
 
-## Unsupported Sources Investigated
+## Investigated Sources and Format Notes
 
 ::: details Why is Antigravity CLI not supported?
 Antigravity CLI is separate from Gemini CLI. The Antigravity CLI binary is exposed as `agy`, and it stores state under `~/.gemini/antigravity-cli/`.
@@ -29,10 +29,10 @@ The CLI log files include operational events such as conversation creation, stre
 Because the local files do not expose the token accounting needed for ccusage reports, Antigravity CLI is not supported right now.
 :::
 
-::: details Why is Grok CLI not supported?
-Grok CLI was investigated, but its local SQLite data did not contain usable token accounting. Without token counts, model usage, or recorded costs in the local database, ccusage has nothing reliable to aggregate.
+::: details What changed for Grok support?
+Earlier Grok CLI local SQLite data did not contain usable token accounting, so ccusage could not support that format reliably.
 
-Estimating tokens from message text would ignore provider-side context, hidden prompts, tool-call payloads, cached input, and tokenizer differences, so ccusage does not do that.
+Grok Build now writes structured session state under `${GROK_HOME:-~/.grok}/sessions/` with `signals.json` files that include context token totals and model/session metadata. ccusage supports that Grok Build format through the `grok` namespace.
 :::
 
 ::: details Why is Devin CLI not supported?

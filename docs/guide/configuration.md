@@ -55,6 +55,7 @@ export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
 export KILO_DATA_DIR="$HOME/.local/share/kilo"
+export GROK_HOME="$HOME/.grok"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="$HOME/.copilot/otel/copilot-otel.jsonl"
 ```
 
@@ -65,6 +66,7 @@ export CODEX_HOME="$HOME/.codex,$HOME/.codex-work"
 export GEMINI_DATA_DIR="$HOME/.gemini/tmp,/backup/gemini/tmp"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode,/archive/opencode"
 export KILO_DATA_DIR="$HOME/.local/share/kilo,/backup/kilo"
+export GROK_HOME="$HOME/.grok,/archive/grok"
 ```
 
 2. **Create a configuration file** for your preferences:
@@ -109,7 +111,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Grok Build, Qwen, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json

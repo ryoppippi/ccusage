@@ -25,6 +25,7 @@ pub enum Command {
     Copilot(AgentCommandArgs),
     Gemini(AgentCommandArgs),
     Kimi(AgentCommandArgs),
+    Grok(AgentCommandArgs),
     Qwen(AgentCommandArgs),
     OpenClaw(AgentCommandArgs),
 }

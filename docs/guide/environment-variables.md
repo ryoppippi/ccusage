@@ -20,6 +20,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `OPENCLAW_DIR`                    | OpenClaw     | `~/.openclaw`                      |
 | `KILO_DATA_DIR`                   | Kilo         | `~/.local/share/kilo`              |
 | `KIMI_DATA_DIR`                   | Kimi         | `~/.kimi`                          |
+| `GROK_HOME`                       | Grok Build   | `~/.grok`                          |
 | `QWEN_DATA_DIR`                   | Qwen         | `~/.qwen`                          |
 | `COPILOT_OTEL_FILE_EXPORTER_PATH` | Copilot CLI  | Explicit `.jsonl` file             |
 | `GEMINI_DATA_DIR`                 | Gemini CLI   | `~/.gemini/tmp`                    |
@@ -38,6 +39,7 @@ export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
 export OPENCLAW_DIR="/path/to/openclaw,/archive/openclaw"
 export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
 export KIMI_DATA_DIR="/path/to/kimi,/archive/kimi"
+export GROK_HOME="/path/to/grok,/archive/grok"
 export QWEN_DATA_DIR="/path/to/qwen,/archive/qwen"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 export GEMINI_DATA_DIR="/path/to/gemini/tmp,/archive/gemini/tmp"

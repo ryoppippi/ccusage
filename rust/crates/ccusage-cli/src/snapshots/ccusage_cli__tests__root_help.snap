@@ -1,5 +1,5 @@
 ---
-source: crates/ccusage/src/cli.rs
+source: crates/ccusage-cli/src/tests.rs
 expression: help_text()
 ---
 USAGE:
@@ -26,6 +26,7 @@ COMMANDS:
   copilot                    Show GitHub Copilot CLI usage commands
   gemini                     Show Gemini CLI usage commands
   kimi                       Show Kimi usage commands
+  grok                       Show Grok Build usage commands
   qwen                       Show Qwen usage commands
   openclaw                   Show OpenClaw usage commands
 
@@ -49,6 +50,7 @@ For more info, run any command with the `--help` flag:
   ccusage copilot --help
   ccusage gemini --help
   ccusage kimi --help
+  ccusage grok --help
   ccusage qwen --help
   ccusage openclaw --help
 
