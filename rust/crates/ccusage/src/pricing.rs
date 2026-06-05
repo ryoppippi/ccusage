@@ -928,9 +928,7 @@ impl<'a> HttpsUrl<'a> {
                 "only https URLs are supported",
             ));
         };
-        let path_start = rest
-            .find(|character| matches!(character, '/' | '?' | '#'))
-            .unwrap_or(rest.len());
+        let path_start = rest.find(['/', '?', '#']).unwrap_or(rest.len());
         let host = &rest[..path_start];
         if host.is_empty() {
             return Err(io::Error::new(
