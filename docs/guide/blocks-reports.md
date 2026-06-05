@@ -199,7 +199,7 @@ ccusage blocks --json
 
 ### Offline Mode
 
-Use embedded pricing data without network access:
+Use cached pricing data without network access:
 
 ```bash
 ccusage blocks --offline

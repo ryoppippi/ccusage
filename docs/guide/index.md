@@ -66,7 +66,7 @@ Each data source page covers the details that only apply to that source, includi
 - **Priority-based Settings** - CLI args > local config > user config > defaults
 - **Environment Variables** - Traditional configuration options
 - **Custom Date Filtering** - Flexible time range selection and sorting
-- **Embedded Pricing** - Bundled pricing data for air-gapped environments
+- **Offline Mode** - Cached pricing data for air-gapped environments
 
 ## Data Sources
 

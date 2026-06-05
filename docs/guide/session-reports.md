@@ -209,7 +209,7 @@ ccusage session --json
 
 ### Offline Mode
 
-Use embedded pricing data without network access:
+Use cached pricing data without network access:
 
 ```bash
 ccusage session --offline

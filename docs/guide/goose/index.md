@@ -57,7 +57,7 @@ Goose does not expose cache read/write token columns in this database, so cache 
 
 Goose rows do not store recorded USD cost, so ccusage estimates cost from token counts and LiteLLM pricing. Any positive total-token remainder beyond input and output is treated as output-priced usage for cost estimation.
 
-Use `--offline` to rely on embedded pricing data:
+Use `--offline` to rely on cached pricing data:
 
 ```bash
 ccusage goose daily --offline

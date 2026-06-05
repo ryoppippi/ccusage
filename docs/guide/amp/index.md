@@ -44,7 +44,7 @@ AMP_DATA_DIR="$HOME/.local/share/amp,/backup/amp" ccusage amp session
 | `ccusage amp monthly` | Aggregate usage by month  | [Monthly Usage](/guide/monthly-reports) |
 | `ccusage amp session` | Group usage by Amp thread | [Session Usage](/guide/session-reports) |
 
-These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for embedded pricing data.
+These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
 
 ## What Gets Calculated
 

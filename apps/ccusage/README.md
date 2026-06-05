@@ -138,7 +138,7 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
-- 🌐 **Embedded Pricing**: Use bundled pricing data without network connectivity with `--offline`
+- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline`
 - 🏗️ **Claude Instance Support**: Group Claude Code usage by project with `--instances` and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation

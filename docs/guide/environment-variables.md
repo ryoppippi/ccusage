@@ -201,7 +201,7 @@ Example:
 export CCUSAGE_OFFLINE=1
 
 # But command-line argument overrides it
-ccusage daily --no-offline  # Overrides an offline default for compatibility
+ccusage daily --no-offline  # Runs in online mode
 ```
 
 ## Debugging

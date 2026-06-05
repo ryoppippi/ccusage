@@ -48,8 +48,8 @@ features:
     title: Cache Support
     details: Tracks cache creation and cache read tokens separately
   - icon: 🌐
-    title: Embedded Pricing
-    details: Use bundled pricing data without network connectivity
+    title: Offline Mode
+    details: Use pre-cached pricing data without network connectivity
 ---
 
 <div style="text-align: center; margin: 2rem 0;">

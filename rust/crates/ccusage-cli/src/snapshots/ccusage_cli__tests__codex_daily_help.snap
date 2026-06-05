@@ -1,5 +1,5 @@
 ---
-source: crates/ccusage-cli/src/tests.rs
+source: crates/ccusage/src/cli.rs
 expression: "help_text_for_args(&[\"ccusage\".to_string(), \"codex\".to_string(),\n\"daily\".to_string(),])"
 ---
 Show Codex token usage grouped by day
@@ -12,7 +12,7 @@ OPTIONS:
   -s, --since <since>                  Filter from date (YYYY-MM-DD or YYYYMMDD)
   -u, --until <until>                  Filter until date (inclusive)
   -z, --timezone <timezone>            Timezone for date grouping (IANA)
-  -O, --offline                        Use embedded pricing data (default: false)
+  -O, --offline                        Use cached pricing data instead of fetching from LiteLLM (default: false)
   --no-offline                         Negatable of -O, --offline
   --speed [speed]                      Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override (default: auto, choices: auto | standard | fast)
   --compact                            Force compact table layout for narrow terminals (default: false)

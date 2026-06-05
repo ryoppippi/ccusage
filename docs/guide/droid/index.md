@@ -43,7 +43,7 @@ DROID_SESSIONS_DIR="$HOME/.factory/sessions,/backup/factory/sessions" ccusage dr
 | `ccusage droid monthly` | Aggregate usage by month     | [Monthly Usage](/guide/monthly-reports) |
 | `ccusage droid session` | Group usage by Droid session | [Session Usage](/guide/session-reports) |
 
-These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for embedded pricing data.
+These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
 
 ## What Gets Calculated
 

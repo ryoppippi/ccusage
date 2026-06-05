@@ -177,7 +177,7 @@ ccusage daily --offline --json > report.json
 Control how costs are calculated:
 
 - **Mode**: `auto` (default), `calculate`, or `display`
-- **Offline**: Use embedded pricing data
+- **Offline**: Use cached pricing data
 - **Breakdown**: Show per-model costs
 
 ```bash

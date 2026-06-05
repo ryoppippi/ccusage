@@ -307,9 +307,9 @@ pub(crate) struct SharedOptions {
     pub(crate) order: Option<ConfigSortOrder>,
     /// Show per-model cost breakdown.
     pub(crate) breakdown: Option<bool>,
-    /// Use embedded pricing data where supported.
+    /// Use cached pricing data where supported.
     pub(crate) offline: Option<bool>,
-    /// Disable embedded pricing data where supported.
+    /// Disable cached pricing data where supported.
     pub(crate) no_offline: Option<bool>,
     /// Enable colored output.
     pub(crate) color: Option<bool>,
@@ -410,9 +410,9 @@ pub(crate) struct StatuslineOptions {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct StatuslineSpecificOptions {
-    /// Use embedded pricing data where supported.
+    /// Use cached pricing data where supported.
     pub(crate) offline: Option<bool>,
-    /// Disable embedded pricing data where supported.
+    /// Disable cached pricing data where supported.
     pub(crate) no_offline: Option<bool>,
     /// Visual burn-rate display mode.
     pub(crate) visual_burn_rate: Option<ConfigVisualBurnRate>,
