@@ -67,7 +67,7 @@ features:
 
   <div style="display: flex; justify-content: center; margin-top: 2rem;">
     <a href="https://github.com/sponsors/ryoppippi" target="_blank">
-      <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg" alt="Sponsors" style="display: block; max-width: 100%; height: auto;">
+      <img src="https://sponsors.ryoppippi.com/sponsors.png" alt="Sponsors" style="display: block; max-width: 100%; height: auto;">
     </a>
   </div>
 </div>
