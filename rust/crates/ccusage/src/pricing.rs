@@ -86,7 +86,7 @@ impl PricingMap {
         map
     }
 
-    pub(crate) fn load(_offline: bool, _log: bool) -> Self {
+    pub(crate) fn load() -> Self {
         Self::load_embedded()
     }
 
@@ -749,15 +749,8 @@ mod tests {
     }
 
     #[test]
-    fn online_and_offline_pricing_load_the_embedded_snapshot() {
-        assert_eq!(
-            PricingMap::load(false, false).len(),
-            PricingMap::load_embedded().len()
-        );
-        assert_eq!(
-            PricingMap::load(true, false).len(),
-            PricingMap::load_embedded().len()
-        );
+    fn pricing_load_uses_the_embedded_snapshot() {
+        assert_eq!(PricingMap::load().len(), PricingMap::load_embedded().len());
     }
 
     #[test]

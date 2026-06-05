@@ -308,7 +308,7 @@ pub(crate) fn print_usage_table(
     }
     table.push(total_row);
     table.print()?;
-    print_missing_pricing_warnings(rows, shared.offline);
+    print_missing_pricing_warnings(rows);
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");
@@ -320,45 +320,51 @@ fn empty_usage_table_message() -> &'static str {
     "No usage data found."
 }
 
-pub(crate) fn print_missing_pricing_warnings(rows: &[UsageSummary], offline: bool) {
-    for warning in missing_pricing_warnings(rows, offline) {
-        eprintln!("{warning}");
-    }
+pub(crate) fn print_missing_pricing_warnings(rows: &[UsageSummary]) {
+    let models = missing_pricing_models(rows);
+    print_missing_pricing_warnings_for_models(models);
 }
 
-pub(crate) fn missing_pricing_warnings(rows: &[UsageSummary], offline: bool) -> Vec<String> {
-    let models = rows
-        .iter()
+#[cfg(test)]
+pub(crate) fn missing_pricing_warnings(rows: &[UsageSummary]) -> Vec<String> {
+    let models = missing_pricing_models(rows);
+    missing_pricing_warnings_for_models(models)
+}
+
+fn missing_pricing_models(rows: &[UsageSummary]) -> BTreeSet<&str> {
+    rows.iter()
         .flat_map(|row| &row.model_breakdowns)
         .filter(|breakdown| breakdown.missing_pricing)
-        .map(|breakdown| breakdown.model_name.as_str());
-
-    missing_pricing_warnings_for_models(models, offline)
+        .map(|breakdown| breakdown.model_name.as_str())
+        .collect()
 }
 
 pub(crate) fn print_missing_pricing_warnings_for_models<'a>(
     models: impl IntoIterator<Item = &'a str>,
-    offline: bool,
 ) {
-    for warning in missing_pricing_warnings_for_models(models, offline) {
-        eprintln!("{warning}");
+    let models = models.into_iter().collect::<BTreeSet<_>>();
+    for model in models {
+        eprintln!("{}", missing_pricing_warning(model));
     }
 }
 
+#[cfg(test)]
 pub(crate) fn missing_pricing_warnings_for_models<'a>(
     models: impl IntoIterator<Item = &'a str>,
-    _offline: bool,
 ) -> Vec<String> {
     let models = models.into_iter().collect::<BTreeSet<_>>();
 
-    models
-        .into_iter()
-        .map(|model| {
-            format!(
-                "WARN  Missing embedded pricing for {model}; cost excludes this model. Update ccusage after pricing is added."
-            )
-        })
-        .collect()
+    models.into_iter().map(missing_pricing_warning).collect()
+}
+
+fn missing_pricing_warning(model: &str) -> String {
+    let prefix = "WARN  Missing embedded pricing for ";
+    let suffix = "; cost excludes this model. Update ccusage after pricing is added.";
+    let mut warning = String::with_capacity(prefix.len() + model.len() + suffix.len());
+    warning.push_str(prefix);
+    warning.push_str(model);
+    warning.push_str(suffix);
+    warning
 }
 
 pub(crate) fn json_float(value: f64) -> Value {
@@ -540,7 +546,7 @@ mod tests {
         row.model_breakdowns[1].missing_pricing = true;
 
         assert_eq!(
-            missing_pricing_warnings(&[row], false),
+            missing_pricing_warnings(&[row]),
             vec![
                 "WARN  Missing embedded pricing for claude-sonnet-4-20250514; cost excludes this model. Update ccusage after pricing is added.",
                 "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Update ccusage after pricing is added.",
@@ -549,12 +555,12 @@ mod tests {
     }
 
     #[test]
-    fn missing_pricing_warnings_mention_embedded_pricing_offline() {
+    fn missing_pricing_warnings_mention_embedded_pricing() {
         let mut row = snapshot_summary("2026-01-02", None, None);
         row.model_breakdowns[0].missing_pricing = true;
 
         assert_eq!(
-            missing_pricing_warnings(&[row], true),
+            missing_pricing_warnings(&[row]),
             vec![
                 "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Update ccusage after pricing is added.",
             ]

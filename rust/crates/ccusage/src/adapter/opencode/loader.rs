@@ -45,10 +45,7 @@ pub(crate) fn load_entries_from_directory(
     let pricing = if shared.mode == CostMode::Display {
         None
     } else {
-        Some(PricingMap::load(
-            shared.offline,
-            crate::log_level() != Some(0),
-        ))
+        Some(PricingMap::load())
     };
     let tz = parse_tz(shared.timezone.as_deref());
     let mut entries = Vec::new();

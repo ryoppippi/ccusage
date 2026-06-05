@@ -1,7 +1,10 @@
 use std::{
     env, fs,
+    io::{self, Read},
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Output, Stdio},
+    thread,
+    time::{Duration, Instant},
 };
 
 use serde_json::{Map, Value};
@@ -11,6 +14,8 @@ const LITELLM_PRICING_JSON: &str = "model_prices_and_context_window.json";
 const OUT_PRICING_JSON: &str = "litellm-pricing.json";
 const PRICING_JSON_PATH_ENV: &str = "CCUSAGE_PRICING_JSON_PATH";
 const PRICING_FETCH_MAX_BYTES: usize = 64 * 1024 * 1024;
+const GIT_COMMAND_TIMEOUT_SECONDS: u64 = 60;
+const GIT_COMMAND_TIMEOUT_SECONDS_TEXT: &str = "60";
 
 fn main() {
     println!("cargo:rerun-if-env-changed={PRICING_JSON_PATH_ENV}");
@@ -39,6 +44,7 @@ fn fetch_pricing_json() -> std::io::Result<String> {
     let fetch_dir = out_dir_path("litellm-pricing-git");
     let _ = fs::remove_dir_all(&fetch_dir);
     fs::create_dir_all(&fetch_dir)?;
+    let _cleanup = RemoveDirOnDrop(fetch_dir.clone());
 
     run_git(&fetch_dir, ["init", "--quiet"])?;
     run_git(&fetch_dir, ["remote", "add", "origin", &repo_url])?;
@@ -79,15 +85,80 @@ fn run_git<const N: usize>(current_dir: &Path, args: [&str; N]) -> std::io::Resu
     }
 }
 
-fn git_output<const N: usize>(
-    current_dir: &Path,
-    args: [&str; N],
-) -> std::io::Result<std::process::Output> {
-    Command::new("git")
+fn git_output<const N: usize>(current_dir: &Path, args: [&str; N]) -> std::io::Result<Output> {
+    let mut command = Command::new("git");
+    command
         .current_dir(current_dir)
         .env("GIT_TERMINAL_PROMPT", "0")
-        .args(args)
-        .output()
+        .args(args);
+    command_output_with_timeout(
+        command,
+        Duration::from_secs(GIT_COMMAND_TIMEOUT_SECONDS),
+        git_timeout_message(&args),
+    )
+}
+
+fn command_output_with_timeout(
+    mut command: Command,
+    timeout: Duration,
+    timeout_message: String,
+) -> io::Result<Output> {
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| io::Error::other("capture git stdout"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| io::Error::other("capture git stderr"))?;
+    let stdout_reader = thread::spawn(move || read_to_end(stdout));
+    let stderr_reader = thread::spawn(move || read_to_end(stderr));
+    let started_at = Instant::now();
+
+    loop {
+        if let Some(status) = child.try_wait()? {
+            return Ok(Output {
+                status,
+                stdout: join_reader(stdout_reader)?,
+                stderr: join_reader(stderr_reader)?,
+            });
+        }
+        if started_at.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = join_reader(stdout_reader);
+            let _ = join_reader(stderr_reader);
+            return Err(io::Error::new(io::ErrorKind::TimedOut, timeout_message));
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn read_to_end(mut reader: impl Read) -> io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    reader.read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
+fn join_reader(handle: thread::JoinHandle<io::Result<Vec<u8>>>) -> io::Result<Vec<u8>> {
+    handle
+        .join()
+        .map_err(|_| io::Error::other("read git output"))?
+}
+
+fn git_timeout_message(args: &[&str]) -> String {
+    let mut message = String::from("git command timed out after ");
+    message.push_str(GIT_COMMAND_TIMEOUT_SECONDS_TEXT);
+    message.push_str(" seconds:");
+    for arg in args {
+        message.push(' ');
+        message.push_str(arg);
+    }
+    message
 }
 
 fn command_error_message(output: &std::process::Output) -> String {
@@ -97,6 +168,14 @@ fn command_error_message(output: &std::process::Output) -> String {
         "command exited without stderr".to_string()
     } else {
         message.to_string()
+    }
+}
+
+struct RemoveDirOnDrop(PathBuf);
+
+impl Drop for RemoveDirOnDrop {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
     }
 }
 
