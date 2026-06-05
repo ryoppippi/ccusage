@@ -213,7 +213,7 @@ The scheduled `update pricing` workflow runs the same commands and opens a PR wh
 
 <p align="center">
     <a href="https://github.com/sponsors/ryoppippi">
-        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg" alt="Sponsors">
     </a>
 </p>
 
