@@ -115,8 +115,8 @@ fn command_output_with_timeout(
         .stderr
         .take()
         .ok_or_else(|| io::Error::other("capture git stderr"))?;
-    let stdout_reader = thread::spawn(move || read_to_end(stdout));
-    let stderr_reader = thread::spawn(move || read_to_end(stderr));
+    let stdout_reader = thread::spawn(move || read_to_end_limited(stdout, PRICING_FETCH_MAX_BYTES));
+    let stderr_reader = thread::spawn(move || read_to_end_limited(stderr, PRICING_FETCH_MAX_BYTES));
     let started_at = Instant::now();
 
     loop {
@@ -138,10 +138,22 @@ fn command_output_with_timeout(
     }
 }
 
-fn read_to_end(mut reader: impl Read) -> io::Result<Vec<u8>> {
+fn read_to_end_limited(mut reader: impl Read, max_bytes: usize) -> io::Result<Vec<u8>> {
     let mut bytes = Vec::new();
-    reader.read_to_end(&mut bytes)?;
-    Ok(bytes)
+    let mut buffer = [0_u8; 8 * 1024];
+    loop {
+        let read = reader.read(&mut buffer)?;
+        if read == 0 {
+            return Ok(bytes);
+        }
+        if bytes.len().saturating_add(read) > max_bytes {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "git output exceeded pricing fetch size limit",
+            ));
+        }
+        bytes.extend_from_slice(&buffer[..read]);
+    }
 }
 
 fn join_reader(handle: thread::JoinHandle<io::Result<Vec<u8>>>) -> io::Result<Vec<u8>> {

@@ -256,7 +256,11 @@ impl PricingMap {
         loaded_count
     }
 
-    fn load_models_dev_json_missing(&mut self, json: &str) -> Option<usize> {
+    fn load_models_dev_json_missing(
+        &mut self,
+        json: &str,
+        fast_multiplier_overrides: &FastMultiplierOverrides,
+    ) -> Option<usize> {
         let Ok(raw) = serde_json::from_str::<FxHashMap<String, ModelsDevProvider>>(json) else {
             return None;
         };
@@ -279,6 +283,9 @@ impl PricingMap {
                 let input = input / 1_000_000.0;
                 let output = output / 1_000_000.0;
                 let cache_read_explicit = cost.cache_read.is_some();
+                let fast_multiplier = fast_multiplier_overrides
+                    .multiplier_for(&model_id)
+                    .unwrap_or(1.0);
                 self.entries.insert(
                     model_id.clone(),
                     Pricing {
@@ -297,7 +304,7 @@ impl PricingMap {
                         output_above_200k: None,
                         cache_create_above_200k: None,
                         cache_read_above_200k: None,
-                        fast_multiplier: 1.0,
+                        fast_multiplier,
                     },
                 );
                 if let Some(context_limit) = model.limit.and_then(|limit| limit.context) {
@@ -855,7 +862,11 @@ where
         }
     };
     let mut map = PricingMap::default();
-    if map.load_models_dev_json_missing(&json).is_none() {
+    let fast_multiplier_overrides = FastMultiplierOverrides::load();
+    if map
+        .load_models_dev_json_missing(&json, &fast_multiplier_overrides)
+        .is_none()
+    {
         if should_log_pricing_refresh_details() {
             eprintln!("WARN  Failed to parse models.dev pricing; using LiteLLM pricing.");
         }
@@ -888,16 +899,7 @@ fn fetch_json_url_with_redirects(url: &str, redirects: usize) -> io::Result<Stri
         let Some(location) = response.location.as_deref() else {
             return Err(io::Error::other("HTTP redirect without Location"));
         };
-        let mut redirect_url = String::new();
-        if location.starts_with("https://") {
-            redirect_url.push_str(location);
-        } else if location.starts_with('/') {
-            redirect_url.push_str("https://");
-            redirect_url.push_str(parsed.host);
-            redirect_url.push_str(location);
-        } else {
-            return Err(io::Error::other("unsupported HTTP redirect location"));
-        }
+        let redirect_url = resolve_redirect_url(&parsed, location)?;
         return fetch_json_url_with_redirects(&redirect_url, redirects + 1);
     }
     if response.status != 200 {
@@ -913,6 +915,57 @@ fn fetch_json_url_with_redirects(url: &str, redirects: usize) -> io::Result<Stri
     };
     String::from_utf8(body)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
+}
+
+fn resolve_redirect_url(parsed: &HttpsUrl<'_>, location: &str) -> io::Result<String> {
+    if location.starts_with("https://") {
+        return Ok(location.to_string());
+    }
+
+    let mut redirect_url = String::new();
+    redirect_url.push_str("https://");
+    if let Some(protocol_relative) = location.strip_prefix("//") {
+        redirect_url.push_str(protocol_relative);
+        return Ok(redirect_url);
+    }
+    if location.contains("://") {
+        return Err(io::Error::other("unsupported HTTP redirect location"));
+    }
+
+    redirect_url.push_str(parsed.host);
+    if location.starts_with('/') {
+        redirect_url.push_str(location);
+    } else if location.starts_with('?') {
+        redirect_url.push_str(request_path_without_query(parsed.path.as_ref()));
+        redirect_url.push_str(location);
+    } else if location.starts_with('#') {
+        redirect_url.push_str(parsed.path.as_ref());
+        redirect_url.push_str(location);
+    } else {
+        redirect_url.push_str(request_path_directory(parsed.path.as_ref()));
+        redirect_url.push_str(location);
+    }
+    Ok(redirect_url)
+}
+
+fn request_path_without_query(path: &str) -> &str {
+    let path = path.split_once('?').map_or(path, |(path, _)| path);
+    if path.is_empty() {
+        "/"
+    } else {
+        path
+    }
+}
+
+fn request_path_directory(path: &str) -> &str {
+    let path = request_path_without_query(path);
+    if path == "/" {
+        return path;
+    }
+    let Some(last_slash) = path.rfind('/') else {
+        return "/";
+    };
+    &path[..last_slash + 1]
 }
 
 struct HttpsUrl<'a> {
@@ -946,12 +999,15 @@ impl<'a> HttpsUrl<'a> {
             Cow::Borrowed("/")
         } else {
             let suffix = &rest[path_start..];
-            if suffix.starts_with('/') {
-                Cow::Borrowed(suffix)
+            let request_target = suffix.split_once('#').map_or(suffix, |(path, _)| path);
+            if request_target.is_empty() {
+                Cow::Borrowed("/")
+            } else if request_target.starts_with('/') {
+                Cow::Borrowed(request_target)
             } else {
-                let mut path = String::with_capacity(suffix.len() + 1);
+                let mut path = String::with_capacity(request_target.len() + 1);
                 path.push('/');
-                path.push_str(suffix);
+                path.push_str(request_target);
                 Cow::Owned(path)
             }
         };
@@ -1371,15 +1427,12 @@ mod tests {
 
         let fragment_only = super::HttpsUrl::parse("https://example.com#section").unwrap();
         assert_eq!(fragment_only.host, "example.com");
-        assert_eq!(fragment_only.path.as_ref(), "/#section");
+        assert_eq!(fragment_only.path.as_ref(), "/");
 
         let path_query_fragment =
             super::HttpsUrl::parse("https://example.com/path?download=1#section").unwrap();
         assert_eq!(path_query_fragment.host, "example.com");
-        assert_eq!(
-            path_query_fragment.path.as_ref(),
-            "/path?download=1#section"
-        );
+        assert_eq!(path_query_fragment.path.as_ref(), "/path?download=1");
     }
 
     #[test]
@@ -1393,6 +1446,29 @@ mod tests {
         assert_eq!(response.status, 302);
         assert_eq!(response.location.as_deref(), Some("/api.json"));
         assert!(response.chunked);
+    }
+
+    #[test]
+    fn resolves_relative_http_redirect_locations() {
+        let parsed = super::HttpsUrl::parse("https://example.com/api/pricing.json?old=1").unwrap();
+
+        assert_eq!(
+            super::resolve_redirect_url(&parsed, "/v2/pricing.json").unwrap(),
+            "https://example.com/v2/pricing.json"
+        );
+        assert_eq!(
+            super::resolve_redirect_url(&parsed, "?fresh=1").unwrap(),
+            "https://example.com/api/pricing.json?fresh=1"
+        );
+        assert_eq!(
+            super::resolve_redirect_url(&parsed, "next.json").unwrap(),
+            "https://example.com/api/next.json"
+        );
+
+        let fragment = super::resolve_redirect_url(&parsed, "#same-document").unwrap();
+        let parsed_fragment = super::HttpsUrl::parse(&fragment).unwrap();
+        assert_eq!(parsed_fragment.host, "example.com");
+        assert_eq!(parsed_fragment.path.as_ref(), "/api/pricing.json?old=1");
     }
 
     #[test]
@@ -1469,7 +1545,10 @@ mod tests {
             }"#;
 
         assert_eq!(
-            pricing.load_models_dev_json_missing(models_dev_json),
+            pricing.load_models_dev_json_missing(
+                models_dev_json,
+                &super::FastMultiplierOverrides::load(),
+            ),
             Some(2)
         );
 
@@ -1728,6 +1807,32 @@ mod tests {
         assert_eq!(pricing.find("gpt-5.4").unwrap().fast_multiplier, 2.0);
         assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
         assert_eq!(pricing.find("gpt-5.2-codex").unwrap().fast_multiplier, 1.0);
+    }
+
+    #[test]
+    fn fills_models_dev_fast_multiplier_when_fallback_pricing_omits_it() {
+        let pricing = super::load_models_dev_pricing(|| {
+            Ok(r#"{
+                "openai": {
+                    "id": "openai",
+                    "name": "OpenAI",
+                    "models": {
+                        "gpt-5.5": {
+                            "id": "gpt-5.5",
+                            "name": "GPT 5.5",
+                            "cost": {
+                                "input": 5.0,
+                                "output": 30.0
+                            }
+                        }
+                    }
+                }
+            }"#
+            .to_string())
+        })
+        .unwrap();
+
+        assert_eq!(pricing.find("gpt-5.5").unwrap().fast_multiplier, 2.5);
     }
 
     #[test]
