@@ -23,11 +23,7 @@ in
         let
           linuxStaticTarget =
             if system == "x86_64-linux" then "x86_64-unknown-linux-musl" else "aarch64-unknown-linux-musl";
-          staticPkgs =
-            if system == "x86_64-linux" then
-              pkgs.pkgsCross.musl64
-            else
-              pkgs.pkgsCross.aarch64-multiplatform-musl;
+          staticPkgs = pkgs.pkgsStatic;
           staticCraneLib = (inputs.crane.mkLib staticPkgs).overrideToolchain (
             p:
             (p.rust-bin.fromRustupToolchainFile (root + /rust-toolchain.toml)).override {
