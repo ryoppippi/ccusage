@@ -1,5 +1,12 @@
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    io::{self, Read, Write},
+    net::{TcpStream, ToSocketAddrs},
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
+};
 
+use native_tls::TlsConnector;
 use serde::Deserialize;
 
 use crate::fast::FxHashMap;
@@ -7,6 +14,12 @@ use crate::fast::FxHashMap;
 const BUILD_TIME_PRICING_JSON: &str =
     include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
 const FAST_MULTIPLIER_OVERRIDES_JSON: &str = include_str!("fast-multiplier-overrides.json");
+const LITELLM_PRICING_URL: &str =
+    "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+const MODELS_DEV_API_URL: &str = "https://models.dev/api.json";
+const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
+const PRICING_FETCH_MAX_BYTES: u64 = 64 * 1024 * 1024;
+const MODELS_DEV_FAILURE_RETRY_AFTER: Duration = Duration::from_secs(60);
 // Anthropic date-suffixed model aliases use YYYYMMDD, while other numeric
 // suffixes are treated as distinct model versions.
 const MODEL_DATE_SUFFIX_DIGITS: usize = 8;
@@ -29,6 +42,7 @@ pub(crate) struct Pricing {
 pub(crate) struct PricingMap {
     entries: FxHashMap<String, Pricing>,
     context_limits: FxHashMap<String, u64>,
+    enable_models_dev_fallback: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,6 +62,73 @@ struct LiteLlmPricing {
 #[derive(Debug, Deserialize)]
 struct ProviderSpecificEntry {
     fast: Option<f64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevProvider {
+    models: FxHashMap<String, ModelsDevModel>,
+}
+
+struct ModelsDevPricingCache {
+    pricing: OnceLock<PricingMap>,
+    last_failure: Mutex<Option<Instant>>,
+    failure_retry_after: Duration,
+}
+
+impl ModelsDevPricingCache {
+    const fn new(failure_retry_after: Duration) -> Self {
+        Self {
+            pricing: OnceLock::new(),
+            last_failure: Mutex::new(None),
+            failure_retry_after,
+        }
+    }
+
+    fn get_or_try_load<F>(&self, fetch_json: F) -> Option<&PricingMap>
+    where
+        F: FnOnce() -> std::io::Result<String>,
+    {
+        if let Some(pricing) = self.pricing.get() {
+            return Some(pricing);
+        }
+        if self.last_failure.lock().is_ok_and(|last_failure| {
+            last_failure.is_some_and(|failed_at| failed_at.elapsed() < self.failure_retry_after)
+        }) {
+            return None;
+        }
+
+        let Some(map) = load_models_dev_pricing(fetch_json) else {
+            if let Ok(mut last_failure) = self.last_failure.lock() {
+                *last_failure = Some(Instant::now());
+            }
+            return None;
+        };
+        let _ = self.pricing.set(map);
+        if let Ok(mut last_failure) = self.last_failure.lock() {
+            *last_failure = None;
+        }
+        self.pricing.get()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevModel {
+    id: Option<String>,
+    cost: Option<ModelsDevCost>,
+    limit: Option<ModelsDevLimit>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevCost {
+    input: Option<f64>,
+    output: Option<f64>,
+    cache_read: Option<f64>,
+    cache_write: Option<f64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelsDevLimit {
+    context: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -86,11 +167,38 @@ impl PricingMap {
         map
     }
 
-    pub(crate) fn load() -> Self {
-        Self::load_embedded()
+    pub(crate) fn load(offline: bool, log: bool) -> Self {
+        let mut map = Self::load_embedded();
+        if offline {
+            return map;
+        }
+
+        let fetch_result = crate::progress::track_status(
+            log && crate::progress::usage_load_output_is_tty(),
+            "Refreshing model pricing from LiteLLM...",
+            fetch_pricing_json,
+        );
+
+        match fetch_result {
+            Ok(json) => {
+                let loaded_count = map.load_json(&json);
+                if loaded_count == 0 && should_log_pricing_refresh_details() {
+                    eprintln!("WARN  Failed to parse LiteLLM pricing; using embedded pricing.");
+                }
+            }
+            Err(error) => {
+                if should_log_pricing_refresh_details() {
+                    eprintln!(
+                        "WARN  Failed to fetch LiteLLM pricing ({error}); using embedded pricing."
+                    );
+                }
+            }
+        }
+
+        map.enable_models_dev_fallback = true;
+        map
     }
 
-    #[cfg(test)]
     pub(crate) fn load_json(&mut self, json: &str) -> usize {
         let fast_multiplier_overrides = FastMultiplierOverrides::load();
         self.load_json_with_overrides(json, &fast_multiplier_overrides)
@@ -148,8 +256,65 @@ impl PricingMap {
         loaded_count
     }
 
+    fn load_models_dev_json_missing(&mut self, json: &str) -> Option<usize> {
+        let Ok(raw) = serde_json::from_str::<FxHashMap<String, ModelsDevProvider>>(json) else {
+            return None;
+        };
+        let mut loaded_count = 0;
+        for provider in raw.into_values() {
+            for (model_key, model) in provider.models {
+                let model_id = model.id.unwrap_or(model_key);
+                if self.entries.contains_key(&model_id) {
+                    continue;
+                }
+                let Some(cost) = model.cost else {
+                    continue;
+                };
+                let Some(input) = cost.input else {
+                    continue;
+                };
+                let Some(output) = cost.output else {
+                    continue;
+                };
+                let input = input / 1_000_000.0;
+                let output = output / 1_000_000.0;
+                let cache_read_explicit = cost.cache_read.is_some();
+                self.entries.insert(
+                    model_id.clone(),
+                    Pricing {
+                        input,
+                        output,
+                        cache_create: cost
+                            .cache_write
+                            .map(|value| value / 1_000_000.0)
+                            .unwrap_or(input * 1.25),
+                        cache_read: cost
+                            .cache_read
+                            .map(|value| value / 1_000_000.0)
+                            .unwrap_or(input * 0.1),
+                        cache_read_explicit,
+                        input_above_200k: None,
+                        output_above_200k: None,
+                        cache_create_above_200k: None,
+                        cache_read_above_200k: None,
+                        fast_multiplier: 1.0,
+                    },
+                );
+                if let Some(context_limit) = model.limit.and_then(|limit| limit.context) {
+                    self.context_limits.insert(model_id, context_limit);
+                }
+                loaded_count += 1;
+            }
+        }
+        Some(loaded_count)
+    }
+
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
-        self.find_entry(model)
+        self.find_entry(model).or_else(|| {
+            self.enable_models_dev_fallback
+                .then(|| models_dev_pricing().and_then(|pricing| pricing.find_entry(model)))
+                .flatten()
+        })
     }
 
     fn find_entry(&self, model: &str) -> Option<Pricing> {
@@ -168,7 +333,13 @@ impl PricingMap {
     }
 
     pub(crate) fn context_limit(&self, model: &str) -> Option<u64> {
-        self.context_limit_entry(model)
+        self.context_limit_entry(model).or_else(|| {
+            self.enable_models_dev_fallback
+                .then(|| {
+                    models_dev_pricing().and_then(|pricing| pricing.context_limit_entry(model))
+                })
+                .flatten()
+        })
     }
 
     fn context_limit_entry(&self, model: &str) -> Option<u64> {
@@ -189,6 +360,11 @@ impl PricingMap {
     #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.entries.len()
+    }
+
+    #[cfg(test)]
+    fn models_dev_fallback_enabled(&self) -> bool {
+        self.enable_models_dev_fallback
     }
 
     fn put_builtin_pricing(&mut self, fast_multiplier_overrides: &FastMultiplierOverrides) {
@@ -653,9 +829,318 @@ fn matches_model_suffix(part: &str, base: &str) -> bool {
     suffix == base || suffix.as_bytes().get(base.len()) == Some(&b'-')
 }
 
+fn should_log_pricing_refresh_details() -> bool {
+    crate::log_level().is_some_and(|level| level >= 4)
+}
+
+fn models_dev_pricing() -> Option<&'static PricingMap> {
+    static MODELS_DEV_PRICING: ModelsDevPricingCache =
+        ModelsDevPricingCache::new(MODELS_DEV_FAILURE_RETRY_AFTER);
+    MODELS_DEV_PRICING.get_or_try_load(fetch_models_dev_json)
+}
+
+fn load_models_dev_pricing<F>(fetch_json: F) -> Option<PricingMap>
+where
+    F: FnOnce() -> std::io::Result<String>,
+{
+    let json = match fetch_json() {
+        Ok(json) => json,
+        Err(error) => {
+            if should_log_pricing_refresh_details() {
+                eprintln!(
+                    "WARN  Failed to fetch models.dev pricing ({error}); using LiteLLM pricing."
+                );
+            }
+            return None;
+        }
+    };
+    let mut map = PricingMap::default();
+    if map.load_models_dev_json_missing(&json).is_none() {
+        if should_log_pricing_refresh_details() {
+            eprintln!("WARN  Failed to parse models.dev pricing; using LiteLLM pricing.");
+        }
+        return None;
+    }
+    Some(map)
+}
+
+fn fetch_pricing_json() -> std::io::Result<String> {
+    fetch_json_url(LITELLM_PRICING_URL)
+}
+
+fn fetch_models_dev_json() -> std::io::Result<String> {
+    fetch_json_url(MODELS_DEV_API_URL)
+}
+
+fn fetch_json_url(url: &str) -> std::io::Result<String> {
+    fetch_json_url_with_redirects(url, 0)
+}
+
+fn fetch_json_url_with_redirects(url: &str, redirects: usize) -> io::Result<String> {
+    const MAX_REDIRECTS: usize = 3;
+
+    let parsed = HttpsUrl::parse(url)?;
+    let response = fetch_https_response(parsed.host, parsed.path)?;
+    if (300..400).contains(&response.status) {
+        if redirects >= MAX_REDIRECTS {
+            return Err(io::Error::other("too many HTTP redirects"));
+        }
+        let Some(location) = response.location.as_deref() else {
+            return Err(io::Error::other("HTTP redirect without Location"));
+        };
+        let mut redirect_url = String::new();
+        if location.starts_with("https://") {
+            redirect_url.push_str(location);
+        } else if location.starts_with('/') {
+            redirect_url.push_str("https://");
+            redirect_url.push_str(parsed.host);
+            redirect_url.push_str(location);
+        } else {
+            return Err(io::Error::other("unsupported HTTP redirect location"));
+        }
+        return fetch_json_url_with_redirects(&redirect_url, redirects + 1);
+    }
+    if response.status != 200 {
+        let mut message = String::from("HTTP ");
+        message.push_str(&response.status.to_string());
+        return Err(io::Error::other(message));
+    }
+
+    let body = if response.chunked {
+        decode_chunked_body(&response.body)?
+    } else {
+        response.body
+    };
+    String::from_utf8(body)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
+}
+
+struct HttpsUrl<'a> {
+    host: &'a str,
+    path: &'a str,
+}
+
+impl<'a> HttpsUrl<'a> {
+    fn parse(url: &'a str) -> io::Result<Self> {
+        let Some(rest) = url.strip_prefix("https://") else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "only https URLs are supported",
+            ));
+        };
+        let (host, path) = match rest.find('/') {
+            Some(path_start) => (&rest[..path_start], &rest[path_start..]),
+            None => (rest, "/"),
+        };
+        if host.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "URL host is empty",
+            ));
+        }
+        if host.contains('@') {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "URL user info is unsupported",
+            ));
+        }
+        Ok(Self { host, path })
+    }
+}
+
+struct HttpResponse {
+    status: u16,
+    location: Option<String>,
+    chunked: bool,
+    body: Vec<u8>,
+}
+
+fn fetch_https_response(host: &str, path: &str) -> io::Result<HttpResponse> {
+    let timeout = Duration::from_secs(PRICING_FETCH_TIMEOUT_SECONDS);
+    let tcp = connect_https_tcp(host, timeout)?;
+    tcp.set_read_timeout(Some(timeout))?;
+    tcp.set_write_timeout(Some(timeout))?;
+
+    let connector = TlsConnector::new().map_err(|error| io::Error::other(error.to_string()))?;
+    let mut stream = connector
+        .connect(host, tcp)
+        .map_err(|error| io::Error::other(error.to_string()))?;
+
+    let mut request = String::new();
+    request.push_str("GET ");
+    request.push_str(path);
+    request.push_str(" HTTP/1.1\r\nHost: ");
+    request.push_str(host);
+    request.push_str("\r\nUser-Agent: ccusage/");
+    request.push_str(env!("CARGO_PKG_VERSION"));
+    request.push_str(
+        "\r\nAccept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n",
+    );
+    stream.write_all(request.as_bytes())?;
+    stream.flush()?;
+
+    parse_http_response(read_to_end_limited(
+        &mut stream,
+        PRICING_FETCH_MAX_BYTES as usize + 64 * 1024,
+    )?)
+}
+
+fn connect_https_tcp(host: &str, timeout: Duration) -> io::Result<TcpStream> {
+    let mut last_error = None;
+    for address in (host, 443).to_socket_addrs()? {
+        match TcpStream::connect_timeout(&address, timeout) {
+            Ok(stream) => return Ok(stream),
+            Err(error) => last_error = Some(error),
+        }
+    }
+    Err(last_error.unwrap_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "host resolved to no socket addresses",
+        )
+    }))
+}
+
+fn read_to_end_limited(reader: &mut impl Read, limit: usize) -> io::Result<Vec<u8>> {
+    let mut data = Vec::with_capacity(16 * 1024);
+    let mut buffer = [0_u8; 16 * 1024];
+    loop {
+        let read = reader.read(&mut buffer)?;
+        if read == 0 {
+            return Ok(data);
+        }
+        if data.len().saturating_add(read) > limit {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "HTTP response exceeds maximum size",
+            ));
+        }
+        data.extend_from_slice(&buffer[..read]);
+    }
+}
+
+fn parse_http_response(mut data: Vec<u8>) -> io::Result<HttpResponse> {
+    let Some(header_end) = find_bytes(&data, b"\r\n\r\n") else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "HTTP response headers are incomplete",
+        ));
+    };
+    let headers_text = std::str::from_utf8(&data[..header_end])
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
+    let mut lines = headers_text.split("\r\n");
+    let Some(status_line) = lines.next() else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "HTTP status line is missing",
+        ));
+    };
+    let status = parse_http_status(status_line)?;
+    let mut location = None;
+    let mut chunked = false;
+    for line in lines {
+        if let Some((name, value)) = line.split_once(':') {
+            let name = name.trim();
+            let value = value.trim();
+            if name.eq_ignore_ascii_case("location") {
+                location = Some(value.to_string());
+            } else if name.eq_ignore_ascii_case("transfer-encoding")
+                && header_value_contains_token(value, "chunked")
+            {
+                chunked = true;
+            }
+        }
+    }
+    let body_start = header_end + 4;
+    let body = data.split_off(body_start);
+    Ok(HttpResponse {
+        status,
+        location,
+        chunked,
+        body,
+    })
+}
+
+fn header_value_contains_token(value: &str, needle: &str) -> bool {
+    value
+        .split(',')
+        .any(|part| part.trim().eq_ignore_ascii_case(needle))
+}
+
+fn parse_http_status(status_line: &str) -> io::Result<u16> {
+    let mut parts = status_line.split_whitespace();
+    let Some(version) = parts.next() else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "HTTP status line is empty",
+        ));
+    };
+    if !version.starts_with("HTTP/") {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "HTTP status line has invalid version",
+        ));
+    }
+    parts
+        .next()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "HTTP status code is missing"))?
+        .parse::<u16>()
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
+}
+
+fn decode_chunked_body(body: &[u8]) -> io::Result<Vec<u8>> {
+    let mut decoded = Vec::with_capacity(body.len());
+    let mut offset = 0;
+    loop {
+        let Some(line_len) = find_bytes(&body[offset..], b"\r\n") else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "chunk size line is incomplete",
+            ));
+        };
+        let line = std::str::from_utf8(&body[offset..offset + line_len])
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
+        let size_hex = line.split(';').next().unwrap_or("").trim();
+        let size = usize::from_str_radix(size_hex, 16)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
+        offset += line_len + 2;
+        if size == 0 {
+            return Ok(decoded);
+        }
+        if body.len() < offset.saturating_add(size).saturating_add(2) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "chunk body is incomplete",
+            ));
+        }
+        if decoded.len().saturating_add(size) > PRICING_FETCH_MAX_BYTES as usize {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "HTTP response body exceeds maximum size",
+            ));
+        }
+        decoded.extend_from_slice(&body[offset..offset + size]);
+        offset += size;
+        if body.get(offset..offset + 2) != Some(b"\r\n") {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "chunk terminator is missing",
+            ));
+        }
+        offset += 2;
+    }
+}
+
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Pricing, PricingMap, BUILD_TIME_PRICING_JSON};
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
     fn loads_embedded_claude_pricing() {
@@ -749,8 +1234,216 @@ mod tests {
     }
 
     #[test]
-    fn pricing_load_uses_the_embedded_snapshot() {
-        assert_eq!(PricingMap::load().len(), PricingMap::load_embedded().len());
+    fn keeps_models_dev_fallback_disabled_for_embedded_and_offline_pricing() {
+        assert!(!PricingMap::load_embedded().models_dev_fallback_enabled());
+        assert!(!PricingMap::load(true, false).models_dev_fallback_enabled());
+    }
+
+    #[test]
+    fn retries_models_dev_pricing_after_fetch_failure() {
+        let cache = super::ModelsDevPricingCache::new(std::time::Duration::ZERO);
+
+        let failed = cache.get_or_try_load(|| {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "temporary failure",
+            ))
+        });
+        assert!(failed.is_none());
+
+        let pricing = cache
+            .get_or_try_load(|| {
+                Ok(r#"{
+                    "openai": {
+                        "id": "openai",
+                        "name": "OpenAI",
+                        "models": {
+                            "gpt-retry": {
+                                "id": "gpt-retry",
+                                "name": "GPT Retry",
+                                "cost": {
+                                    "input": 1.0,
+                                    "output": 2.0
+                                },
+                                "limit": {
+                                    "context": 42
+                                }
+                            }
+                        }
+                    }
+                }"#
+                .to_string())
+            })
+            .expect("models.dev retry should cache successful pricing");
+
+        let gpt_retry = pricing
+            .find_entry("gpt-retry")
+            .expect("successful retry should load pricing");
+        assert_eq!(gpt_retry.input, 0.000001);
+        assert_eq!(gpt_retry.output, 0.000002);
+        assert_eq!(pricing.context_limit_entry("gpt-retry"), Some(42));
+    }
+
+    #[test]
+    fn backs_off_models_dev_pricing_after_fetch_failure() {
+        let cache = super::ModelsDevPricingCache::new(std::time::Duration::from_secs(60));
+        let attempts = AtomicUsize::new(0);
+
+        let failed = cache.get_or_try_load(|| {
+            attempts.fetch_add(1, Ordering::Relaxed);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "temporary failure",
+            ))
+        });
+        assert!(failed.is_none());
+
+        let skipped = cache.get_or_try_load(|| {
+            attempts.fetch_add(1, Ordering::Relaxed);
+            Ok(r#"{
+                "openai": {
+                    "id": "openai",
+                    "name": "OpenAI",
+                    "models": {
+                        "gpt-skipped": {
+                            "id": "gpt-skipped",
+                            "name": "GPT Skipped",
+                            "cost": {
+                                "input": 1.0,
+                                "output": 2.0
+                            }
+                        }
+                    }
+                }
+            }"#
+            .to_string())
+        });
+        assert!(skipped.is_none());
+        assert_eq!(attempts.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn parses_identity_http_json_response() {
+        let response = super::parse_http_response(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true}".to_vec(),
+        )
+        .unwrap();
+
+        assert_eq!(response.status, 200);
+        assert!(!response.chunked);
+        assert_eq!(response.body, br#"{"ok":true}"#);
+    }
+
+    #[test]
+    fn parses_redirect_and_chunked_http_headers() {
+        let response = super::parse_http_response(
+            b"HTTP/1.1 302 Found\r\nLocation: /api.json\r\nTransfer-Encoding: gzip, chunked\r\n\r\n"
+                .to_vec(),
+        )
+        .unwrap();
+
+        assert_eq!(response.status, 302);
+        assert_eq!(response.location.as_deref(), Some("/api.json"));
+        assert!(response.chunked);
+    }
+
+    #[test]
+    fn decodes_chunked_http_body() {
+        assert_eq!(
+            super::decode_chunked_body(b"4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n").unwrap(),
+            b"Wikipedia"
+        );
+    }
+
+    #[test]
+    fn loads_missing_models_dev_pricing_without_overriding_litellm() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-primary": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010,
+                    "cache_read_input_token_cost": 0.0000001,
+                    "max_input_tokens": 123
+                },
+                "openrouter/gpt-alias": {
+                    "input_cost_per_token": 0.000003,
+                    "output_cost_per_token": 0.000030,
+                    "max_input_tokens": 321
+                }
+            }"#,
+        );
+
+        let models_dev_json = r#"{
+                "openai": {
+                    "id": "openai",
+                    "name": "OpenAI",
+                    "models": {
+                        "gpt-primary": {
+                            "id": "gpt-primary",
+                            "name": "GPT Primary",
+                            "cost": {
+                                "input": 9.0,
+                                "output": 90.0,
+                                "cache_read": 0.9,
+                                "cache_write": 11.25
+                            },
+                            "limit": {
+                                "context": 999
+                            }
+                        },
+                        "gpt-fallback": {
+                            "id": "gpt-fallback",
+                            "name": "GPT Fallback",
+                            "cost": {
+                                "input": 2.0,
+                                "output": 8.0,
+                                "cache_read": 0.2,
+                                "cache_write": 2.5
+                            },
+                            "limit": {
+                                "context": 456
+                            }
+                        },
+                        "gpt-alias": {
+                            "id": "gpt-alias",
+                            "name": "GPT Alias",
+                            "cost": {
+                                "input": 4.0,
+                                "output": 16.0
+                            },
+                            "limit": {
+                                "context": 654
+                            }
+                        }
+                    }
+                }
+            }"#;
+
+        assert_eq!(
+            pricing.load_models_dev_json_missing(models_dev_json),
+            Some(2)
+        );
+
+        let primary = pricing.find("gpt-primary").unwrap();
+        let fallback = pricing.find("gpt-fallback").unwrap();
+        let alias = pricing.entries.get("gpt-alias").unwrap();
+
+        assert_eq!(primary.input, 1e-6);
+        assert_eq!(primary.output, 10e-6);
+        assert_eq!(primary.cache_read, 0.1e-6);
+        assert_eq!(pricing.context_limit("gpt-primary"), Some(123));
+        assert!((fallback.input - 2e-6).abs() < f64::EPSILON);
+        assert!((fallback.output - 8e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_create - 2.5e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_read - 0.2e-6).abs() < f64::EPSILON);
+        assert!(fallback.cache_read_explicit);
+        assert_eq!(fallback.input_above_200k, None);
+        assert_eq!(fallback.output_above_200k, None);
+        assert_eq!(fallback.fast_multiplier, 1.0);
+        assert_eq!(pricing.context_limit("gpt-fallback"), Some(456));
+        assert!((alias.input - 4e-6).abs() < f64::EPSILON);
+        assert_eq!(pricing.context_limits.get("gpt-alias"), Some(&654));
     }
 
     #[test]

@@ -288,6 +288,9 @@ pub(super) fn print_table_from_groups(
     ]);
     table.print()?;
     let missing_models = codex_missing_pricing_models(groups, pricing);
-    print_missing_pricing_warnings_for_models(missing_models.iter().map(String::as_str));
+    print_missing_pricing_warnings_for_models(
+        missing_models.iter().map(String::as_str),
+        shared.offline,
+    );
     Ok(())
 }

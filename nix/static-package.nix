@@ -39,7 +39,11 @@ in
             nativeBuildInputs = with staticPkgs; [
               pkg-config
             ];
-            buildInputs = [ ];
+            buildInputs = with staticPkgs; [
+              openssl
+            ];
+            OPENSSL_STATIC = "1";
+            PKG_CONFIG_ALLOW_CROSS = "1";
           };
           staticCargoArtifacts = staticCraneLib.buildDepsOnly staticCommonArgs;
         in

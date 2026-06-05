@@ -66,5 +66,5 @@ Ensure Gemini CLI has written chat logs under `~/.gemini/tmp/*/chats/`. Set `GEM
 :::
 
 ::: details Costs showing as $0.00
-If a model is not in the embedded LiteLLM pricing data, the cost will be $0.00. Update ccusage after pricing is added, or [open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
+If a model is not in LiteLLM's database, the cost will be $0.00. Use `--offline=false` to fetch the latest pricing data, or [open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
 :::

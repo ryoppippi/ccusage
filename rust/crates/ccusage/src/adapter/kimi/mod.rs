@@ -16,7 +16,7 @@ static KIMI_DATA_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
-    let pricing = PricingMap::load();
+    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     let mut entries = load_entries(&shared, &pricing)?;
     filter_loaded_entries_by_date(&mut entries, &shared);
     let mut rows = summarize_entries(&entries, args.kind)?;

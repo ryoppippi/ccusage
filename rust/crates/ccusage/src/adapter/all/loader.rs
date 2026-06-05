@@ -26,7 +26,7 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                 crate::progress::usage_load_output_is_tty(),
             ),
     );
-    let pricing = PricingMap::load();
+    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     let load_kind = match kind {
         AgentReportKind::Session => AgentReportKind::Session,
         AgentReportKind::Daily | AgentReportKind::Weekly | AgentReportKind::Monthly => {

@@ -174,7 +174,7 @@ pub(super) fn print_table(
         ]);
     }
     table.print()?;
-    crate::print_missing_pricing_warnings(&all_rows_as_usage_summaries(rows));
+    crate::print_missing_pricing_warnings(&all_rows_as_usage_summaries(rows), shared.offline);
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");

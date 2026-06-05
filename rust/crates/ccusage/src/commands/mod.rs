@@ -474,6 +474,7 @@ fn render_statusline(
             calculate_context_tokens_from_transcript(
                 Path::new(&hook.transcript_path),
                 hook.model.id.as_deref(),
+                shared.offline,
             )
             .map(|context| (context.total_input_tokens, context.context_window_size))
         })
@@ -566,6 +567,7 @@ fn statusline_context_color(percentage: u64, args: &StatuslineArgs) -> Color {
 fn calculate_context_tokens_from_transcript(
     path: &Path,
     model_id: Option<&str>,
+    offline: bool,
 ) -> Option<HookContext> {
     let content = fs::read_to_string(path).ok()?;
     for line in content.lines().rev() {
@@ -601,7 +603,7 @@ fn calculate_context_tokens_from_transcript(
             .unwrap_or_default();
         let context_window_size = model_id
             .filter(|model_id| !model_id.is_empty())
-            .and_then(|model_id| PricingMap::load().context_limit(model_id))
+            .and_then(|model_id| PricingMap::load(offline, false).context_limit(model_id))
             .unwrap_or(200_000);
         return Some(HookContext {
             total_input_tokens: input_tokens + cache_creation + cache_read,
@@ -802,7 +804,7 @@ mod tests {
         });
 
         let context =
-            calculate_context_tokens_from_transcript(&fixture.path("transcript.jsonl"), None)
+            calculate_context_tokens_from_transcript(&fixture.path("transcript.jsonl"), None, true)
                 .unwrap();
 
         assert_eq!(context.total_input_tokens, 2150);
@@ -818,6 +820,7 @@ mod tests {
         let context = calculate_context_tokens_from_transcript(
             &fixture.path("transcript.jsonl"),
             Some("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+            true,
         )
         .unwrap();
 

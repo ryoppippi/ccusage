@@ -29,6 +29,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 smallvec = "1"
 sqlite = { version = "0.37.0", default-features = false, features = ["bundled", "linkage"] }
+native-tls = { version = "0.2", default-features = false }
 
 [build-dependencies]
 serde_json = "1"

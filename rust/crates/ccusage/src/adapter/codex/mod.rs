@@ -6,7 +6,7 @@ mod report;
 mod speed;
 mod types;
 
-use crate::{cli::AgentCommandArgs, print_json_or_jq, wants_json, PricingMap, Result};
+use crate::{cli::AgentCommandArgs, log_level, print_json_or_jq, wants_json, PricingMap, Result};
 
 pub(crate) use aggregate::{aggregate_events, filter_events_by_date, load_groups};
 pub(crate) use loader::load_codex_events;
@@ -31,7 +31,7 @@ use serde_json::Value;
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
-    let pricing = PricingMap::load();
+    let pricing = PricingMap::load(shared.offline, log_level() != Some(0));
     let groups = load_groups(&shared, args.kind)?;
     let speed = resolve_codex_speed(args.codex_speed);
     if wants_json(&shared) {

@@ -235,6 +235,16 @@ impl UsageLoadProgress {
         });
     }
 
+    pub(crate) fn set_status(&mut self, status: Option<String>) {
+        let Some(controller) = self.controller.as_ref() else {
+            return;
+        };
+        let Ok(mut state) = controller.state.lock() else {
+            return;
+        };
+        state.status = status;
+    }
+
     fn set_state(&mut self, agent: UsageLoadAgent, state: LoadProgressState) {
         let Some(controller) = self.controller.as_ref() else {
             return;
@@ -295,6 +305,19 @@ pub(crate) fn track_usage_load<T, E>(
         Ok(_) => progress.succeed(agent),
         Err(_) => progress.fail(agent),
     }
+    progress.stop();
+    result
+}
+
+pub(crate) fn track_status<T>(
+    enabled: bool,
+    status: impl Into<String>,
+    run: impl FnOnce() -> T,
+) -> T {
+    let mut progress = UsageLoadProgress::new(enabled);
+    progress.set_status(Some(status.into()));
+    let result = run();
+    progress.set_status(None);
     progress.stop();
     result
 }

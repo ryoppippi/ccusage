@@ -14,8 +14,9 @@ use crate::{
     calculate_cost_for_usage,
     cli::{CostMode, SharedArgs},
     fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
-    format_date_tz, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz, ModelBreakdown,
-    PricingMap, Result, Speed, TimestampMs, TokenCounts, TokenUsageRaw, UsageSummary,
+    format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
+    ModelBreakdown, PricingMap, Result, Speed, TimestampMs, TokenCounts, TokenUsageRaw,
+    UsageSummary,
 };
 
 use super::{
@@ -38,7 +39,7 @@ pub(super) fn load_daily_summaries_inner(
     let pricing = if shared.mode == CostMode::Display {
         None
     } else {
-        Some(PricingMap::load())
+        Some(PricingMap::load(shared.offline, log_level() != Some(0)))
     };
     let tz = parse_tz(shared.timezone.as_deref());
     let mode = shared.mode;

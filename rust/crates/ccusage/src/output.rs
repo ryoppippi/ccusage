@@ -308,7 +308,7 @@ pub(crate) fn print_usage_table(
     }
     table.push(total_row);
     table.print()?;
-    print_missing_pricing_warnings(rows);
+    print_missing_pricing_warnings(rows, shared.offline);
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");
@@ -320,15 +320,15 @@ fn empty_usage_table_message() -> &'static str {
     "No usage data found."
 }
 
-pub(crate) fn print_missing_pricing_warnings(rows: &[UsageSummary]) {
+pub(crate) fn print_missing_pricing_warnings(rows: &[UsageSummary], offline: bool) {
     let models = missing_pricing_models(rows);
-    print_missing_pricing_warnings_for_models(models);
+    print_missing_pricing_warnings_for_models(models, offline);
 }
 
 #[cfg(test)]
-pub(crate) fn missing_pricing_warnings(rows: &[UsageSummary]) -> Vec<String> {
+pub(crate) fn missing_pricing_warnings(rows: &[UsageSummary], offline: bool) -> Vec<String> {
     let models = missing_pricing_models(rows);
-    missing_pricing_warnings_for_models(models)
+    missing_pricing_warnings_for_models(models, offline)
 }
 
 fn missing_pricing_models(rows: &[UsageSummary]) -> BTreeSet<&str> {
@@ -341,25 +341,39 @@ fn missing_pricing_models(rows: &[UsageSummary]) -> BTreeSet<&str> {
 
 pub(crate) fn print_missing_pricing_warnings_for_models<'a>(
     models: impl IntoIterator<Item = &'a str>,
+    offline: bool,
 ) {
     let models = models.into_iter().collect::<BTreeSet<_>>();
     for model in models {
-        eprintln!("{}", missing_pricing_warning(model));
+        eprintln!("{}", missing_pricing_warning(model, offline));
     }
 }
 
 #[cfg(test)]
 pub(crate) fn missing_pricing_warnings_for_models<'a>(
     models: impl IntoIterator<Item = &'a str>,
+    offline: bool,
 ) -> Vec<String> {
     let models = models.into_iter().collect::<BTreeSet<_>>();
 
-    models.into_iter().map(missing_pricing_warning).collect()
+    models
+        .into_iter()
+        .map(|model| missing_pricing_warning(model, offline))
+        .collect()
 }
 
-fn missing_pricing_warning(model: &str) -> String {
-    let prefix = "WARN  Missing embedded pricing for ";
-    let suffix = "; cost excludes this model. Update ccusage after pricing is added.";
+fn missing_pricing_warning(model: &str, offline: bool) -> String {
+    let (prefix, suffix) = if offline {
+        (
+            "WARN  Missing embedded pricing for ",
+            "; cost excludes this model. Run without --offline or update ccusage after pricing is added.",
+        )
+    } else {
+        (
+            "WARN  Missing pricing for ",
+            "; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
+        )
+    };
     let mut warning = String::with_capacity(prefix.len() + model.len() + suffix.len());
     warning.push_str(prefix);
     warning.push_str(model);
@@ -546,23 +560,23 @@ mod tests {
         row.model_breakdowns[1].missing_pricing = true;
 
         assert_eq!(
-            missing_pricing_warnings(&[row]),
+            missing_pricing_warnings(&[row], false),
             vec![
-                "WARN  Missing embedded pricing for claude-sonnet-4-20250514; cost excludes this model. Update ccusage after pricing is added.",
-                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Update ccusage after pricing is added.",
+                "WARN  Missing pricing for claude-sonnet-4-20250514; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
+                "WARN  Missing pricing for gpt-5.2-codex; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
             ]
         );
     }
 
     #[test]
-    fn missing_pricing_warnings_mention_embedded_pricing() {
+    fn missing_pricing_warnings_mention_embedded_pricing_offline() {
         let mut row = snapshot_summary("2026-01-02", None, None);
         row.model_breakdowns[0].missing_pricing = true;
 
         assert_eq!(
-            missing_pricing_warnings(&[row]),
+            missing_pricing_warnings(&[row], true),
             vec![
-                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Update ccusage after pricing is added.",
+                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Run without --offline or update ccusage after pricing is added.",
             ]
         );
     }

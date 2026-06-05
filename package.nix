@@ -7,6 +7,7 @@
   stdenv,
   apple-sdk_15,
   libiconv,
+  openssl,
 }:
 let
   inherit ((builtins.fromJSON (builtins.readFile (root + /package.json)))) version;
@@ -29,10 +30,14 @@ let
     nativeBuildInputs = [
       pkg-config
     ];
-    buildInputs = lib.optionals stdenv.isDarwin [
-      apple-sdk_15
-      libiconv
-    ];
+    buildInputs =
+      lib.optionals stdenv.isDarwin [
+        apple-sdk_15
+        libiconv
+      ]
+      ++ lib.optionals stdenv.isLinux [
+        openssl
+      ];
   };
   cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 in

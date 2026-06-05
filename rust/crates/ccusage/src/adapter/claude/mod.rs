@@ -18,8 +18,9 @@ use crate::{
     cli::{CostMode, SharedArgs},
     debug_log,
     fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
-    format_date_tz, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz, progress,
-    LoadedEntry, LoadedFile, PricingMap, Result, Speed, TimestampMs, UsageEntry, UsageSummary,
+    format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
+    progress, LoadedEntry, LoadedFile, PricingMap, Result, Speed, TimestampMs, UsageEntry,
+    UsageSummary,
 };
 
 #[cfg(test)]
@@ -73,7 +74,7 @@ fn load_entries_inner(
     let pricing = if shared.mode == CostMode::Display {
         None
     } else {
-        Some(PricingMap::load())
+        Some(PricingMap::load(shared.offline, log_level() != Some(0)))
     };
     let tz = parse_tz(shared.timezone.as_deref());
     let mode = shared.mode;
