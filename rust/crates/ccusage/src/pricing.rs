@@ -880,7 +880,7 @@ fn fetch_json_url_with_redirects(url: &str, redirects: usize) -> io::Result<Stri
     const MAX_REDIRECTS: usize = 3;
 
     let parsed = HttpsUrl::parse(url)?;
-    let response = fetch_https_response(parsed.host, parsed.path)?;
+    let response = fetch_https_response(parsed.host, parsed.path.as_ref())?;
     if (300..400).contains(&response.status) {
         if redirects >= MAX_REDIRECTS {
             return Err(io::Error::other("too many HTTP redirects"));
@@ -909,7 +909,7 @@ fn fetch_json_url_with_redirects(url: &str, redirects: usize) -> io::Result<Stri
     let body = if response.chunked {
         decode_chunked_body(&response.body)?
     } else {
-        response.body
+        limit_http_body_size(response.body, PRICING_FETCH_MAX_BYTES as usize)?
     };
     String::from_utf8(body)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
@@ -917,7 +917,7 @@ fn fetch_json_url_with_redirects(url: &str, redirects: usize) -> io::Result<Stri
 
 struct HttpsUrl<'a> {
     host: &'a str,
-    path: &'a str,
+    path: Cow<'a, str>,
 }
 
 impl<'a> HttpsUrl<'a> {
@@ -928,10 +928,10 @@ impl<'a> HttpsUrl<'a> {
                 "only https URLs are supported",
             ));
         };
-        let (host, path) = match rest.find('/') {
-            Some(path_start) => (&rest[..path_start], &rest[path_start..]),
-            None => (rest, "/"),
-        };
+        let path_start = rest
+            .find(|character| matches!(character, '/' | '?' | '#'))
+            .unwrap_or(rest.len());
+        let host = &rest[..path_start];
         if host.is_empty() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -944,6 +944,19 @@ impl<'a> HttpsUrl<'a> {
                 "URL user info is unsupported",
             ));
         }
+        let path = if path_start == rest.len() {
+            Cow::Borrowed("/")
+        } else {
+            let suffix = &rest[path_start..];
+            if suffix.starts_with('/') {
+                Cow::Borrowed(suffix)
+            } else {
+                let mut path = String::with_capacity(suffix.len() + 1);
+                path.push('/');
+                path.push_str(suffix);
+                Cow::Owned(path)
+            }
+        };
         Ok(Self { host, path })
     }
 }
@@ -1017,6 +1030,16 @@ fn read_to_end_limited(reader: &mut impl Read, limit: usize) -> io::Result<Vec<u
         }
         data.extend_from_slice(&buffer[..read]);
     }
+}
+
+fn limit_http_body_size(body: Vec<u8>, limit: usize) -> io::Result<Vec<u8>> {
+    if body.len() > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "HTTP response body exceeds maximum size",
+        ));
+    }
+    Ok(body)
 }
 
 fn parse_http_response(mut data: Vec<u8>) -> io::Result<HttpResponse> {
@@ -1332,6 +1355,33 @@ mod tests {
         assert_eq!(response.status, 200);
         assert!(!response.chunked);
         assert_eq!(response.body, br#"{"ok":true}"#);
+    }
+
+    #[test]
+    fn rejects_identity_http_body_over_limit() {
+        let error = super::limit_http_body_size(vec![0_u8; 4], 3).unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(error.to_string(), "HTTP response body exceeds maximum size");
+    }
+
+    #[test]
+    fn parses_absolute_https_urls_with_query_or_fragment() {
+        let query_only = super::HttpsUrl::parse("https://example.com?download=1").unwrap();
+        assert_eq!(query_only.host, "example.com");
+        assert_eq!(query_only.path.as_ref(), "/?download=1");
+
+        let fragment_only = super::HttpsUrl::parse("https://example.com#section").unwrap();
+        assert_eq!(fragment_only.host, "example.com");
+        assert_eq!(fragment_only.path.as_ref(), "/#section");
+
+        let path_query_fragment =
+            super::HttpsUrl::parse("https://example.com/path?download=1#section").unwrap();
+        assert_eq!(path_query_fragment.host, "example.com");
+        assert_eq!(
+            path_query_fragment.path.as_ref(),
+            "/path?download=1#section"
+        );
     }
 
     #[test]
