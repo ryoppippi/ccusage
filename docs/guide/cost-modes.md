@@ -323,8 +323,8 @@ ccusage daily --mode calculate --since 20260501
 **Solution**:
 
 ```bash
-# Check for pricing updates
-ccusage daily --mode auto  # Updates pricing cache
+# Check pricing calculations
+ccusage daily --mode auto
 ccusage daily --mode calculate --debug  # Compare calculations
 ```
 

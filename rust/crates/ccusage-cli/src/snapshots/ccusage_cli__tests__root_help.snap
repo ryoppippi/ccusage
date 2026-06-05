@@ -1,5 +1,5 @@
 ---
-source: crates/ccusage/src/cli.rs
+source: crates/ccusage-cli/src/tests.rs
 expression: help_text()
 ---
 USAGE:
@@ -58,7 +58,7 @@ OPTIONS:
   -u, --until <until>                  Filter until date (inclusive)
   -z, --timezone <timezone>            Timezone for date grouping (IANA)
   --all                                Accepted for compatibility; all detected supported agents are included by default (default: false)
-  -O, --offline                        Use cached pricing data where supported (default: false)
+  -O, --offline                        Use embedded pricing data where supported (default: false)
   --no-offline                         Negatable of -O, --offline
   --compact                            Force compact table layout for narrow terminals (default: false)
   --color                              Enable colored output. FORCE_COLOR=1 has the same effect. (default: auto)

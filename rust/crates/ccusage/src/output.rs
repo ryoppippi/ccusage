@@ -347,22 +347,16 @@ pub(crate) fn print_missing_pricing_warnings_for_models<'a>(
 
 pub(crate) fn missing_pricing_warnings_for_models<'a>(
     models: impl IntoIterator<Item = &'a str>,
-    offline: bool,
+    _offline: bool,
 ) -> Vec<String> {
     let models = models.into_iter().collect::<BTreeSet<_>>();
 
     models
         .into_iter()
         .map(|model| {
-            if offline {
-                format!(
-                    "WARN  Missing embedded pricing for {model}; cost excludes this model. Run without --offline or update ccusage after pricing is added."
-                )
-            } else {
-                format!(
-                    "WARN  Missing pricing for {model}; cost excludes this model. Update pricing or run again after LiteLLM has the model."
-                )
-            }
+            format!(
+                "WARN  Missing embedded pricing for {model}; cost excludes this model. Update ccusage after pricing is added."
+            )
         })
         .collect()
 }
@@ -548,8 +542,8 @@ mod tests {
         assert_eq!(
             missing_pricing_warnings(&[row], false),
             vec![
-                "WARN  Missing pricing for claude-sonnet-4-20250514; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
-                "WARN  Missing pricing for gpt-5.2-codex; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
+                "WARN  Missing embedded pricing for claude-sonnet-4-20250514; cost excludes this model. Update ccusage after pricing is added.",
+                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Update ccusage after pricing is added.",
             ]
         );
     }
@@ -562,7 +556,7 @@ mod tests {
         assert_eq!(
             missing_pricing_warnings(&[row], true),
             vec![
-                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Run without --offline or update ccusage after pricing is added.",
+                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Update ccusage after pricing is added.",
             ]
         );
     }

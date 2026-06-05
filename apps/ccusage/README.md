@@ -138,7 +138,7 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
-- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline`
+- 🌐 **Embedded Pricing**: Use bundled pricing data without network connectivity with `--offline`
 - 🏗️ **Claude Instance Support**: Group Claude Code usage by project with `--instances` and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation
@@ -185,7 +185,7 @@ nix build github:ryoppippi/ccusage
 
 Nix builds embed the LiteLLM pricing file from the locked `litellm` flake input, so sandboxed builds do not fetch pricing at build time. To update the locked pricing snapshot:
 
-Non-Nix Cargo builds read the same locked LiteLLM revision from `flake.lock` and fetch the pricing file from that revision at build time.
+Non-Nix Cargo builds read the same locked LiteLLM revision from `flake.lock` and fetch the pricing file from that revision at build time through `git`.
 
 ```bash
 nix flake update litellm

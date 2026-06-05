@@ -59,7 +59,7 @@ CODEBUFF_DATA_DIR="$HOME/.config/manicode,/backup/codebuff" ccusage codebuff ses
 | `ccusage codebuff monthly` | Aggregate usage by month             | [Monthly Usage](/guide/monthly-reports) |
 | `ccusage codebuff session` | Group usage by Codebuff chat session | [Session Usage](/guide/session-reports) |
 
-These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
+These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for embedded pricing data.
 
 ## What Gets Calculated
 

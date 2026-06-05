@@ -152,7 +152,7 @@ ccusage daily --json
 
 ### Offline Mode
 
-Use cached pricing data without network access:
+Use embedded pricing data without network access:
 
 ```bash
 ccusage daily --offline

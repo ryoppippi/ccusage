@@ -19,7 +19,7 @@
 		},
 		{
 			"flags": "-O, --offline",
-			"description": "Use cached pricing data instead of fetching from LiteLLM",
+			"description": "Use embedded pricing data",
 			"default": "false"
 		},
 		{
@@ -80,7 +80,7 @@
 		},
 		{
 			"flags": "-O, --offline",
-			"description": "Use cached pricing data where supported",
+			"description": "Use embedded pricing data where supported",
 			"default": "false"
 		},
 		{
@@ -157,7 +157,7 @@
 		},
 		{
 			"flags": "-O, --offline",
-			"description": "Use cached pricing data instead of fetching from LiteLLM",
+			"description": "Use embedded pricing data",
 			"default": "false"
 		},
 		{
@@ -275,7 +275,7 @@
 		},
 		{
 			"flags": "-O, --offline",
-			"description": "Use cached pricing data for Claude models instead of fetching from API",
+			"description": "Use embedded pricing data for Claude models",
 			"default": "false"
 		},
 		{
@@ -324,7 +324,7 @@
 	"statusline_options": [
 		{
 			"flags": "-O, --offline",
-			"description": "Use cached pricing data for Claude models instead of fetching from API",
+			"description": "Use embedded pricing data for Claude models",
 			"default": "true"
 		},
 		{

@@ -49,7 +49,7 @@ export COPILOT_OTEL_FILE_EXPORTER_PATH="$HOME/.copilot/otel/copilot-otel-$(date 
 | `ccusage copilot monthly` | Aggregate usage by month           | [Monthly Usage](/guide/monthly-reports) |
 | `ccusage copilot session` | Group usage by Copilot session IDs | [Session Usage](/guide/session-reports) |
 
-These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
+These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for embedded pricing data.
 
 ## What Gets Calculated
 

@@ -1,4 +1,8 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use serde_json::{Map, Value};
 
@@ -6,7 +10,7 @@ const FLAKE_LOCK_JSON: &str = "../../../flake.lock";
 const LITELLM_PRICING_JSON: &str = "model_prices_and_context_window.json";
 const OUT_PRICING_JSON: &str = "litellm-pricing.json";
 const PRICING_JSON_PATH_ENV: &str = "CCUSAGE_PRICING_JSON_PATH";
-const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
+const PRICING_FETCH_MAX_BYTES: usize = 64 * 1024 * 1024;
 
 fn main() {
     println!("cargo:rerun-if-env-changed={PRICING_JSON_PATH_ENV}");
@@ -30,23 +34,79 @@ fn out_dir_path(file_name: &str) -> PathBuf {
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
-    let response = minreq::get(litellm_pricing_url()?)
-        .with_timeout(PRICING_FETCH_TIMEOUT_SECONDS)
-        .send()
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
-    if response.status_code != 200 {
-        return Err(std::io::Error::other(format!(
-            "HTTP {}",
-            response.status_code
-        )));
+    let locked = litellm_lock()?;
+    let repo_url = github_repo_url(&locked.owner, &locked.repo);
+    let fetch_dir = out_dir_path("litellm-pricing-git");
+    let _ = fs::remove_dir_all(&fetch_dir);
+    fs::create_dir_all(&fetch_dir)?;
+
+    run_git(&fetch_dir, ["init", "--quiet"])?;
+    run_git(&fetch_dir, ["remote", "add", "origin", &repo_url])?;
+    run_git(
+        &fetch_dir,
+        [
+            "-c",
+            "advice.detachedHead=false",
+            "fetch",
+            "--depth",
+            "1",
+            "origin",
+            &locked.rev,
+        ],
+    )?;
+
+    let object_path = git_object_path();
+    let output = git_output(&fetch_dir, ["show", object_path.as_str()])?;
+    if !output.status.success() {
+        return Err(std::io::Error::other(command_error_message(&output)));
     }
-    Ok(response
-        .as_str()
-        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()))?
-        .to_string())
+    if output.stdout.len() > PRICING_FETCH_MAX_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "response exceeded pricing fetch size limit",
+        ));
+    }
+    String::from_utf8(output.stdout)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()))
 }
 
-fn litellm_pricing_url() -> std::io::Result<String> {
+fn run_git<const N: usize>(current_dir: &Path, args: [&str; N]) -> std::io::Result<()> {
+    let output = git_output(current_dir, args)?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(command_error_message(&output)))
+    }
+}
+
+fn git_output<const N: usize>(
+    current_dir: &Path,
+    args: [&str; N],
+) -> std::io::Result<std::process::Output> {
+    Command::new("git")
+        .current_dir(current_dir)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .args(args)
+        .output()
+}
+
+fn command_error_message(output: &std::process::Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let message = stderr.trim();
+    if message.is_empty() {
+        "command exited without stderr".to_string()
+    } else {
+        message.to_string()
+    }
+}
+
+struct LiteLlmLock {
+    owner: String,
+    repo: String,
+    rev: String,
+}
+
+fn litellm_lock() -> std::io::Result<LiteLlmLock> {
     let flake_lock = fs::read_to_string(FLAKE_LOCK_JSON)?;
     let Value::Object(root) = serde_json::from_str::<Value>(&flake_lock)
         .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()))?
@@ -71,9 +131,26 @@ fn litellm_pricing_url() -> std::io::Result<String> {
     let repo = required_flake_lock_string_field(locked, "repo")?;
     let rev = required_flake_lock_string_field(locked, "rev")?;
 
-    Ok(format!(
-        "https://raw.githubusercontent.com/{owner}/{repo}/{rev}/{LITELLM_PRICING_JSON}"
-    ))
+    Ok(LiteLlmLock { owner, repo, rev })
+}
+
+fn github_repo_url(owner: &str, repo: &str) -> String {
+    let mut url = String::with_capacity(
+        "https://github.com/".len() + owner.len() + 1 + repo.len() + ".git".len(),
+    );
+    url.push_str("https://github.com/");
+    url.push_str(owner);
+    url.push('/');
+    url.push_str(repo);
+    url.push_str(".git");
+    url
+}
+
+fn git_object_path() -> String {
+    let mut path = String::with_capacity("FETCH_HEAD:".len() + LITELLM_PRICING_JSON.len());
+    path.push_str("FETCH_HEAD:");
+    path.push_str(LITELLM_PRICING_JSON);
+    path
 }
 
 fn required_flake_lock_string_field(
@@ -85,10 +162,12 @@ fn required_flake_lock_string_field(
         .and_then(Value::as_str)
         .map(str::to_string)
         .ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("flake.lock nodes.litellm.locked.{field} must be a string"),
-            )
+            let mut message =
+                String::with_capacity("flake.lock nodes.litellm.locked.".len() + field.len() + 17);
+            message.push_str("flake.lock nodes.litellm.locked.");
+            message.push_str(field);
+            message.push_str(" must be a string");
+            std::io::Error::new(std::io::ErrorKind::InvalidData, message)
         })
 }
 

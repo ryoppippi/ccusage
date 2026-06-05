@@ -1,6 +1,5 @@
 ---
 source: crates/ccusage/src/config_schema.rs
-assertion_line: 1257
 expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n    definition_properties(&schema, \"ccusage-config\"),\n    \"rootAdditionalProperties\":\n    schema[\"definitions\"][\"ccusage-config\"][\"additionalProperties\"],\n    \"defaults\": schema_node(&schema, &[\"defaults\"]), \"rootDaily\":\n    schema_node(&schema, &[\"commands\", \"daily\"]), \"claudeStatusline\":\n    schema_node(&schema, &[\"claude\", \"commands\", \"statusline\"]),\n    \"codexDefaults\": schema_node(&schema, &[\"codex\", \"defaults\"]),\n    \"opencodeWeekly\":\n    schema_node(&schema, &[\"opencode\", \"commands\", \"weekly\"]), \"piDefaults\":\n    schema_node(&schema, &[\"pi\", \"defaults\"]), \"openclawDefaults\":\n    schema_node(&schema, &[\"openclaw\", \"defaults\"]),\n})"
 ---
 {
@@ -55,14 +54,14 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
       },
       "noOffline": {
         "default": false,
-        "description": "Disable cached pricing data where supported.",
-        "markdownDescription": "Disable cached pricing data where supported.",
+        "description": "Disable embedded pricing data where supported.",
+        "markdownDescription": "Disable embedded pricing data where supported.",
         "type": "boolean"
       },
       "offline": {
         "default": true,
-        "description": "Use cached pricing data where supported.",
-        "markdownDescription": "Use cached pricing data where supported.",
+        "description": "Use embedded pricing data where supported.",
+        "markdownDescription": "Use embedded pricing data where supported.",
         "type": "boolean"
       },
       "refreshInterval": {
@@ -154,13 +153,13 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "type": "boolean"
       },
       "noOffline": {
-        "description": "Disable cached pricing data where supported.",
-        "markdownDescription": "Disable cached pricing data where supported.",
+        "description": "Disable embedded pricing data where supported.",
+        "markdownDescription": "Disable embedded pricing data where supported.",
         "type": "boolean"
       },
       "offline": {
-        "description": "Use cached pricing data where supported.",
-        "markdownDescription": "Use cached pricing data where supported.",
+        "description": "Use embedded pricing data where supported.",
+        "markdownDescription": "Use embedded pricing data where supported.",
         "type": "boolean"
       },
       "order": {
@@ -279,14 +278,14 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
       },
       "noOffline": {
         "default": false,
-        "description": "Disable cached pricing data where supported.",
-        "markdownDescription": "Disable cached pricing data where supported.",
+        "description": "Disable embedded pricing data where supported.",
+        "markdownDescription": "Disable embedded pricing data where supported.",
         "type": "boolean"
       },
       "offline": {
         "default": false,
-        "description": "Use cached pricing data where supported.",
-        "markdownDescription": "Use cached pricing data where supported.",
+        "description": "Use embedded pricing data where supported.",
+        "markdownDescription": "Use embedded pricing data where supported.",
         "type": "boolean"
       },
       "order": {
@@ -384,13 +383,13 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "type": "boolean"
       },
       "noOffline": {
-        "description": "Disable cached pricing data where supported.",
-        "markdownDescription": "Disable cached pricing data where supported.",
+        "description": "Disable embedded pricing data where supported.",
+        "markdownDescription": "Disable embedded pricing data where supported.",
         "type": "boolean"
       },
       "offline": {
-        "description": "Use cached pricing data where supported.",
-        "markdownDescription": "Use cached pricing data where supported.",
+        "description": "Use embedded pricing data where supported.",
+        "markdownDescription": "Use embedded pricing data where supported.",
         "type": "boolean"
       },
       "openClawPath": {
@@ -501,14 +500,14 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
       },
       "noOffline": {
         "default": false,
-        "description": "Disable cached pricing data where supported.",
-        "markdownDescription": "Disable cached pricing data where supported.",
+        "description": "Disable embedded pricing data where supported.",
+        "markdownDescription": "Disable embedded pricing data where supported.",
         "type": "boolean"
       },
       "offline": {
         "default": false,
-        "description": "Use cached pricing data where supported.",
-        "markdownDescription": "Use cached pricing data where supported.",
+        "description": "Use embedded pricing data where supported.",
+        "markdownDescription": "Use embedded pricing data where supported.",
         "type": "boolean"
       },
       "order": {
@@ -606,13 +605,13 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "type": "boolean"
       },
       "noOffline": {
-        "description": "Disable cached pricing data where supported.",
-        "markdownDescription": "Disable cached pricing data where supported.",
+        "description": "Disable embedded pricing data where supported.",
+        "markdownDescription": "Disable embedded pricing data where supported.",
         "type": "boolean"
       },
       "offline": {
-        "description": "Use cached pricing data where supported.",
-        "markdownDescription": "Use cached pricing data where supported.",
+        "description": "Use embedded pricing data where supported.",
+        "markdownDescription": "Use embedded pricing data where supported.",
         "type": "boolean"
       },
       "order": {
@@ -719,13 +718,13 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "type": "boolean"
       },
       "noOffline": {
-        "description": "Disable cached pricing data where supported.",
-        "markdownDescription": "Disable cached pricing data where supported.",
+        "description": "Disable embedded pricing data where supported.",
+        "markdownDescription": "Disable embedded pricing data where supported.",
         "type": "boolean"
       },
       "offline": {
-        "description": "Use cached pricing data where supported.",
-        "markdownDescription": "Use cached pricing data where supported.",
+        "description": "Use embedded pricing data where supported.",
+        "markdownDescription": "Use embedded pricing data where supported.",
         "type": "boolean"
       },
       "order": {

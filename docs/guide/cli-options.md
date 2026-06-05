@@ -70,7 +70,7 @@ ccusage daily --order asc
 Run without network connectivity:
 
 ```bash
-# Use cached pricing data
+# Use embedded pricing data
 ccusage daily --offline
 ccusage daily -O
 ```

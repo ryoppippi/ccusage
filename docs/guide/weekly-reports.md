@@ -175,7 +175,7 @@ ccusage weekly --mode display
 
 ### Offline Mode
 
-Use cached pricing data:
+Use embedded pricing data:
 
 ```bash
 ccusage weekly --offline

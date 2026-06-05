@@ -56,17 +56,17 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 The `claude x` option requires the native version of Claude Code (not the npm version). If you installed Claude Code via npm, use the `bun x` or `npx` options instead.
 :::
 
-By default, statusline uses **offline mode** with cached pricing data for optimal performance.
+By default, statusline uses embedded pricing data for optimal performance.
 
-### Online Mode (Optional)
+### Pricing Data
 
-If you need the latest pricing data from LiteLLM API, you can explicitly enable online mode:
+Statusline does not refresh pricing at runtime. Update ccusage to pick up newer embedded pricing data:
 
 ```json
 {
 	"statusLine": {
 		"type": "command",
-		"command": "bun x ccusage statusline --no-offline", // Fetches latest pricing from API
+		"command": "bun x ccusage statusline",
 		"padding": 0
 	}
 }
@@ -149,8 +149,8 @@ The statusline command:
 - Identifies the active 5-hour billing block
 - Calculates real-time burn rates and projections
 - Outputs a single line suitable for status bar display
-- **Uses offline mode by default** for instant response times without network dependencies
-- Can be configured to use online mode with `--no-offline` for latest pricing data
+- **Uses embedded pricing** for instant response times without network dependencies
+- Picks up newer pricing data when ccusage is updated
 
 ## Beta Notice
 

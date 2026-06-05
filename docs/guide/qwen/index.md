@@ -46,7 +46,7 @@ QWEN_DATA_DIR="$HOME/.qwen,/backup/qwen" ccusage qwen daily
 | `ccusage qwen monthly` | Aggregate usage by month    | [Monthly Usage](/guide/monthly-reports) |
 | `ccusage qwen session` | Group usage by Qwen session | [Session Usage](/guide/session-reports) |
 
-These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
+These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for embedded pricing data.
 
 ## What Gets Calculated
 

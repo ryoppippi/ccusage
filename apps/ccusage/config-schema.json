@@ -87,14 +87,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -195,14 +195,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -303,14 +303,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -414,14 +414,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -528,13 +528,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -645,13 +645,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -760,14 +760,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -868,14 +868,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -955,14 +955,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": true,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"refreshInterval": {
@@ -1045,13 +1045,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -1198,13 +1198,13 @@
 									"type": "boolean"
 								},
 								"noOffline": {
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -1367,14 +1367,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -1475,14 +1475,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -1583,14 +1583,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -1694,14 +1694,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -1803,13 +1803,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -1905,13 +1905,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -2007,13 +2007,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -2112,13 +2112,13 @@
 									"type": "boolean"
 								},
 								"noOffline": {
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -2227,13 +2227,13 @@
 									"type": "boolean"
 								},
 								"noOffline": {
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -2344,13 +2344,13 @@
 									"type": "boolean"
 								},
 								"noOffline": {
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -2459,14 +2459,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -2567,14 +2567,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -2654,14 +2654,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": true,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"refreshInterval": {
@@ -2744,13 +2744,13 @@
 									"type": "boolean"
 								},
 								"noOffline": {
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -2875,14 +2875,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -2983,14 +2983,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -3091,14 +3091,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -3202,14 +3202,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -3315,14 +3315,14 @@
 						},
 						"noOffline": {
 							"default": false,
-							"description": "Disable cached pricing data where supported.",
-							"markdownDescription": "Disable cached pricing data where supported.",
+							"description": "Disable embedded pricing data where supported.",
+							"markdownDescription": "Disable embedded pricing data where supported.",
 							"type": "boolean"
 						},
 						"offline": {
 							"default": false,
-							"description": "Use cached pricing data where supported.",
-							"markdownDescription": "Use cached pricing data where supported.",
+							"description": "Use embedded pricing data where supported.",
+							"markdownDescription": "Use embedded pricing data where supported.",
 							"type": "boolean"
 						},
 						"order": {
@@ -3431,14 +3431,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -3539,14 +3539,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -3647,14 +3647,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -3758,14 +3758,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -3877,14 +3877,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -3985,14 +3985,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -4093,14 +4093,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -4204,14 +4204,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -4323,14 +4323,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -4431,14 +4431,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -4539,14 +4539,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -4650,14 +4650,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -4769,14 +4769,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -4877,14 +4877,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -4985,14 +4985,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -5096,14 +5096,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -5215,14 +5215,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -5323,14 +5323,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -5431,14 +5431,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -5542,14 +5542,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -5661,14 +5661,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -5769,14 +5769,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -5877,14 +5877,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -5988,14 +5988,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -6097,13 +6097,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"openClawPath": {
@@ -6197,13 +6197,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"openClawPath": {
@@ -6297,13 +6297,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"openClawPath": {
@@ -6400,13 +6400,13 @@
 									"type": "boolean"
 								},
 								"noOffline": {
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"openClawPath": {
@@ -6521,14 +6521,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -6629,14 +6629,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -6737,14 +6737,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -6845,14 +6845,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -6956,14 +6956,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -7065,13 +7065,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -7165,13 +7165,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -7265,13 +7265,13 @@
 											"type": "boolean"
 										},
 										"noOffline": {
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -7368,13 +7368,13 @@
 									"type": "boolean"
 								},
 								"noOffline": {
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
@@ -7489,14 +7489,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -7597,14 +7597,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -7705,14 +7705,14 @@
 										},
 										"noOffline": {
 											"default": false,
-											"description": "Disable cached pricing data where supported.",
-											"markdownDescription": "Disable cached pricing data where supported.",
+											"description": "Disable embedded pricing data where supported.",
+											"markdownDescription": "Disable embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"offline": {
 											"default": false,
-											"description": "Use cached pricing data where supported.",
-											"markdownDescription": "Use cached pricing data where supported.",
+											"description": "Use embedded pricing data where supported.",
+											"markdownDescription": "Use embedded pricing data where supported.",
 											"type": "boolean"
 										},
 										"order": {
@@ -7816,14 +7816,14 @@
 								},
 								"noOffline": {
 									"default": false,
-									"description": "Disable cached pricing data where supported.",
-									"markdownDescription": "Disable cached pricing data where supported.",
+									"description": "Disable embedded pricing data where supported.",
+									"markdownDescription": "Disable embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"offline": {
 									"default": false,
-									"description": "Use cached pricing data where supported.",
-									"markdownDescription": "Use cached pricing data where supported.",
+									"description": "Use embedded pricing data where supported.",
+									"markdownDescription": "Use embedded pricing data where supported.",
 									"type": "boolean"
 								},
 								"order": {
