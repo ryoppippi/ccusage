@@ -276,12 +276,19 @@ jobs:
           if (url == null || url.length === 0) {
             throw new Error('BASE_PACKAGE_URL is required');
           }
-          const response = await fetch(url, { method: 'HEAD' });
-          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${response.ok ? 'true' : 'false'}\n`);
-          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
-          if (!response.ok) {
-            console.error(`Base preview package is not ready: ${url} (${response.status})`);
+          let ready = false;
+          try {
+            const response = await fetch(url, { method: 'HEAD' });
+            ready = response.ok;
+            if (!ready) {
+              console.error(`Base preview package is not ready: ${url} (${response.status})`);
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`Base preview package probe failed: ${url}: ${message}`);
           }
+          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${ready ? 'true' : 'false'}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
           EOF
 
       - name: Generate large ccusage fixture
@@ -377,12 +384,19 @@ jobs:
           if (url == null || url.length === 0) {
             throw new Error('BASE_PACKAGE_URL is required');
           }
-          const response = await fetch(url, { method: 'HEAD' });
-          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${response.ok ? 'true' : 'false'}\n`);
-          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
-          if (!response.ok) {
-            console.error(`Base preview package is not ready: ${url} (${response.status})`);
+          let ready = false;
+          try {
+            const response = await fetch(url, { method: 'HEAD' });
+            ready = response.ok;
+            if (!ready) {
+              console.error(`Base preview package is not ready: ${url} (${response.status})`);
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`Base preview package probe failed: ${url}: ${message}`);
           }
+          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${ready ? 'true' : 'false'}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
           EOF
 
       - name: Generate large ccusage fixture
