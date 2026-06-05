@@ -211,6 +211,12 @@ The scheduled `update pricing` workflow runs the same commands and opens a PR wh
     </a>
 </p>
 
+<p align="center">
+    <a href="https://github.com/sponsors/ryoppippi">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">
+    </a>
+</p>
+
 ## Star History
 
 <a href="https://www.star-history.com/#ryoppippi/ccusage&Date">

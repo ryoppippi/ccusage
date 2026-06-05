@@ -11,6 +11,16 @@ ccusage is sponsored by CodeRabbit.
     </a>
 </p>
 
+<p align="center">
+    <a href="https://github.com/sponsors/ryoppippi">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">
+    </a>
+</p>
+
+## How to Sponsor
+
+Visit [GitHub Sponsors - @ryoppippi](https://github.com/sponsors/ryoppippi) to support the development of ccusage and other open source projects.
+
 ## Star History
 
 <a href="https://www.star-history.com/#ryoppippi/ccusage&Date">
