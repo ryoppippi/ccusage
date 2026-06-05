@@ -264,7 +264,28 @@ jobs:
           )"
           echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
 
+      - name: Resolve base preview package URL
+        id: base-preview
+        env:
+          BASE_PACKAGE_URL: https://pkg.pr.new/ccusage@${{ github.event.pull_request.base.sha }}
+        run: |
+          node --input-type=module <<'EOF'
+          import { appendFileSync } from 'node:fs';
+
+          const url = process.env.BASE_PACKAGE_URL;
+          if (url == null || url.length === 0) {
+            throw new Error('BASE_PACKAGE_URL is required');
+          }
+          const response = await fetch(url, { method: 'HEAD' });
+          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${response.ok ? 'true' : 'false'}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
+          if (!response.ok) {
+            console.error(`Base preview package is not ready: ${url} (${response.status})`);
+          }
+          EOF
+
       - name: Generate large ccusage fixture
+        if: steps.base-preview.outputs.ready == 'true'
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
             --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
@@ -272,9 +293,10 @@ jobs:
             --size-mib 1024
 
       - name: Compare fixture performance
+        if: steps.base-preview.outputs.ready == 'true'
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
-            --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
+            --base-package-url "${{ steps.base-preview.outputs.url }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
             --head-package-url "$CCUSAGE_PREVIEW_URL" \
@@ -288,6 +310,15 @@ jobs:
             --large-runs 1 \
             --package-runner-timeout-ms 1800000 \
             --output "$RUNNER_TEMP/ccusage-perf-comment.md"
+
+      - name: Skip fixture performance comparison
+        if: steps.base-preview.outputs.ready != 'true'
+        run: |
+          cat > "$RUNNER_TEMP/ccusage-perf-comment.md" <<'EOF'
+          ## ccusage performance
+
+          Skipped because the base `pkg.pr.new` package is not available for this pull request base SHA.
+          EOF
 
       - name: Write job summary
         run: cat "$RUNNER_TEMP/ccusage-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
@@ -334,7 +365,28 @@ jobs:
           )"
           echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
 
+      - name: Resolve base preview package URL
+        id: base-preview
+        env:
+          BASE_PACKAGE_URL: https://pkg.pr.new/ccusage@${{ github.event.pull_request.base.sha }}
+        run: |
+          node --input-type=module <<'EOF'
+          import { appendFileSync } from 'node:fs';
+
+          const url = process.env.BASE_PACKAGE_URL;
+          if (url == null || url.length === 0) {
+            throw new Error('BASE_PACKAGE_URL is required');
+          }
+          const response = await fetch(url, { method: 'HEAD' });
+          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${response.ok ? 'true' : 'false'}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
+          if (!response.ok) {
+            console.error(`Base preview package is not ready: ${url} (${response.status})`);
+          }
+          EOF
+
       - name: Generate large ccusage fixture
+        if: steps.base-preview.outputs.ready == 'true'
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
             --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
@@ -342,9 +394,10 @@ jobs:
             --size-mib 1024
 
       - name: Compare Rust performance
+        if: steps.base-preview.outputs.ready == 'true'
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
-            --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
+            --base-package-url "${{ steps.base-preview.outputs.url }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
             --head-package-url "$CCUSAGE_PREVIEW_URL" \
@@ -359,6 +412,15 @@ jobs:
             --large-runs 1 \
             --package-runner-timeout-ms 1800000 \
             --output "$RUNNER_TEMP/ccusage-rust-perf-comment.md"
+
+      - name: Skip Rust performance comparison
+        if: steps.base-preview.outputs.ready != 'true'
+        run: |
+          cat > "$RUNNER_TEMP/ccusage-rust-perf-comment.md" <<'EOF'
+          ## ccusage Rust performance
+
+          Skipped because the base `pkg.pr.new` package is not available for this pull request base SHA.
+          EOF
 
       - name: Write job summary
         run: cat "$RUNNER_TEMP/ccusage-rust-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
