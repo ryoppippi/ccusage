@@ -198,19 +198,22 @@ The scheduled `update pricing` workflow runs the same commands and opens a PR wh
 
 ## Sponsors
 
-### Featured Sponsor
-
-Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.youtube.com/watch?v=Ak6qpQ5qdgk)
+<p align="center">
+    <strong>Sponsored by</strong>
+</p>
 
 <p align="center">
-    <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
-        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" width="600">
+    <a href="https://coderabbit.link/ryoppippi">
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/coderabbit-logo-dark.svg">
+            <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/coderabbit-logo.svg" alt="CodeRabbit" width="320">
+        </picture>
     </a>
 </p>
 
 <p align="center">
     <a href="https://github.com/sponsors/ryoppippi">
-        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">
+        <img src="https://sponsors.ryoppippi.com/sponsors.png" alt="Sponsors">
     </a>
 </p>
 
