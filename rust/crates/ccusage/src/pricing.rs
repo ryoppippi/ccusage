@@ -718,6 +718,52 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        // Source: https://docs.z.ai/guides/overview/pricing
+        let glm_base = Pricing {
+            input: 0.6e-6,
+            output: 2.2e-6,
+            cache_create: 0.75e-6,
+            cache_read: 0.11e-6,
+            cache_read_explicit: true,
+            input_above_200k: None,
+            output_above_200k: None,
+            cache_create_above_200k: None,
+            cache_read_above_200k: None,
+            fast_multiplier: 1.0,
+        };
+        self.entries.insert("glm-4.5".to_string(), glm_base);
+        self.entries.insert("glm-4.6".to_string(), glm_base);
+        self.entries.insert("glm-4.7".to_string(), glm_base);
+        self.entries.insert(
+            "glm-5".to_string(),
+            Pricing {
+                input: 1.0e-6,
+                output: 3.2e-6,
+                cache_create: 1.25e-6,
+                cache_read: 0.2e-6,
+                ..glm_base
+            },
+        );
+        self.entries.insert(
+            "glm-5-turbo".to_string(),
+            Pricing {
+                input: 1.2e-6,
+                output: 4.0e-6,
+                cache_create: 1.5e-6,
+                cache_read: 0.24e-6,
+                ..glm_base
+            },
+        );
+        self.entries.insert(
+            "glm-5.1".to_string(),
+            Pricing {
+                input: 1.4e-6,
+                output: 4.4e-6,
+                cache_create: 1.75e-6,
+                cache_read: 0.26e-6,
+                ..glm_base
+            },
+        );
         self.context_limits.insert("gpt-5.5".to_string(), 1_050_000);
         self.context_limits
             .insert("grok-4.3".to_string(), 1_000_000);
@@ -939,6 +985,32 @@ mod tests {
         assert!(kimi_k26.cache_read_explicit);
         assert_eq!(pricing.context_limit("moonshot/kimi-k2.5"), Some(262_144));
         assert_eq!(pricing.context_limit("moonshot/kimi-k2.6"), Some(262_144));
+    }
+
+    #[test]
+    fn embedded_pricing_includes_z_ai_glm_models_for_offline_reports() {
+        let pricing = PricingMap::load_embedded();
+
+        let glm_51 = pricing.find("glm-5.1").unwrap();
+        assert_eq!(glm_51.input, 1.4e-6);
+        assert_eq!(glm_51.output, 4.4e-6);
+        assert_eq!(glm_51.cache_read, 0.26e-6);
+        assert!(glm_51.cache_read_explicit);
+
+        let glm_5 = pricing.find("glm-5").unwrap();
+        assert_eq!(glm_5.input, 1.0e-6);
+        assert_eq!(glm_5.output, 3.2e-6);
+        assert_eq!(glm_5.cache_read, 0.2e-6);
+
+        let glm_5_turbo = pricing.find("glm-5-turbo").unwrap();
+        assert_eq!(glm_5_turbo.input, 1.2e-6);
+        assert_eq!(glm_5_turbo.output, 4.0e-6);
+        assert_eq!(glm_5_turbo.cache_read, 0.24e-6);
+
+        let glm_47 = pricing.find("glm-4.7").unwrap();
+        assert_eq!(glm_47.input, 0.6e-6);
+        assert_eq!(glm_47.output, 2.2e-6);
+        assert_eq!(glm_47.cache_read, 0.11e-6);
     }
 
     #[test]
