@@ -1,9 +1,5 @@
 name: Setup Nix
-description: Install Nix and configure Cachix
-inputs:
-  cachix-auth-token:
-    description: Cachix authentication token
-    required: false
+description: Install Nix and restore the Nix store from the GitHub Actions cache
 runs:
   using: composite
   steps:
@@ -17,24 +13,43 @@ runs:
         extra_nix_config: |
           access-tokens = github.com=${{ github.token }}
 
-    - name: Setup Cachix (numtide)
-      uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
-      with:
-        name: numtide
-        authToken: ''
-
-    - name: Setup Cachix (ryoppippi)
-      if: inputs.cachix-auth-token != ''
-      uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
-      with:
-        name: ryoppippi
-        authToken: ${{ inputs.cachix-auth-token }}
-
     - name: Cache Nix store
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
-        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
+        # Hash every input that changes the dev-shell closure, not just
+        # flake.lock. The previous key only hashed flake.lock, so any
+        # Cargo.lock / toolchain change rebuilt `ccusage-deps` (~80s) on every
+        # run while the stale cache stayed frozen and was never re-saved.
+        #
+        # `package.json` is the root manifest only: its `version` is read by
+        # package.nix and baked into the crane derivation name
+        # (`ccusage-deps-<version>`), so a version bump must rotate the key.
+        #
+        # pnpm-lock.yaml and the workspace package.json files are intentionally
+        # NOT hashed: no Nix derivation consumes JS dependencies. `pnpm install`
+        # runs in the dev-shell shellHook and writes node_modules in the working
+        # tree, outside the Nix store, so JS deps never change this cache.
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        # On a key miss, warm-start from the newest cache for this os/arch so
+        # only the changed derivations rebuild before the fresh key is saved.
         restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+        # Bound a single cache so the repo stays under the 10 GB limit. This
+        # action only runs on Linux (arm64 + x64), so at most two Nix caches
+        # exist. 3.5 GB each leaves headroom for the small per-platform Cargo
+        # caches (~1 GB total) used by the macOS/Windows build jobs. The
+        # dev-shell closure (~2.5 GB) is a gc root, so it survives this trim.
+        gc-max-store-size-linux: 3500000000
+        # Purge superseded caches for this os/arch on every run. Without this
+        # the more frequently rotating key would accumulate stale caches and
+        # push the repo past the 10 GB limit, evicting the fresh cache via LRU.
+        # 2 days (not 7) so that several key rotations in one week (e.g.
+        # repeated Cargo.lock bumps) cannot pile up multiple ~2.5 GB caches.
+        # The active cache is always the current primary-key, which
+        # purge-primary-key keeps regardless of age.
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
+        purge-created: 172800
+        purge-primary-key: never
 
     - name: Load Nix development environment
       shell: bash
