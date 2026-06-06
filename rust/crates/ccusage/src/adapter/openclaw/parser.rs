@@ -115,6 +115,7 @@ fn parse_message_entry(
         cache_creation_input_tokens: cache_creation_tokens,
         cache_read_input_tokens: cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let (raw_usage, extra_total_tokens) = apply_total_token_fallback(raw_usage, 0, total_tokens);
     if crate::total_usage_tokens(raw_usage) + extra_total_tokens == 0 {
@@ -156,6 +157,7 @@ fn openclaw_entry_to_loaded(entry: OpenClawEntry, tz: Option<&JiffTimeZone>) -> 
         cache_creation_input_tokens: entry.cache_creation_tokens,
         cache_read_input_tokens: entry.cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let data = UsageEntry {
         session_id: Some(entry.session_id.clone()),

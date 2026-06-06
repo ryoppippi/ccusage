@@ -248,6 +248,7 @@ mod tests {
                         cache_creation_input_tokens: 20,
                         cache_read_input_tokens: 10,
                         speed: None,
+                        cache_creation: None,
                     },
                     model: Some("claude-sonnet-4".to_string()),
                     id: Some("droid:session-a".to_string()),

@@ -34,6 +34,26 @@ pub(crate) struct TokenUsageRaw {
     #[serde(default)]
     pub(crate) cache_read_input_tokens: u64,
     pub(crate) speed: Option<Speed>,
+    #[serde(default)]
+    pub(crate) cache_creation: Option<CacheCreationRaw>,
+}
+
+impl TokenUsageRaw {
+    pub(crate) fn cache_creation_token_count(self) -> u64 {
+        if let Some(b) = self.cache_creation {
+            b.ephemeral_5m_input_tokens + b.ephemeral_1h_input_tokens
+        } else {
+            self.cache_creation_input_tokens
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub(crate) struct CacheCreationRaw {
+    #[serde(rename = "ephemeral_5m_input_tokens", default)]
+    pub(crate) ephemeral_5m_input_tokens: u64,
+    #[serde(rename = "ephemeral_1h_input_tokens", default)]
+    pub(crate) ephemeral_1h_input_tokens: u64,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -57,7 +77,7 @@ impl TokenCounts {
     pub(crate) fn add_usage(&mut self, usage: TokenUsageRaw) {
         self.input_tokens += usage.input_tokens;
         self.output_tokens += usage.output_tokens;
-        self.cache_creation_tokens += usage.cache_creation_input_tokens;
+        self.cache_creation_tokens += usage.cache_creation_token_count();
         self.cache_read_tokens += usage.cache_read_input_tokens;
     }
 

@@ -354,7 +354,7 @@ fn is_valid_daily_usage_entry(data: &DailyUsageEntry) -> bool {
 fn daily_usage_token_total(entry: &DailyLoadedEntry) -> u64 {
     entry.usage.input_tokens
         + entry.usage.output_tokens
-        + entry.usage.cache_creation_input_tokens
+        + entry.usage.cache_creation_token_count()
         + entry.usage.cache_read_input_tokens
 }
 
@@ -470,7 +470,7 @@ impl DailyAccumulator {
             let breakdown = &mut self.breakdowns[index];
             breakdown.input_tokens += entry.usage.input_tokens;
             breakdown.output_tokens += entry.usage.output_tokens;
-            breakdown.cache_creation_tokens += entry.usage.cache_creation_input_tokens;
+            breakdown.cache_creation_tokens += entry.usage.cache_creation_token_count();
             breakdown.cache_read_tokens += entry.usage.cache_read_input_tokens;
             breakdown.cost += entry.cost;
             if entry.missing_pricing_model.is_some() {
@@ -590,6 +590,7 @@ mod tests {
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: fixture.cache_read_tokens,
                 speed: None,
+                cache_creation: None,
             },
             cost: 0.0,
             model: Some("claude-sonnet-4-20250514".to_string()),

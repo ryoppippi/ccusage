@@ -212,7 +212,7 @@ fn usage_token_total(data: &UsageEntry) -> u64 {
     let usage = data.message.usage;
     usage.input_tokens
         + usage.output_tokens
-        + usage.cache_creation_input_tokens
+        + usage.cache_creation_token_count()
         + usage.cache_read_input_tokens
 }
 
@@ -761,6 +761,7 @@ mod tests {
                         cache_creation_input_tokens: 0,
                         cache_read_input_tokens: fixture.cache_read_tokens,
                         speed: None,
+                        cache_creation: None,
                     },
                     model: Some("claude-sonnet-4-20250514".to_string()),
                     id: Some(fixture.message_id.to_string()),

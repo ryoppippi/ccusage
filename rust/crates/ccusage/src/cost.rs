@@ -92,6 +92,17 @@ fn calculate_cost_from_tokens(
     } else {
         1.0
     };
+    let (cache_create_5m_tokens, cache_create_1h_tokens) =
+        if let Some(breakdown) = usage.cache_creation {
+            (
+                breakdown.ephemeral_5m_input_tokens,
+                breakdown.ephemeral_1h_input_tokens,
+            )
+        } else {
+            (usage.cache_creation_input_tokens, 0)
+        };
+    let cache_create_1h_cost = pricing.input * 2.0;
+    let cache_create_1h_cost_above_200k = pricing.input_above_200k.map(|c| c * 2.0);
     (tiered_cost(usage.input_tokens, pricing.input, pricing.input_above_200k)
         + tiered_cost(
             usage.output_tokens,
@@ -99,9 +110,14 @@ fn calculate_cost_from_tokens(
             pricing.output_above_200k,
         )
         + tiered_cost(
-            usage.cache_creation_input_tokens,
+            cache_create_5m_tokens,
             pricing.cache_create,
             pricing.cache_create_above_200k,
+        )
+        + tiered_cost(
+            cache_create_1h_tokens,
+            cache_create_1h_cost,
+            cache_create_1h_cost_above_200k,
         )
         + tiered_cost(
             usage.cache_read_input_tokens,
