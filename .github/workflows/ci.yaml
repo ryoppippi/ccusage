@@ -268,28 +268,7 @@ jobs:
         id: base-preview
         env:
           BASE_PACKAGE_URL: https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}
-        run: |
-          node --input-type=module <<'EOF'
-          import { appendFileSync } from 'node:fs';
-
-          const url = process.env.BASE_PACKAGE_URL;
-          if (url == null || url.length === 0) {
-            throw new Error('BASE_PACKAGE_URL is required');
-          }
-          let ready = false;
-          try {
-            const response = await fetch(url, { method: 'HEAD' });
-            ready = response.ok;
-            if (!ready) {
-              console.error(`Base preview package is not ready: ${url} (${response.status})`);
-            }
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            console.error(`Base preview package probe failed: ${url}: ${message}`);
-          }
-          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${ready ? 'true' : 'false'}\n`);
-          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
-          EOF
+        run: node .github/scripts/probe-base-preview-package.mjs
 
       - name: Generate large ccusage fixture
         if: steps.base-preview.outputs.ready == 'true'
@@ -376,28 +355,7 @@ jobs:
         id: base-preview
         env:
           BASE_PACKAGE_URL: https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}
-        run: |
-          node --input-type=module <<'EOF'
-          import { appendFileSync } from 'node:fs';
-
-          const url = process.env.BASE_PACKAGE_URL;
-          if (url == null || url.length === 0) {
-            throw new Error('BASE_PACKAGE_URL is required');
-          }
-          let ready = false;
-          try {
-            const response = await fetch(url, { method: 'HEAD' });
-            ready = response.ok;
-            if (!ready) {
-              console.error(`Base preview package is not ready: ${url} (${response.status})`);
-            }
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            console.error(`Base preview package probe failed: ${url}: ${message}`);
-          }
-          appendFileSync(process.env.GITHUB_OUTPUT, `ready=${ready ? 'true' : 'false'}\n`);
-          appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
-          EOF
+        run: node .github/scripts/probe-base-preview-package.mjs
 
       - name: Generate large ccusage fixture
         if: steps.base-preview.outputs.ready == 'true'
