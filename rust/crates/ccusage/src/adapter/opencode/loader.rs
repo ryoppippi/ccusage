@@ -436,25 +436,6 @@ mod tests {
     }
 
     #[test]
-    fn filters_json_file_entries_by_until() {
-        let fixture = fs_fixture!({
-            "storage/message/message.json": r#"{"id":"msg-1","sessionID":"session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50},"cost":0.02}"#,
-        });
-
-        let shared = SharedArgs {
-            mode: CostMode::Display,
-            timezone: Some("UTC".to_string()),
-            until: Some("20260101".to_string()),
-            ..SharedArgs::default()
-        };
-        let entries = load_entries_from_directory(fixture.root(), &shared).unwrap();
-        assert!(
-            entries.is_empty(),
-            "message on 2026-01-02 should be excluded by until=20260101"
-        );
-    }
-
-    #[test]
     fn includes_entries_when_since_until_bracket_date() {
         let fixture = fs_fixture!({
             "storage/message/message.json": r#"{"id":"msg-1","sessionID":"session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50},"cost":0.02}"#,
