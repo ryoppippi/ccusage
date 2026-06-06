@@ -10,7 +10,8 @@ use serde_json::Value;
 use super::{parser::message_value_to_entry, paths::paths};
 use crate::{
     cli::{CostMode, SharedArgs},
-    collect_files_with_extension, debug_log, parse_tz, LoadedEntry, PricingMap, Result,
+    collect_files_with_extension, debug_log, format_date_tz, parse_tz, LoadedEntry, PricingMap,
+    Result, TimestampMs,
 };
 
 pub(crate) fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
@@ -70,7 +71,9 @@ pub(crate) fn load_entries_from_directory(
     let mut files = Vec::new();
     collect_files_with_extension(&messages_dir, "json", &mut files);
     for file in files {
-        if let Some(entry) = read_message_file(&file, tz.as_ref(), shared.mode, pricing.as_ref())? {
+        if let Some(entry) =
+            read_message_file(&file, tz.as_ref(), shared.mode, pricing.as_ref(), shared)
+        {
             if let Some(id) = entry_id(&entry) {
                 if !seen.insert(id.to_string()) {
                     continue;
@@ -148,6 +151,11 @@ fn load_entries_from_database(
                 let Ok(data) = statement.read::<String, _>(2) else {
                     continue;
                 };
+                if let Some(millis) = extract_message_timestamp(&data) {
+                    if !timestamp_within_range(millis, tz, shared) {
+                        continue;
+                    }
+                }
                 let Ok(value) = serde_json::from_str::<Value>(&data) else {
                     continue;
                 };
@@ -175,18 +183,45 @@ fn read_message_file(
     tz: Option<&JiffTimeZone>,
     mode: CostMode,
     pricing: Option<&PricingMap>,
-) -> Result<Option<LoadedEntry>> {
-    let content = fs::read_to_string(path)?;
+    shared: &SharedArgs,
+) -> Option<LoadedEntry> {
+    let content = std::fs::read_to_string(path).ok()?;
+    if let Some(millis) = extract_message_timestamp(&content) {
+        if !timestamp_within_range(millis, tz, shared) {
+            return None;
+        }
+    }
     let Ok(value) = serde_json::from_str::<Value>(&content) else {
-        return Ok(None);
+        return None;
     };
-    Ok(message_value_to_entry(
-        &value, None, None, tz, mode, pricing,
-    ))
+    message_value_to_entry(&value, None, None, tz, mode, pricing)
 }
 
 fn entry_id(entry: &LoadedEntry) -> Option<&str> {
     entry.data.message.id.as_deref().filter(|id| !id.is_empty())
+}
+
+fn extract_message_timestamp(data: &str) -> Option<i64> {
+    let start = data.find("\"created\":")?;
+    let after_key = data[start + "\"created\":".len()..].trim_start();
+    let end = after_key.find(|c: char| !c.is_ascii_digit())?;
+    after_key[..end].parse::<i64>().ok()
+}
+
+fn timestamp_within_range(millis: i64, tz: Option<&JiffTimeZone>, shared: &SharedArgs) -> bool {
+    if shared.since.is_none() && shared.until.is_none() {
+        return true;
+    }
+    let timestamp = TimestampMs::from_millis(millis);
+    let date = format_date_tz(timestamp, tz).replace('-', "");
+    shared
+        .since
+        .as_ref()
+        .is_none_or(|since| date.as_str() >= since.as_str())
+        && shared
+            .until
+            .as_ref()
+            .is_none_or(|until| date.as_str() <= until.as_str())
 }
 
 #[cfg(test)]
@@ -310,5 +345,131 @@ mod tests {
         assert_eq!(entries[0].session_id.as_ref(), "db-session-a");
         assert_eq!(entries[0].data.message.usage.input_tokens, 120);
         assert_eq!(entries[0].cost, 0.03);
+    }
+
+    #[test]
+    fn filters_sqlite_entries_by_since() {
+        let fixture = fs_fixture!({});
+        create_db_message(
+            &fixture.path("opencode.db"),
+            "db-msg-1",
+            "db-session-a",
+            r#"{"providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":120,"output":60}}"#,
+        );
+
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            since: Some("20260103".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries_from_directory(fixture.root(), &shared).unwrap();
+        assert!(
+            entries.is_empty(),
+            "message on 2026-01-02 should be excluded by since=20260103"
+        );
+    }
+
+    #[test]
+    fn filters_sqlite_entries_by_until() {
+        let fixture = fs_fixture!({});
+        create_db_message(
+            &fixture.path("opencode.db"),
+            "db-msg-1",
+            "db-session-a",
+            r#"{"providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":120,"output":60}}"#,
+        );
+
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            until: Some("20260101".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries_from_directory(fixture.root(), &shared).unwrap();
+        assert!(
+            entries.is_empty(),
+            "message on 2026-01-02 should be excluded by until=20260101"
+        );
+    }
+
+    #[test]
+    fn filters_json_file_entries_by_since() {
+        let fixture = fs_fixture!({
+            "storage/message/message.json": r#"{"id":"msg-1","sessionID":"session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50},"cost":0.02}"#,
+        });
+
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            since: Some("20260103".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries_from_directory(fixture.root(), &shared).unwrap();
+        assert!(
+            entries.is_empty(),
+            "message on 2026-01-02 should be excluded by since=20260103"
+        );
+    }
+
+    #[test]
+    fn includes_entries_when_since_until_bracket_date() {
+        let fixture = fs_fixture!({
+            "storage/message/message.json": r#"{"id":"msg-1","sessionID":"session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50},"cost":0.02}"#,
+        });
+
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            since: Some("20260101".to_string()),
+            until: Some("20260103".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries_from_directory(fixture.root(), &shared).unwrap();
+        assert_eq!(
+            entries.len(),
+            1,
+            "message on 2026-01-02 should be included when since=20260101 and until=20260103"
+        );
+    }
+
+    #[test]
+    fn includes_entries_when_since_exact_match() {
+        let fixture = fs_fixture!({
+            "storage/message/message.json": r#"{"id":"msg-1","sessionID":"session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50},"cost":0.02}"#,
+        });
+
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            since: Some("20260102".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries_from_directory(fixture.root(), &shared).unwrap();
+        assert_eq!(
+            entries.len(),
+            1,
+            "message on 2026-01-02 should be included when since=20260102"
+        );
+    }
+
+    #[test]
+    fn includes_entries_when_until_exact_match() {
+        let fixture = fs_fixture!({
+            "storage/message/message.json": r#"{"id":"msg-1","sessionID":"session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50},"cost":0.02}"#,
+        });
+
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            until: Some("20260102".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries_from_directory(fixture.root(), &shared).unwrap();
+        assert_eq!(
+            entries.len(),
+            1,
+            "message on 2026-01-02 should be included when until=20260102"
+        );
     }
 }
