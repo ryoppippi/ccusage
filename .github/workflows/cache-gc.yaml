@@ -25,7 +25,10 @@ jobs:
           # by CI. This sweep also reclaims caches left behind by merged or
           # abandoned branches that no longer trigger CI.
           cutoff=$(date -u -d '14 days ago' +%s)
-          gh cache list --limit 100 --json id,key,lastAccessedAt \
+          # Sort least-recently-accessed first so the stalest caches are the
+          # ones fetched under --limit; the default order is descending and
+          # would fetch the freshest caches instead, never reaching old ones.
+          gh cache list --limit 100 --sort last_accessed_at --order asc --json id,key,lastAccessedAt \
             --jq '.[] | [.id, .lastAccessedAt, .key] | @tsv' \
             | while IFS=$'\t' read -r id last key; do
                 last_epoch=$(date -u -d "$last" +%s)
