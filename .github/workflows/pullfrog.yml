@@ -25,6 +25,8 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
       - name: Run agent
         uses: pullfrog/pullfrog@v0
         with:
