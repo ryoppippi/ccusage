@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -432,6 +434,8 @@ pub(crate) struct StatuslineSpecificOptions {
     pub(crate) timezone: Option<String>,
     /// Show statusline debug information.
     pub(crate) debug: Option<bool>,
+    /// Map model identifiers to short display labels.
+    pub(crate) model_label_aliases: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -581,6 +585,7 @@ impl StatuslineSpecificOptions {
             context_medium_threshold: u64_option(map, "contextMediumThreshold"),
             timezone: string_option(map, "timezone"),
             debug: bool_option(map, "debug"),
+            model_label_aliases: hashmap_option(map, "modelLabelAliases"),
         }
     }
 }
@@ -718,6 +723,21 @@ where
     T: DeserializeOwned,
 {
     serde_json::from_value(map.get(key)?.clone()).ok()
+}
+
+fn hashmap_option(map: &Map<String, Value>, key: &str) -> Option<HashMap<String, String>> {
+    let obj = map.get(key)?.as_object()?;
+    let mut result = HashMap::new();
+    for (k, v) in obj {
+        if let Some(s) = v.as_str() {
+            result.insert(k.clone(), s.to_string());
+        }
+    }
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
 }
 
 fn enrich_schema(value: &mut Value) {
@@ -969,6 +989,7 @@ mod tests {
                 "contextMediumThreshold",
                 "costSource",
                 "debug",
+                "modelLabelAliases",
                 "noCache",
                 "noOffline",
                 "offline",

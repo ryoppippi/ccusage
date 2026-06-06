@@ -498,9 +498,14 @@ fn render_statusline(
             .unwrap_or_else(|| "N/A".to_string())
     };
 
+    let model_label = args
+        .model_label_aliases
+        .get(&hook.model.display_name)
+        .unwrap_or(&hook.model.display_name);
+
     Ok(format!(
         "🤖 {} | 💰 {} session / {} today / {}{} | 🧠 {}",
-        hook.model.display_name,
+        model_label,
         session_display,
         format_currency(today_cost),
         block_info,
