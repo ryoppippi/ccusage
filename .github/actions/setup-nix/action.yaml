@@ -42,9 +42,13 @@ runs:
         # Purge superseded caches for this os/arch on every run. Without this
         # the more frequently rotating key would accumulate stale caches and
         # push the repo past the 10 GB limit, evicting the fresh cache via LRU.
+        # 2 days (not 7) so that several key rotations in one week (e.g.
+        # repeated Cargo.lock bumps) cannot pile up multiple ~2.5 GB caches.
+        # The active cache is always the current primary-key, which
+        # purge-primary-key keeps regardless of age.
         purge: true
         purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
-        purge-created: 604800
+        purge-created: 172800
         purge-primary-key: never
 
     - name: Load Nix development environment
