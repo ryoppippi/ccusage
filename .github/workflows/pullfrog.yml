@@ -22,13 +22,13 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6  # zizmor: ignore[unpinned-uses]
+        uses: actions/checkout@v6 # zizmor: ignore[unpinned-uses]
         with:
           fetch-depth: 1
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
       - name: Run agent
-        uses: pullfrog/pullfrog@v0  # zizmor: ignore[unpinned-uses]
+        uses: pullfrog/pullfrog@v0 # zizmor: ignore[unpinned-uses]
         with:
           prompt: ${{ inputs.prompt }}
         env:
