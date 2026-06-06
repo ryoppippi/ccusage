@@ -72,7 +72,7 @@ pub(crate) fn load_entries_from_directory(
     collect_files_with_extension(&messages_dir, "json", &mut files);
     for file in files {
         if let Some(entry) =
-            read_message_file(&file, tz.as_ref(), shared.mode, pricing.as_ref(), shared)
+            read_message_file(&file, tz.as_ref(), shared.mode, pricing.as_ref(), shared)?
         {
             if let Some(id) = entry_id(&entry) {
                 if !seen.insert(id.to_string()) {
@@ -184,17 +184,19 @@ fn read_message_file(
     mode: CostMode,
     pricing: Option<&PricingMap>,
     shared: &SharedArgs,
-) -> Option<LoadedEntry> {
-    let content = std::fs::read_to_string(path).ok()?;
+) -> Result<Option<LoadedEntry>> {
+    let content = std::fs::read_to_string(path)?;
     if let Some(millis) = extract_message_timestamp(&content) {
         if !timestamp_within_range(millis, tz, shared) {
-            return None;
+            return Ok(None);
         }
     }
     let Ok(value) = serde_json::from_str::<Value>(&content) else {
-        return None;
+        return Ok(None);
     };
-    message_value_to_entry(&value, None, None, tz, mode, pricing)
+    Ok(message_value_to_entry(
+        &value, None, None, tz, mode, pricing,
+    ))
 }
 
 fn entry_id(entry: &LoadedEntry) -> Option<&str> {
@@ -202,8 +204,10 @@ fn entry_id(entry: &LoadedEntry) -> Option<&str> {
 }
 
 fn extract_message_timestamp(data: &str) -> Option<i64> {
-    let start = data.find("\"created\":")?;
-    let after_key = data[start + "\"created\":".len()..].trim_start();
+    let time_start = data.find("\"time\"")?;
+    let time_section = &data[time_start..];
+    let created_start = time_section.find("\"created\":")?;
+    let after_key = time_section[created_start + "\"created\":".len()..].trim_start();
     let end = after_key.find(|c: char| !c.is_ascii_digit())?;
     after_key[..end].parse::<i64>().ok()
 }
