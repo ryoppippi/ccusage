@@ -7,6 +7,9 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Setup takumi guard
+      uses: flatt-security/setup-takumi-guard-npm@9a5d797c2085b6326d3a2985c08e3a114b9b88c1 # v1.1.1
+
     - name: Install Nix
       uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
       with:
