@@ -28,7 +28,7 @@ in
               pkgs.pkgsCross.musl64
             else
               pkgs.pkgsCross.aarch64-multiplatform-musl;
-          staticOpenSSL = pkgs.pkgsStatic.openssl;
+          staticOpenSSL = staticPkgs.pkgsStatic.openssl;
           staticCraneLib = (inputs.crane.mkLib staticPkgs).overrideToolchain (
             p:
             (p.rust-bin.fromRustupToolchainFile (root + /rust-toolchain.toml)).override {
