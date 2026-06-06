@@ -85,6 +85,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -193,6 +199,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -299,6 +311,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -410,6 +428,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -525,6 +549,11 @@
 										"noColor": {
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -644,6 +673,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -758,6 +792,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -864,6 +904,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -1044,6 +1090,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -1195,6 +1246,11 @@
 								"noColor": {
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -1365,6 +1421,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -1473,6 +1535,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -1579,6 +1647,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -1692,6 +1766,12 @@
 									"markdownDescription": "Disable colored output.",
 									"type": "boolean"
 								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
+									"type": "boolean"
+								},
 								"noOffline": {
 									"default": false,
 									"description": "Disable cached pricing data where supported.",
@@ -1802,6 +1882,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -1904,6 +1989,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -2004,6 +2094,11 @@
 										"noColor": {
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -2109,6 +2204,11 @@
 								"noColor": {
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -2224,6 +2324,11 @@
 								"noColor": {
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -2343,6 +2448,11 @@
 									"markdownDescription": "Disable colored output.",
 									"type": "boolean"
 								},
+								"noCost": {
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
+									"type": "boolean"
+								},
 								"noOffline": {
 									"description": "Disable cached pricing data where supported.",
 									"markdownDescription": "Disable cached pricing data where supported.",
@@ -2457,6 +2567,12 @@
 									"markdownDescription": "Disable colored output.",
 									"type": "boolean"
 								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
+									"type": "boolean"
+								},
 								"noOffline": {
 									"default": false,
 									"description": "Disable cached pricing data where supported.",
@@ -2563,6 +2679,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -2743,6 +2865,11 @@
 									"markdownDescription": "Disable colored output.",
 									"type": "boolean"
 								},
+								"noCost": {
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
+									"type": "boolean"
+								},
 								"noOffline": {
 									"description": "Disable cached pricing data where supported.",
 									"markdownDescription": "Disable cached pricing data where supported.",
@@ -2873,6 +3000,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -2981,6 +3114,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -3087,6 +3226,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -3200,6 +3345,12 @@
 									"markdownDescription": "Disable colored output.",
 									"type": "boolean"
 								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
+									"type": "boolean"
+								},
 								"noOffline": {
 									"default": false,
 									"description": "Disable cached pricing data where supported.",
@@ -3311,6 +3462,12 @@
 							"default": false,
 							"description": "Disable colored output.",
 							"markdownDescription": "Disable colored output.",
+							"type": "boolean"
+						},
+						"noCost": {
+							"default": false,
+							"description": "Hide cost information in table and JSON output.",
+							"markdownDescription": "Hide cost information in table and JSON output.",
 							"type": "boolean"
 						},
 						"noOffline": {
@@ -3429,6 +3586,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -3537,6 +3700,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -3643,6 +3812,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -3754,6 +3929,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -3875,6 +4056,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -3983,6 +4170,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -4089,6 +4282,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -4200,6 +4399,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -4321,6 +4526,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -4429,6 +4640,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -4535,6 +4752,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -4646,6 +4869,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -4767,6 +4996,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -4875,6 +5110,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -4981,6 +5222,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -5092,6 +5339,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -5213,6 +5466,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -5321,6 +5580,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -5427,6 +5692,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -5538,6 +5809,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -5659,6 +5936,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -5767,6 +6050,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -5873,6 +6162,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -5986,6 +6281,12 @@
 									"markdownDescription": "Disable colored output.",
 									"type": "boolean"
 								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
+									"type": "boolean"
+								},
 								"noOffline": {
 									"default": false,
 									"description": "Disable cached pricing data where supported.",
@@ -6096,6 +6397,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -6196,6 +6502,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -6294,6 +6605,11 @@
 										"noColor": {
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -6397,6 +6713,11 @@
 								"noColor": {
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -6519,6 +6840,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -6625,6 +6952,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -6735,6 +7068,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -6841,6 +7180,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -6954,6 +7299,12 @@
 									"markdownDescription": "Disable colored output.",
 									"type": "boolean"
 								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
+									"type": "boolean"
+								},
 								"noOffline": {
 									"default": false,
 									"description": "Disable cached pricing data where supported.",
@@ -7064,6 +7415,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -7164,6 +7520,11 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"description": "Disable cached pricing data where supported.",
 											"markdownDescription": "Disable cached pricing data where supported.",
@@ -7262,6 +7623,11 @@
 										"noColor": {
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -7365,6 +7731,11 @@
 								"noColor": {
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
@@ -7487,6 +7858,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -7595,6 +7972,12 @@
 											"markdownDescription": "Disable colored output.",
 											"type": "boolean"
 										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
+											"type": "boolean"
+										},
 										"noOffline": {
 											"default": false,
 											"description": "Disable cached pricing data where supported.",
@@ -7701,6 +8084,12 @@
 											"default": false,
 											"description": "Disable colored output.",
 											"markdownDescription": "Disable colored output.",
+											"type": "boolean"
+										},
+										"noCost": {
+											"default": false,
+											"description": "Hide cost information in table and JSON output.",
+											"markdownDescription": "Hide cost information in table and JSON output.",
 											"type": "boolean"
 										},
 										"noOffline": {
@@ -7812,6 +8201,12 @@
 									"default": false,
 									"description": "Disable colored output.",
 									"markdownDescription": "Disable colored output.",
+									"type": "boolean"
+								},
+								"noCost": {
+									"default": false,
+									"description": "Hide cost information in table and JSON output.",
+									"markdownDescription": "Hide cost information in table and JSON output.",
 									"type": "boolean"
 								},
 								"noOffline": {
