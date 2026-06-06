@@ -95,10 +95,7 @@ fn detect_subagent_replay_second(path: &Path) -> Option<[u8; 19]> {
             continue;
         };
         let ts_bytes = ts.as_bytes();
-        let ts_second: [u8; 19] = match ts_bytes.get(0..19).and_then(|s| s.try_into().ok()) {
-            Some(sec) => sec,
-            None => return None,
-        };
+        let ts_second: [u8; 19] = ts_bytes.get(0..19).and_then(|s| s.try_into().ok())?;
         match first_second {
             None => {
                 first_second = Some(ts_second);
@@ -152,25 +149,24 @@ pub(super) fn visit_codex_session_file(
                     continue;
                 };
                 if let Some(ref replay_ts) = replay_second {
-                    if skip_replay {
-                        if value.entry_type.as_deref() == Some("event_msg")
-                            && value
-                                .payload
-                                .as_ref()
-                                .is_some_and(|p| p.payload_type.as_deref() == Some("token_count"))
-                        {
-                            let Some(ts) = codex_session_timestamp(value.timestamp.as_ref()) else {
-                                continue;
-                            };
-                            let matches_replay = ts
-                                .as_bytes()
-                                .get(0..19)
-                                .is_some_and(|sec| sec.len() == 19 && sec == replay_ts.as_slice());
-                            if matches_replay {
-                                continue;
-                            }
-                            skip_replay = false;
+                    if skip_replay
+                        && value.entry_type.as_deref() == Some("event_msg")
+                        && value
+                            .payload
+                            .as_ref()
+                            .is_some_and(|p| p.payload_type.as_deref() == Some("token_count"))
+                    {
+                        let Some(ts) = codex_session_timestamp(value.timestamp.as_ref()) else {
+                            continue;
+                        };
+                        let matches_replay = ts
+                            .as_bytes()
+                            .get(0..19)
+                            .is_some_and(|sec| sec.len() == 19 && sec == replay_ts.as_slice());
+                        if matches_replay {
+                            continue;
                         }
+                        skip_replay = false;
                     }
                 }
                 visit_codex_session_entry(
