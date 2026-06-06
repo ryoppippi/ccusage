@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use crate::{
     cli::{AgentReportKind, SortOrder, WeekDay},
     sort_summaries, summarize_by_key, summarize_summaries_by_bucket, totals_json, BucketKind,
-    LoadedEntry, Result,
+    LoadedEntry, Result, SessionAccumulator,
 };
 
 pub(crate) fn report_json(
@@ -57,6 +57,12 @@ pub(crate) fn agent_summary_json(
                     .map_or(Value::Null, |value| json!(value)),
             );
             obj.insert(
+                "firstActivity".to_string(),
+                row.first_activity
+                    .as_ref()
+                    .map_or(Value::Null, |value| json!(value)),
+            );
+            obj.insert(
                 "projectPath".to_string(),
                 row.project_path
                     .as_ref()
@@ -101,17 +107,27 @@ pub(crate) fn summarize_entries(
                 WeekDay::Sunday,
             ))
         }
-        AgentReportKind::Session => summarize_by_key(
-            entries,
-            |entry| entry.session_id.to_string(),
-            |session_id| (session_id.to_string(), None),
-        )
-        .map(|mut rows| {
+        AgentReportKind::Session => {
+            let mut grouped: Vec<SessionAccumulator> = Vec::new();
+            let mut group_indexes = std::collections::HashMap::new();
+            for entry in entries {
+                let key = &entry.session_id;
+                let index = *group_indexes.entry(key.clone()).or_insert_with(|| {
+                    let index = grouped.len();
+                    grouped.push(SessionAccumulator::default());
+                    index
+                });
+                grouped[index].add_entry(entry);
+            }
+            let mut rows = Vec::with_capacity(grouped.len());
+            for group in grouped {
+                rows.push(group.into_summary()?);
+            }
             for row in &mut rows {
                 row.session_id = row.date.take();
             }
-            rows
-        }),
+            Ok(rows)
+        }
     }
 }
 
@@ -187,7 +203,8 @@ mod tests {
             week: Some("2025-12-29".to_string()),
             session_id: Some("session-a".to_string()),
             project_path: Some("/workspace/api".to_string()),
-            last_activity: Some("2026-01-02".to_string()),
+            last_activity: Some("2026-01-02T12:34:56.000Z".to_string()),
+            first_activity: Some("2026-01-01T10:30:00.000Z".to_string()),
             input_tokens: 100,
             output_tokens: 50,
             cache_creation_tokens: 10,

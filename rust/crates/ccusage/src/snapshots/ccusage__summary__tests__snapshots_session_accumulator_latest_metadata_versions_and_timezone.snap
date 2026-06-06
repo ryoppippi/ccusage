@@ -5,7 +5,8 @@ expression: row
 {
   "sessionId": "latest-session",
   "projectPath": "/workspace/new",
-  "lastActivity": "2026-01-03",
+  "lastActivity": "2026-01-03T01:00:00.000Z",
+  "firstActivity": "2026-01-02T01:20:00.000Z",
   "inputTokens": 120,
   "outputTokens": 60,
   "cacheCreationTokens": 10,

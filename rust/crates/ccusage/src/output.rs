@@ -65,6 +65,7 @@ pub(crate) fn session_summary_json(row: &UsageSummary) -> Value {
         "totalTokens": row.total_tokens(),
         "totalCost": row.total_cost,
         "lastActivity": row.last_activity,
+        "firstActivity": row.first_activity,
         "modelsUsed": row.models_used,
         "modelBreakdowns": row.model_breakdowns,
         "projectPath": row.project_path,
@@ -249,7 +250,9 @@ pub(crate) fn print_usage_table(
             ]
         };
         if include_last_activity {
-            values.push(row.last_activity.clone().unwrap_or_default());
+            values.push(truncate_rfc3339_to_date(
+                row.last_activity.as_deref().unwrap_or_default(),
+            ));
         }
         table.push(values);
         if shared.breakdown {
@@ -472,6 +475,10 @@ pub(crate) fn format_currency(value: f64) -> String {
     format!("${value:.2}")
 }
 
+fn truncate_rfc3339_to_date(s: &str) -> String {
+    s.get(..10).unwrap_or(s).to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -515,6 +522,7 @@ mod tests {
             session_id: None,
             project_path: None,
             last_activity: None,
+            first_activity: None,
             input_tokens: 100,
             output_tokens: 50,
             cache_creation_tokens: 10,
@@ -573,7 +581,8 @@ mod tests {
         row.date = None;
         row.session_id = Some("session-a".to_string());
         row.project_path = Some("/Users/example/workspace/api".to_string());
-        row.last_activity = Some("2026-01-02 12:34:56".to_string());
+        row.last_activity = Some("2026-01-02T12:34:56.000Z".to_string());
+        row.first_activity = Some("2026-01-01T10:30:00.000Z".to_string());
 
         insta::assert_json_snapshot!(session_summary_json(&row));
     }
@@ -622,6 +631,7 @@ mod tests {
             session_id: None,
             project_path: None,
             last_activity: None,
+            first_activity: None,
             input_tokens: 1_234,
             output_tokens: 567,
             cache_creation_tokens: 89,

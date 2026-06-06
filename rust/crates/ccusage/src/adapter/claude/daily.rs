@@ -488,6 +488,7 @@ impl DailyAccumulator {
             session_id: None,
             project_path: None,
             last_activity: None,
+            first_activity: None,
             input_tokens: self.counts.input_tokens,
             output_tokens: self.counts.output_tokens,
             cache_creation_tokens: self.counts.cache_creation_tokens,

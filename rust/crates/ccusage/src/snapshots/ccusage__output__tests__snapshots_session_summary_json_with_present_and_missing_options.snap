@@ -5,8 +5,9 @@ expression: session_summary_json(&row)
 {
   "cacheCreationTokens": 89,
   "cacheReadTokens": 10,
+  "firstActivity": "2026-01-01T10:30:00.000Z",
   "inputTokens": 1234,
-  "lastActivity": "2026-01-02 12:34:56",
+  "lastActivity": "2026-01-02T12:34:56.000Z",
   "modelBreakdowns": [
     {
       "cacheCreationTokens": 50,

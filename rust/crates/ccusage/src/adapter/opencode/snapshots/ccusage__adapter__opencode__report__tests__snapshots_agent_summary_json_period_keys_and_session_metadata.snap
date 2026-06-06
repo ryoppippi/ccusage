@@ -1,6 +1,5 @@
 ---
 source: crates/ccusage/src/adapter/opencode/report.rs
-assertion_line: 173
 expression: "serde_json::json!({\n    \"daily\": agent_summary_json(&daily, AgentReportKind::Daily, false),\n    \"weekly\": agent_summary_json(&weekly, AgentReportKind::Weekly, false),\n    \"monthly\": agent_summary_json(&monthly, AgentReportKind::Monthly, false),\n    \"session\": agent_summary_json(&session, AgentReportKind::Session, true),\n    \"dailyReport\":\n    report_from_rows(std::slice::from_ref(&daily), AgentReportKind::Daily),\n    \"sessionReport\": report_from_rows(&[session], AgentReportKind::Session),\n})"
 ---
 {
@@ -66,8 +65,9 @@ expression: "serde_json::json!({\n    \"daily\": agent_summary_json(&daily, Agen
     "cacheCreationTokens": 10,
     "cacheReadTokens": 5,
     "credits": 1.5,
+    "firstActivity": "2026-01-01T10:30:00.000Z",
     "inputTokens": 100,
-    "lastActivity": "2026-01-02",
+    "lastActivity": "2026-01-02T12:34:56.000Z",
     "messageCount": 3,
     "modelsUsed": [
       "gpt-5.2-codex",
