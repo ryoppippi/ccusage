@@ -4,8 +4,8 @@ use serde_json::{json, Value};
 
 use crate::{
     adapter::{
-        amp, claude, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
-        opencode, pi, qwen,
+        amp, claude, codebuddy, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi,
+        openclaw, opencode, pi, qwen,
     },
     cli::{AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
     filter_loaded_entries_by_date, json_float, summarize_by_key, summarize_summaries_by_bucket,
@@ -165,6 +165,20 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                         &loader_shared,
                         || openclaw::load_entries(&loader_shared, None),
                         openclaw::summarize_entries,
+                    )
+                }),
+            },
+            AgentLoadSpec {
+                index: 15,
+                agent: "codebuddy",
+                progress_agent: crate::progress::UsageLoadAgent::CodeBuddy,
+                load: Box::new(|| {
+                    load_summary_agent_rows(
+                        "codebuddy",
+                        load_kind,
+                        &loader_shared,
+                        || codebuddy::load_entries(&loader_shared, None),
+                        codebuddy::summarize_entries,
                     )
                 }),
             },

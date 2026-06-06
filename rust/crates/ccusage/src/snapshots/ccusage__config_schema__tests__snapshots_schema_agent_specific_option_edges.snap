@@ -1,7 +1,6 @@
 ---
 source: crates/ccusage/src/config_schema.rs
-assertion_line: 1257
-expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n    definition_properties(&schema, \"ccusage-config\"),\n    \"rootAdditionalProperties\":\n    schema[\"definitions\"][\"ccusage-config\"][\"additionalProperties\"],\n    \"defaults\": schema_node(&schema, &[\"defaults\"]), \"rootDaily\":\n    schema_node(&schema, &[\"commands\", \"daily\"]), \"claudeStatusline\":\n    schema_node(&schema, &[\"claude\", \"commands\", \"statusline\"]),\n    \"codexDefaults\": schema_node(&schema, &[\"codex\", \"defaults\"]),\n    \"opencodeWeekly\":\n    schema_node(&schema, &[\"opencode\", \"commands\", \"weekly\"]), \"piDefaults\":\n    schema_node(&schema, &[\"pi\", \"defaults\"]), \"openclawDefaults\":\n    schema_node(&schema, &[\"openclaw\", \"defaults\"]),\n})"
+expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n    definition_properties(&schema, \"ccusage-config\"),\n    \"rootAdditionalProperties\":\n    schema[\"definitions\"][\"ccusage-config\"][\"additionalProperties\"],\n    \"defaults\": schema_node(&schema, &[\"defaults\"]), \"rootDaily\":\n    schema_node(&schema, &[\"commands\", \"daily\"]), \"claudeStatusline\":\n    schema_node(&schema, &[\"claude\", \"commands\", \"statusline\"]),\n    \"codexDefaults\": schema_node(&schema, &[\"codex\", \"defaults\"]),\n    \"opencodeWeekly\":\n    schema_node(&schema, &[\"opencode\", \"commands\", \"weekly\"]), \"piDefaults\":\n    schema_node(&schema, &[\"pi\", \"defaults\"]), \"openclawDefaults\":\n    schema_node(&schema, &[\"openclaw\", \"defaults\"]), \"codebuddyDefaults\":\n    schema_node(&schema, &[\"codebuddy\", \"defaults\"]),\n})"
 ---
 {
   "claudeStatusline": {
@@ -88,6 +87,113 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
           "emoji-text"
         ],
         "markdownDescription": "Visual burn-rate display mode.",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "codebuddyDefaults": {
+    "additionalProperties": false,
+    "properties": {
+      "all": {
+        "description": "Accepted for compatibility; all detected supported agents are included by default.",
+        "markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+        "type": "boolean"
+      },
+      "breakdown": {
+        "description": "Show per-model cost breakdown.",
+        "markdownDescription": "Show per-model cost breakdown.",
+        "type": "boolean"
+      },
+      "codebuddyPath": {
+        "description": "Path or comma-separated paths to CodeBuddy data directories.",
+        "markdownDescription": "Path or comma-separated paths to CodeBuddy data directories.",
+        "type": "string"
+      },
+      "color": {
+        "description": "Enable colored output.",
+        "markdownDescription": "Enable colored output.",
+        "type": "boolean"
+      },
+      "compact": {
+        "description": "Force compact table layout for narrow terminals.",
+        "markdownDescription": "Force compact table layout for narrow terminals.",
+        "type": "boolean"
+      },
+      "debug": {
+        "description": "Show pricing mismatch information for debugging.",
+        "markdownDescription": "Show pricing mismatch information for debugging.",
+        "type": "boolean"
+      },
+      "debugSamples": {
+        "description": "Number of sample discrepancies to show in debug output.",
+        "format": "uint",
+        "markdownDescription": "Number of sample discrepancies to show in debug output.",
+        "minimum": 0.0,
+        "type": "integer"
+      },
+      "jq": {
+        "description": "jq filter to apply to JSON output.",
+        "markdownDescription": "jq filter to apply to JSON output.",
+        "type": "string"
+      },
+      "json": {
+        "description": "Output in JSON format.",
+        "markdownDescription": "Output in JSON format.",
+        "type": "boolean"
+      },
+      "mode": {
+        "description": "Cost calculation mode.",
+        "enum": [
+          "auto",
+          "calculate",
+          "display"
+        ],
+        "markdownDescription": "Cost calculation mode.",
+        "type": "string"
+      },
+      "noColor": {
+        "description": "Disable colored output.",
+        "markdownDescription": "Disable colored output.",
+        "type": "boolean"
+      },
+      "noOffline": {
+        "description": "Disable cached pricing data where supported.",
+        "markdownDescription": "Disable cached pricing data where supported.",
+        "type": "boolean"
+      },
+      "offline": {
+        "description": "Use cached pricing data where supported.",
+        "markdownDescription": "Use cached pricing data where supported.",
+        "type": "boolean"
+      },
+      "order": {
+        "description": "Sort order.",
+        "enum": [
+          "desc",
+          "asc"
+        ],
+        "markdownDescription": "Sort order.",
+        "type": "string"
+      },
+      "since": {
+        "description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+        "markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+        "type": "string"
+      },
+      "singleThread": {
+        "description": "Disable parallel file processing.",
+        "markdownDescription": "Disable parallel file processing.",
+        "type": "boolean"
+      },
+      "timezone": {
+        "description": "Timezone for date grouping (IANA).",
+        "markdownDescription": "Timezone for date grouping (IANA).",
+        "type": "string"
+      },
+      "until": {
+        "description": "Filter until date (inclusive).",
+        "markdownDescription": "Filter until date (inclusive).",
         "type": "string"
       }
     },
@@ -774,6 +880,7 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
     "$schema",
     "amp",
     "claude",
+    "codebuddy",
     "codebuff",
     "codex",
     "commands",

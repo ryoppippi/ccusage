@@ -422,6 +422,7 @@ fn agent_label(agent: &str) -> &str {
         "pi" => "pi-agent",
         "goose" => "Goose",
         "openclaw" => "OpenClaw",
+        "codebuddy" => "CodeBuddy",
         "kilo" => "Kilo",
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",

@@ -83,6 +83,7 @@ export default defineConfig({
 						{ text: 'Gemini CLI', link: '/guide/gemini/' },
 						{ text: 'Kimi', link: '/guide/kimi/' },
 						{ text: 'OpenClaw', link: '/guide/openclaw/' },
+						{ text: 'CodeBuddy', link: '/guide/codebuddy/' },
 						{ text: 'Source Support Q&A', link: '/guide/source-support-qa' },
 					],
 				},

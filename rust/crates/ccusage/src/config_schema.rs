@@ -28,6 +28,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) droid: Option<DroidConfig>,
     /// Codebuff configuration.
     pub(crate) codebuff: Option<CodebuffConfig>,
+    /// CodeBuddy configuration.
+    pub(crate) codebuddy: Option<CodebuddyConfig>,
     /// Hermes Agent configuration.
     pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
@@ -211,6 +213,21 @@ pub(crate) struct OpenClawCommandsConfig {
     pub(crate) daily: Option<OpenClawOptions>,
     pub(crate) monthly: Option<OpenClawOptions>,
     pub(crate) session: Option<OpenClawOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodebuddyConfig {
+    pub(crate) defaults: Option<CodebuddyOptions>,
+    pub(crate) commands: Option<CodebuddyCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodebuddyCommandsConfig {
+    pub(crate) daily: Option<CodebuddyOptions>,
+    pub(crate) monthly: Option<CodebuddyOptions>,
+    pub(crate) session: Option<CodebuddyOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -461,6 +478,15 @@ pub(crate) struct OpenClawOptions {
     pub(crate) open_claw_path: Option<String>,
 }
 
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodebuddyOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    /// Path or comma-separated paths to CodeBuddy data directories.
+    pub(crate) codebuddy_path: Option<String>,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum ConfigCostMode {
@@ -608,6 +634,15 @@ impl OpenClawOptions {
         Self {
             shared: SharedOptions::from_map(map),
             open_claw_path: string_option(map, "openClawPath"),
+        }
+    }
+}
+
+impl CodebuddyOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            shared: SharedOptions::from_map(map),
+            codebuddy_path: string_option(map, "codebuddyPath"),
         }
     }
 }
@@ -992,6 +1027,11 @@ mod tests {
             &["openclaw", "defaults"],
             &with_keys(&shared, &["openClawPath"]),
         );
+        assert_schema_properties(
+            &schema,
+            &["codebuddy", "defaults"],
+            &with_keys(&shared, &["codebuddyPath"]),
+        );
     }
 
     #[test]
@@ -1010,6 +1050,8 @@ mod tests {
         assert!(schema_property(&schema, &["gemini", "defaults", "openClawPath"]).is_none());
         assert!(schema_property(&schema, &["kimi", "defaults", "openClawPath"]).is_none());
         assert!(schema_property(&schema, &["qwen", "defaults", "openClawPath"]).is_none());
+        assert!(schema_property(&schema, &["codebuddy", "defaults", "codebuddyPath"]).is_some());
+        assert!(schema_property(&schema, &["openclaw", "defaults", "codebuddyPath"]).is_none());
     }
 
     #[test]
@@ -1042,8 +1084,24 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
+                "$schema",
+                "amp",
+                "claude",
+                "codebuddy",
+                "codebuff",
+                "codex",
+                "commands",
+                "copilot",
+                "defaults",
+                "gemini",
+                "goose",
+                "hermes",
+                "kilo",
+                "kimi",
+                "opencode",
+                "openclaw",
+                "pi",
+                "qwen",
                 "droid",
             ],
         );
@@ -1142,6 +1200,13 @@ mod tests {
                 "commands": {
                     "daily": {
                         "openClawPath": "/tmp/openclaw"
+                    }
+                }
+            },
+            "codebuddy": {
+                "commands": {
+                    "daily": {
+                        "codebuddyPath": "/tmp/codebuddy"
                     }
                 }
             },
@@ -1266,6 +1331,7 @@ mod tests {
             "opencodeWeekly": schema_node(&schema, &["opencode", "commands", "weekly"]),
             "piDefaults": schema_node(&schema, &["pi", "defaults"]),
             "openclawDefaults": schema_node(&schema, &["openclaw", "defaults"]),
+            "codebuddyDefaults": schema_node(&schema, &["codebuddy", "defaults"]),
         }));
     }
 

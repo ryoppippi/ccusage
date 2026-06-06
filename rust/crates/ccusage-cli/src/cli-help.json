@@ -226,6 +226,12 @@
 			"description": "Path or comma-separated paths to OpenClaw data directories (default: ~/.openclaw, ~/.clawdbot, ~/.moltbot, ~/.moldbot)"
 		}
 	],
+	"codebuddy_options": [
+		{
+			"flags": "--codebuddy-path <codebuddy-path>",
+			"description": "Path or comma-separated paths to CodeBuddy data directories (default: ~/.codebuddy/projects)"
+		}
+	],
 	"session_options": [
 		{
 			"flags": "-i, --id <id>",

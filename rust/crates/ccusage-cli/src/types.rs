@@ -27,6 +27,7 @@ pub enum Command {
     Kimi(AgentCommandArgs),
     Qwen(AgentCommandArgs),
     OpenClaw(AgentCommandArgs),
+    CodeBuddy(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -116,6 +117,7 @@ pub struct AgentCommandArgs {
     pub kind: AgentReportKind,
     pub pi_path: Option<String>,
     pub open_claw_path: Option<String>,
+    pub codebuddy_path: Option<String>,
     pub codex_speed: CodexSpeed,
 }
 
@@ -225,6 +227,7 @@ pub trait CliConfig {
         _codex_speed: &mut CodexSpeed,
         _pi_path: Option<&mut Option<String>>,
         _open_claw_path: Option<&mut Option<String>>,
+        _codebuddy_path: Option<&mut Option<String>>,
     ) {
     }
 }

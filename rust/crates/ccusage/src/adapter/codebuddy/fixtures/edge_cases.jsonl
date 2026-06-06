@@ -1,0 +1,6 @@
+{"id":"e1","type":"function_call","timestamp":1779950100000,"sessionId":"sess-edge-1","providerData":{"model":"MaaS_Cl_Opus_4.7_20260416_cache","rawUsage":{"prompt_tokens":10,"completion_tokens":1,"total_tokens":11,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}
+{"id":"e2","type":"function_call","timestamp":1779950200000,"sessionId":"sess-edge-1","providerData":{"requestModelId":"claude-opus-4.7-1m","rawUsage":{"prompt_tokens":20,"completion_tokens":2,"total_tokens":22,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}
+{"id":"e3","type":"function_call","timestamp":1779950300000,"sessionId":"sess-edge-1","providerData":{"rawUsage":{"prompt_tokens":30,"completion_tokens":3,"total_tokens":33,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}
+{"id":"e4","type":"topic","timestamp":1779950400000,"sessionId":"sess-edge-1","title":"Some Topic"}
+{"id":"e5","type":"summary","timestamp":1779950500000,"sessionId":"sess-edge-1","summary":"Some summary"}
+{"id":"e6","type":"file-history-snapshot","timestamp":1779950600000,"sessionId":"sess-edge-1"}

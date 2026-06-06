@@ -1,0 +1,107 @@
+---
+source: crates/ccusage/src/adapter/codebuddy/mod.rs
+assertion_line: 126
+expression: "serde_json::Value::Object(output)"
+---
+{
+  "daily": {
+    "daily": [
+      {
+        "cacheCreationTokens": 800,
+        "cacheReadTokens": 0,
+        "date": "2026-05-30",
+        "inputTokens": 1000,
+        "modelsUsed": [
+          "[codebuddy] MaaS_Cl_Opus_4.7_20260416_cache"
+        ],
+        "outputTokens": 100,
+        "totalCost": 0.0,
+        "totalTokens": 1900
+      },
+      {
+        "cacheCreationTokens": 150,
+        "cacheReadTokens": 1400,
+        "date": "2026-05-31",
+        "inputTokens": 1700,
+        "modelsUsed": [
+          "[codebuddy] MaaS_Cl_Opus_4.7_20260416_cache"
+        ],
+        "outputTokens": 70,
+        "totalCost": 0.0,
+        "totalTokens": 3320
+      }
+    ],
+    "totals": {
+      "cacheCreationTokens": 950,
+      "cacheReadTokens": 1400,
+      "inputTokens": 2700,
+      "outputTokens": 170,
+      "totalCost": 0.0,
+      "totalTokens": 5220
+    }
+  },
+  "monthly": {
+    "monthly": [
+      {
+        "cacheCreationTokens": 950,
+        "cacheReadTokens": 1400,
+        "inputTokens": 2700,
+        "modelsUsed": [
+          "[codebuddy] MaaS_Cl_Opus_4.7_20260416_cache"
+        ],
+        "month": "2026-05",
+        "outputTokens": 170,
+        "totalCost": 0.0,
+        "totalTokens": 5220
+      }
+    ],
+    "totals": {
+      "cacheCreationTokens": 950,
+      "cacheReadTokens": 1400,
+      "inputTokens": 2700,
+      "outputTokens": 170,
+      "totalCost": 0.0,
+      "totalTokens": 5220
+    }
+  },
+  "session": {
+    "sessions": [
+      {
+        "cacheCreationTokens": 800,
+        "cacheReadTokens": 1400,
+        "inputTokens": 2500,
+        "lastActivity": "2026-05-31",
+        "modelsUsed": [
+          "[codebuddy] MaaS_Cl_Opus_4.7_20260416_cache"
+        ],
+        "outputTokens": 150,
+        "projectPath": "/Users/example/proj",
+        "sessionId": "sess-A",
+        "totalCost": 0.0,
+        "totalTokens": 4850
+      },
+      {
+        "cacheCreationTokens": 150,
+        "cacheReadTokens": 0,
+        "inputTokens": 200,
+        "lastActivity": "2026-05-31",
+        "modelsUsed": [
+          "[codebuddy] MaaS_Cl_Opus_4.7_20260416_cache"
+        ],
+        "outputTokens": 20,
+        "projectPath": "/Users/example/proj",
+        "sessionId": "sess-B",
+        "totalCost": 0.0,
+        "totalTokens": 370
+      }
+    ],
+    "totals": {
+      "cacheCreationTokens": 950,
+      "cacheReadTokens": 1400,
+      "inputTokens": 2700,
+      "outputTokens": 170,
+      "totalCost": 0.0,
+      "totalTokens": 5220
+    }
+  }
+}

@@ -5,6 +5,7 @@
 		"claude_daily_options": ["shared_claude_options", "daily_options"],
 		"claude_session_options": ["shared_claude_options", "session_options"],
 		"claude_weekly_options": ["shared_claude_options", "weekly_options"],
+		"codebuddy_combined_options": ["agent_options", "codebuddy_options"],
 		"openclaw_combined_options": ["agent_options", "openclaw_options"],
 		"pi_combined_options": ["agent_options", "pi_options"]
 	},
@@ -94,6 +95,10 @@
 			{
 				"name": "openclaw",
 				"description": "Show OpenClaw usage commands"
+			},
+			{
+				"name": "codebuddy",
+				"description": "Show CodeBuddy usage commands"
 			}
 		]
 	},
@@ -728,6 +733,43 @@
 			"description": "Show OpenClaw usage grouped by session",
 			"usage": "ccusage openclaw session <OPTIONS>",
 			"options": "openclaw_combined_options"
+		},
+		{
+			"path": ["codebuddy"],
+			"description": "Usage reports for codebuddy.",
+			"usage": "ccusage codebuddy <COMMANDS>",
+			"commands": [
+				{
+					"name": "daily",
+					"description": "Show CodeBuddy usage grouped by date"
+				},
+				{
+					"name": "monthly",
+					"description": "Show CodeBuddy usage grouped by month"
+				},
+				{
+					"name": "session",
+					"description": "Show CodeBuddy usage grouped by session"
+				}
+			]
+		},
+		{
+			"path": ["codebuddy", "daily"],
+			"description": "Show CodeBuddy usage grouped by date",
+			"usage": "ccusage codebuddy daily <OPTIONS>",
+			"options": "codebuddy_combined_options"
+		},
+		{
+			"path": ["codebuddy", "monthly"],
+			"description": "Show CodeBuddy usage grouped by month",
+			"usage": "ccusage codebuddy monthly <OPTIONS>",
+			"options": "codebuddy_combined_options"
+		},
+		{
+			"path": ["codebuddy", "session"],
+			"description": "Show CodeBuddy usage grouped by session",
+			"usage": "ccusage codebuddy session <OPTIONS>",
+			"options": "codebuddy_combined_options"
 		}
 	]
 }

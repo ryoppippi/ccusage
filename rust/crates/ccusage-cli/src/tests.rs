@@ -43,6 +43,7 @@ struct TestConfig {
     codex_speed: Option<CodexSpeed>,
     pi_path: Option<&'static str>,
     open_claw_path: Option<&'static str>,
+    codebuddy_path: Option<&'static str>,
 }
 
 impl CliConfig for TestConfig {
@@ -99,6 +100,7 @@ impl CliConfig for TestConfig {
         codex_speed: &mut CodexSpeed,
         pi_path: Option<&mut Option<String>>,
         open_claw_path: Option<&mut Option<String>>,
+        codebuddy_path: Option<&mut Option<String>>,
     ) {
         if let Some(speed) = self.codex_speed {
             *codex_speed = speed;
@@ -108,6 +110,9 @@ impl CliConfig for TestConfig {
         }
         if let (Some(path), Some(open_claw_path)) = (self.open_claw_path, open_claw_path) {
             *open_claw_path = Some(path.to_string());
+        }
+        if let (Some(path), Some(codebuddy_path)) = (self.codebuddy_path, codebuddy_path) {
+            *codebuddy_path = Some(path.to_string());
         }
     }
 }
@@ -202,6 +207,7 @@ fn command_snapshot(command: Option<Command>) -> Value {
         Some(Command::Kimi(args)) => agent_command_snapshot("kimi", args),
         Some(Command::Qwen(args)) => agent_command_snapshot("qwen", args),
         Some(Command::OpenClaw(args)) => agent_command_snapshot("openclaw", args),
+        Some(Command::CodeBuddy(args)) => agent_command_snapshot("codebuddy", args),
     }
 }
 
@@ -212,6 +218,7 @@ fn agent_command_snapshot(agent: &str, args: AgentCommandArgs) -> Value {
         "kind": format!("{:?}", args.kind),
         "piPath": args.pi_path,
         "openClawPath": args.open_claw_path,
+        "codebuddyPath": args.codebuddy_path,
         "codexSpeed": format!("{:?}", args.codex_speed),
     })
 }
@@ -357,8 +364,22 @@ fn applies_schema_documented_config_file_options() {
 fn root_help_lists_agent_namespaces_without_nested_commands() {
     let help = help_text();
     let agents = [
-        "claude", "codex", "opencode", "amp", "droid", "codebuff", "hermes", "pi", "goose", "kilo",
-        "copilot", "gemini", "kimi", "qwen", "openclaw",
+        "claude",
+        "codex",
+        "opencode",
+        "amp",
+        "droid",
+        "codebuff",
+        "hermes",
+        "pi",
+        "goose",
+        "kilo",
+        "copilot",
+        "gemini",
+        "kimi",
+        "qwen",
+        "openclaw",
+        "codebuddy",
     ];
 
     for agent in agents {

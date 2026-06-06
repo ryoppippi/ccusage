@@ -11,9 +11,9 @@ use crate::{
         SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
     },
     config_schema::{
-        BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
-        ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay, DailySpecificOptions,
-        OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions,
+        BlocksSpecificOptions, CodebuddyOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode,
+        ConfigCostSource, ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay,
+        DailySpecificOptions, OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions,
         WeeklySpecificOptions,
     },
 };
@@ -239,6 +239,7 @@ fn is_agent_command(command: &str) -> bool {
             | "amp"
             | "droid"
             | "codebuff"
+            | "codebuddy"
             | "hermes"
             | "pi"
             | "goose"
@@ -354,6 +355,7 @@ pub(crate) fn apply_config_to_agent_args(
     codex_speed: &mut CodexSpeed,
     mut pi_path: Option<&mut Option<String>>,
     mut open_claw_path: Option<&mut Option<String>>,
+    mut codebuddy_path: Option<&mut Option<String>>,
     config: &ConfigContext,
 ) {
     for options in config.option_maps() {
@@ -369,6 +371,11 @@ pub(crate) fn apply_config_to_agent_args(
         if let Some(open_claw_path) = open_claw_path.as_deref_mut() {
             if let Some(path) = OpenClawOptions::from_map(options).open_claw_path {
                 *open_claw_path = Some(path);
+            }
+        }
+        if let Some(codebuddy_path) = codebuddy_path.as_deref_mut() {
+            if let Some(path) = CodebuddyOptions::from_map(options).codebuddy_path {
+                *codebuddy_path = Some(path);
             }
         }
     }
@@ -400,8 +407,9 @@ impl crate::cli::CliConfig for ConfigContext {
         codex_speed: &mut CodexSpeed,
         pi_path: Option<&mut Option<String>>,
         open_claw_path: Option<&mut Option<String>>,
+        codebuddy_path: Option<&mut Option<String>>,
     ) {
-        apply_config_to_agent_args(codex_speed, pi_path, open_claw_path, self);
+        apply_config_to_agent_args(codex_speed, pi_path, open_claw_path, codebuddy_path, self);
     }
 }
 
@@ -696,6 +704,7 @@ mod tests {
             &mut speed,
             None,
             None,
+            None,
             &context(
                 json!({
                     "codex": {
@@ -717,6 +726,7 @@ mod tests {
         apply_config_to_agent_args(
             &mut speed,
             Some(&mut pi_path),
+            None,
             None,
             &context(
                 json!({
@@ -740,6 +750,7 @@ mod tests {
             &mut speed,
             None,
             Some(&mut open_claw_path),
+            None,
             &context(
                 json!({
                     "openclaw": {
@@ -755,6 +766,29 @@ mod tests {
         );
 
         assert_eq!(open_claw_path.as_deref(), Some("/tmp/openclaw"));
+
+        let mut speed = CodexSpeed::Auto;
+        let mut codebuddy_path = None;
+        apply_config_to_agent_args(
+            &mut speed,
+            None,
+            None,
+            Some(&mut codebuddy_path),
+            &context(
+                json!({
+                    "codebuddy": {
+                        "defaults": {
+                            "codebuddyPath": "/tmp/codebuddy"
+                        }
+                    }
+                }),
+                "codebuddy daily",
+                Some("codebuddy"),
+                "daily",
+            ),
+        );
+
+        assert_eq!(codebuddy_path.as_deref(), Some("/tmp/codebuddy"));
     }
 
     fn context(value: Value, raw: &str, agent: Option<&str>, report: &str) -> ConfigContext {
