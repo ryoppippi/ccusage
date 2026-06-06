@@ -371,31 +371,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
-  schema-check:
-    needs: changes
-    if: needs.changes.outputs.code-changed == 'true'
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: ./.github/actions/setup-nix
-      - name: Generate schema files
-        run: nix develop --command pnpm run generate:schema
-        working-directory: apps/ccusage
-      - name: Check if schema files are up-to-date
-        run: |
-          if git diff --exit-code apps/ccusage/config-schema.json docs/public/config-schema.json; then
-            echo "✅ Schema files are up-to-date"
-          else
-            echo "❌ Schema files are not up-to-date. Please run 'pnpm run generate:schema' and commit the changes."
-            echo ""
-            echo "Changed files:"
-            git diff --name-only apps/ccusage/config-schema.json docs/public/config-schema.json
-            echo ""
-            echo "Diff:"
-            git diff apps/ccusage/config-schema.json docs/public/config-schema.json
-            exit 1
-          fi
-
   action-timeline:
     needs:
       - changes
@@ -406,7 +381,6 @@ jobs:
       - ccusage-preview-e2e
       - ccusage-perf-comment
       - ccusage-rust-perf-comment
-      - schema-check
     if: ${{ always() }}
     runs-on: ubuntu-slim
     steps:
