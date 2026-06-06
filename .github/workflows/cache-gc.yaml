@@ -1,0 +1,36 @@
+name: Cache GC
+
+on:
+  schedule:
+    # Weekly on Sunday 03:00 UTC.
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  gc:
+    name: Garbage-collect old Actions caches
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+    steps:
+      - name: Delete caches not accessed in the last 14 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          # The per-run `purge` in setup-nix only trims superseded keys created
+          # by CI. This sweep also reclaims caches left behind by merged or
+          # abandoned branches that no longer trigger CI.
+          cutoff=$(date -u -d '14 days ago' +%s)
+          gh cache list --limit 100 --json id,key,lastAccessedAt \
+            --jq '.[] | [.id, .lastAccessedAt, .key] | @tsv' \
+            | while IFS=$'\t' read -r id last key; do
+                last_epoch=$(date -u -d "$last" +%s)
+                if [ "$last_epoch" -lt "$cutoff" ]; then
+                  echo "Deleting stale cache: $key (last accessed $last)"
+                  gh cache delete "$id"
+                fi
+              done
