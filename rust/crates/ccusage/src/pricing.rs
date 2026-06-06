@@ -891,7 +891,12 @@ fn fetch_json_url_with_redirects(url: &str, redirects: usize) -> io::Result<Stri
     const MAX_REDIRECTS: usize = 3;
 
     let parsed = HttpsUrl::parse(url)?;
-    let response = fetch_https_response(parsed.host, parsed.path.as_ref())?;
+    let response = fetch_https_response(
+        parsed.host.as_ref(),
+        parsed.port,
+        parsed.authority,
+        parsed.path.as_ref(),
+    )?;
     if (300..400).contains(&response.status) {
         if redirects >= MAX_REDIRECTS {
             return Err(io::Error::other("too many HTTP redirects"));
@@ -932,7 +937,7 @@ fn resolve_redirect_url(parsed: &HttpsUrl<'_>, location: &str) -> io::Result<Str
         return Err(io::Error::other("unsupported HTTP redirect location"));
     }
 
-    redirect_url.push_str(parsed.host);
+    redirect_url.push_str(parsed.authority);
     if location.starts_with('/') {
         redirect_url.push_str(location);
     } else if location.starts_with('?') {
@@ -968,8 +973,11 @@ fn request_path_directory(path: &str) -> &str {
     &path[..last_slash + 1]
 }
 
+#[derive(Debug)]
 struct HttpsUrl<'a> {
-    host: &'a str,
+    host: Cow<'a, str>,
+    authority: &'a str,
+    port: u16,
     path: Cow<'a, str>,
 }
 
@@ -982,19 +990,20 @@ impl<'a> HttpsUrl<'a> {
             ));
         };
         let path_start = rest.find(['/', '?', '#']).unwrap_or(rest.len());
-        let host = &rest[..path_start];
-        if host.is_empty() {
+        let authority = &rest[..path_start];
+        if authority.is_empty() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "URL host is empty",
             ));
         }
-        if host.contains('@') {
+        if authority.contains('@') {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "URL user info is unsupported",
             ));
         }
+        let (host, port) = split_https_authority(authority)?;
         let path = if path_start == rest.len() {
             Cow::Borrowed("/")
         } else {
@@ -1011,8 +1020,67 @@ impl<'a> HttpsUrl<'a> {
                 Cow::Owned(path)
             }
         };
-        Ok(Self { host, path })
+        Ok(Self {
+            host,
+            authority,
+            port,
+            path,
+        })
     }
+}
+
+fn split_https_authority(authority: &str) -> io::Result<(Cow<'_, str>, u16)> {
+    if let Some(rest) = authority.strip_prefix('[') {
+        let Some(end) = rest.find(']') else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "URL host is invalid",
+            ));
+        };
+        let host = &rest[..end];
+        let port = parse_https_port_suffix(&rest[end + 1..])?;
+        return Ok((Cow::Borrowed(host), port));
+    }
+
+    let Some((host, port)) = authority.split_once(':') else {
+        return Ok((Cow::Borrowed(authority), 443));
+    };
+    if host.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "URL host is empty",
+        ));
+    }
+    Ok((Cow::Borrowed(host), parse_https_port_number(port)?))
+}
+
+fn parse_https_port_suffix(suffix: &str) -> io::Result<u16> {
+    if suffix.is_empty() {
+        return Ok(443);
+    }
+    let Some(port) = suffix.strip_prefix(':') else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "URL port is invalid",
+        ));
+    };
+    parse_https_port_number(port)
+}
+
+fn parse_https_port_number(port: &str) -> io::Result<u16> {
+    if port.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "URL port is empty",
+        ));
+    }
+    port.parse::<u16>().map_err(|error| {
+        io::Error::new(io::ErrorKind::InvalidInput, {
+            let mut message = String::from("URL port is invalid: ");
+            message.push_str(&error.to_string());
+            message
+        })
+    })
 }
 
 struct HttpResponse {
@@ -1022,9 +1090,14 @@ struct HttpResponse {
     body: Vec<u8>,
 }
 
-fn fetch_https_response(host: &str, path: &str) -> io::Result<HttpResponse> {
+fn fetch_https_response(
+    host: &str,
+    port: u16,
+    authority: &str,
+    path: &str,
+) -> io::Result<HttpResponse> {
     let timeout = Duration::from_secs(PRICING_FETCH_TIMEOUT_SECONDS);
-    let tcp = connect_https_tcp(host, timeout)?;
+    let tcp = connect_https_tcp(host, port, timeout)?;
     tcp.set_read_timeout(Some(timeout))?;
     tcp.set_write_timeout(Some(timeout))?;
 
@@ -1037,7 +1110,7 @@ fn fetch_https_response(host: &str, path: &str) -> io::Result<HttpResponse> {
     request.push_str("GET ");
     request.push_str(path);
     request.push_str(" HTTP/1.1\r\nHost: ");
-    request.push_str(host);
+    request.push_str(authority);
     request.push_str("\r\nUser-Agent: ccusage/");
     request.push_str(env!("CARGO_PKG_VERSION"));
     request.push_str(
@@ -1052,9 +1125,9 @@ fn fetch_https_response(host: &str, path: &str) -> io::Result<HttpResponse> {
     )?)
 }
 
-fn connect_https_tcp(host: &str, timeout: Duration) -> io::Result<TcpStream> {
+fn connect_https_tcp(host: &str, port: u16, timeout: Duration) -> io::Result<TcpStream> {
     let mut last_error = None;
-    for address in (host, 443).to_socket_addrs()? {
+    for address in (host, port).to_socket_addrs()? {
         match TcpStream::connect_timeout(&address, timeout) {
             Ok(stream) => return Ok(stream),
             Err(error) => last_error = Some(error),
@@ -1433,6 +1506,20 @@ mod tests {
             super::HttpsUrl::parse("https://example.com/path?download=1#section").unwrap();
         assert_eq!(path_query_fragment.host, "example.com");
         assert_eq!(path_query_fragment.path.as_ref(), "/path?download=1");
+    }
+
+    #[test]
+    fn parses_explicit_https_url_ports() {
+        let parsed = super::HttpsUrl::parse("https://example.com:8443/pricing.json").unwrap();
+
+        assert_eq!(parsed.host.as_ref(), "example.com");
+        assert_eq!(parsed.authority, "example.com:8443");
+        assert_eq!(parsed.port, 8443);
+        assert_eq!(parsed.path.as_ref(), "/pricing.json");
+
+        let error =
+            super::HttpsUrl::parse("https://example.com:not-a-port/pricing.json").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     }
 
     #[test]
