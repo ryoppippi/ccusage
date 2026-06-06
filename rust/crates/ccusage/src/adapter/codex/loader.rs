@@ -453,4 +453,370 @@ mod tests {
         assert_eq!(events[0].output_tokens, 5);
         assert_eq!(events[0].total_tokens, 15);
     }
+
+    #[test]
+    fn skips_replayed_parent_token_history_in_thread_spawn_subagent_files() {
+        let fixture = fs_fixture!({
+            "2026-05-12T08-00-00-parent.jsonl": [
+                json!({
+                    "timestamp": "2026-05-12T08:00:00.000Z",
+                    "type": "turn_context",
+                    "payload": {"model": "gpt-5.2", "model_name": null, "metadata": null},
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-12T08:01:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 1_000,
+                                "cached_input_tokens": 100,
+                                "output_tokens": 200,
+                                "total_tokens": 1_200,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 1_000,
+                                "cached_input_tokens": 100,
+                                "output_tokens": 200,
+                                "total_tokens": 1_200,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-12T08:02:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 500,
+                                "cached_input_tokens": 50,
+                                "output_tokens": 100,
+                                "total_tokens": 600,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 1_500,
+                                "cached_input_tokens": 150,
+                                "output_tokens": 300,
+                                "total_tokens": 1_800,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+            "2026-05-12T08-03-00-subagent.jsonl": [
+                // session_meta: subagent with thread_spawn
+                json!({
+                    "timestamp": "2026-05-12T08:03:00.000Z",
+                    "type": "session_meta",
+                    "payload": {
+                        "id": "subagent-abc",
+                        "source": {
+                            "subagent": {
+                                "thread_spawn": {
+                                    "parent_thread_id": "parent-xyz"
+                                }
+                            }
+                        }
+                    },
+                })
+                .to_string(),
+                // session_meta: parent
+                json!({
+                    "timestamp": "2026-05-12T08:03:00.000Z",
+                    "type": "session_meta",
+                    "payload": {"id": "parent-xyz"},
+                })
+                .to_string(),
+                // replayed parent history — timestamps all at subagent creation time
+                json!({
+                    "timestamp": "2026-05-12T08:03:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 1_000,
+                                "cached_input_tokens": 100,
+                                "output_tokens": 200,
+                                "total_tokens": 1_200,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 1_000,
+                                "cached_input_tokens": 100,
+                                "output_tokens": 200,
+                                "total_tokens": 1_200,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-12T08:03:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 500,
+                                "cached_input_tokens": 50,
+                                "output_tokens": 100,
+                                "total_tokens": 600,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 1_500,
+                                "cached_input_tokens": 150,
+                                "output_tokens": 300,
+                                "total_tokens": 1_800,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                // subagent's own entries — different timestamps
+                json!({
+                    "timestamp": "2026-05-12T08:04:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 100,
+                                "cached_input_tokens": 10,
+                                "output_tokens": 20,
+                                "total_tokens": 120,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 100,
+                                "cached_input_tokens": 10,
+                                "output_tokens": 20,
+                                "total_tokens": 120,
+                            },
+                            "model": "gpt-5.2",
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-12T08:05:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 50,
+                                "cached_input_tokens": 5,
+                                "output_tokens": 10,
+                                "total_tokens": 60,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 150,
+                                "cached_input_tokens": 15,
+                                "output_tokens": 30,
+                                "total_tokens": 180,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        for single_thread in [true, false] {
+            let events = load_codex_events_from_directory(fixture.root(), single_thread).unwrap();
+
+            assert_eq!(
+                events.len(),
+                4,
+                "expected 4 events (2 parent + 2 subagent real), got {} with single_thread={}",
+                events.len(),
+                single_thread
+            );
+
+            let parent_events: Vec<_> = events
+                .iter()
+                .filter(|e| e.session_id.contains("parent"))
+                .collect();
+            assert_eq!(parent_events.len(), 2);
+            assert_eq!(parent_events[0].input_tokens, 1_000);
+            assert_eq!(parent_events[1].input_tokens, 500);
+
+            let subagent_events: Vec<_> = events
+                .iter()
+                .filter(|e| e.session_id.contains("subagent"))
+                .collect();
+            assert_eq!(subagent_events.len(), 2);
+            assert_eq!(subagent_events[0].input_tokens, 100);
+            assert_eq!(subagent_events[0].output_tokens, 20);
+            assert_eq!(subagent_events[1].input_tokens, 50);
+            assert_eq!(subagent_events[1].output_tokens, 10);
+        }
+    }
+
+    #[test]
+    fn skips_replayed_history_across_multiple_subagent_files() {
+        let parent_line = json!({
+            "timestamp": "2026-05-12T08:01:00.000Z",
+            "type": "event_msg",
+            "payload": {
+                "type": "token_count",
+                "info": {
+                    "last_token_usage": {
+                        "input_tokens": 1_000,
+                        "cached_input_tokens": 100,
+                        "output_tokens": 200,
+                        "total_tokens": 1_200,
+                    },
+                    "total_token_usage": {
+                        "input_tokens": 1_000,
+                        "cached_input_tokens": 100,
+                        "output_tokens": 200,
+                        "total_tokens": 1_200,
+                    },
+                    "model": "gpt-5.2",
+                },
+            },
+        })
+        .to_string();
+
+        fn subagent_file(creation_ts: &str, real_ts: &str, input_tokens: u64) -> String {
+            [
+                json!({
+                    "timestamp": creation_ts,
+                    "type": "session_meta",
+                    "payload": {
+                        "id": "subagent",
+                        "source": {
+                            "subagent": {
+                                "thread_spawn": {
+                                    "parent_thread_id": "parent"
+                                }
+                            }
+                        }
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": creation_ts,
+                    "type": "session_meta",
+                    "payload": {"id": "parent"},
+                })
+                .to_string(),
+                // replayed entries — two token_count lines with the same timestamp
+                json!({
+                    "timestamp": creation_ts,
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 700,
+                                "cached_input_tokens": 70,
+                                "output_tokens": 140,
+                                "total_tokens": 840,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 700,
+                                "cached_input_tokens": 70,
+                                "output_tokens": 140,
+                                "total_tokens": 840,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": creation_ts,
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 300,
+                                "cached_input_tokens": 30,
+                                "output_tokens": 60,
+                                "total_tokens": 360,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": 1_000,
+                                "cached_input_tokens": 100,
+                                "output_tokens": 200,
+                                "total_tokens": 1_200,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                // subagent's own entry — different timestamp
+                json!({
+                    "timestamp": real_ts,
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": input_tokens,
+                                "cached_input_tokens": 0,
+                                "output_tokens": 10,
+                                "total_tokens": input_tokens + 10,
+                            },
+                            "total_token_usage": {
+                                "input_tokens": input_tokens,
+                                "cached_input_tokens": 0,
+                                "output_tokens": 10,
+                                "total_tokens": input_tokens + 10,
+                            },
+                            "model": "gpt-5.2",
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n")
+        }
+
+        let fixture = fs_fixture!({
+            "2026-05-12T08-01-00-parent.jsonl": parent_line,
+            "2026-05-12T08-02-00-subagent-a.jsonl": subagent_file(
+                "2026-05-12T08:02:00.000Z",
+                "2026-05-12T08:04:00.000Z",
+                50,
+            ),
+            "2026-05-12T08-06-00-subagent-b.jsonl": subagent_file(
+                "2026-05-12T08:06:00.000Z",
+                "2026-05-12T08:08:00.000Z",
+                75,
+            ),
+            "2026-05-12T08-10-00-subagent-c.jsonl": subagent_file(
+                "2026-05-12T08:10:00.000Z",
+                "2026-05-12T08:12:00.000Z",
+                25,
+            ),
+        });
+
+        for single_thread in [true, false] {
+            let events = load_codex_events_from_directory(fixture.root(), single_thread).unwrap();
+
+            assert_eq!(
+                events.len(),
+                4,
+                "expected 4 events (1 parent + 3 subagent real), got {} with single_thread={}",
+                events.len(),
+                single_thread
+            );
+
+            let total_input: u64 = events.iter().map(|e| e.input_tokens).sum();
+            assert_eq!(
+                total_input, 1_150,
+                "expected 1150 total input (1000 parent + 50 + 75 + 25 subagents)"
+            );
+        }
+    }
 }
