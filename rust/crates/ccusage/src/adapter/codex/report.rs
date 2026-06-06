@@ -223,31 +223,33 @@ pub(super) fn print_table_from_groups(
         ),
         shared,
     );
-    let mut table = SimpleTable::new(
-        vec![
-            first_column,
-            "Models",
-            "Input",
-            "Output",
-            "Reasoning",
-            "Cache Read",
-            "Total Tokens",
-            "Cost (USD)",
-        ],
-        vec![
-            Align::Left,
-            Align::Left,
-            Align::Right,
-            Align::Right,
-            Align::Right,
-            Align::Right,
-            Align::Right,
-            Align::Right,
-        ],
-        crate::terminal_style(shared),
-    )
-    .with_terminal_width(crate::terminal_width())
-    .with_date_compaction(true);
+    let mut headers = vec![
+        first_column,
+        "Models",
+        "Input",
+        "Output",
+        "Reasoning",
+        "Cache Read",
+        "Total Tokens",
+        "Cost (USD)",
+    ];
+    let mut aligns = vec![
+        Align::Left,
+        Align::Left,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+    ];
+    if shared.no_cost {
+        headers.pop();
+        aligns.pop();
+    }
+    let mut table = SimpleTable::new(headers, aligns, crate::terminal_style(shared))
+        .with_terminal_width(crate::terminal_width())
+        .with_date_compaction(true);
     let mut total_input = 0;
     let mut total_cached = 0;
     let mut total_output = 0;
@@ -264,7 +266,7 @@ pub(super) fn print_table_from_groups(
         total_tokens += group.total_tokens;
         total_cost += cost;
         let models = format_models_multiline(&group.models.keys().cloned().collect::<Vec<_>>());
-        table.push(vec![
+        let mut row = vec![
             label.clone(),
             models,
             format_number(input_tokens),
@@ -273,10 +275,14 @@ pub(super) fn print_table_from_groups(
             format_number(group.cached_input_tokens),
             format_number(group.total_tokens),
             format_currency(cost),
-        ]);
+        ];
+        if shared.no_cost {
+            row.pop();
+        }
+        table.push(row);
     }
     table.separator();
-    table.push(vec![
+    let mut total_row = vec![
         color(shared, "Total", Color::Yellow),
         String::new(),
         color(shared, format_number(total_input), Color::Yellow),
@@ -285,7 +291,11 @@ pub(super) fn print_table_from_groups(
         color(shared, format_number(total_cached), Color::Yellow),
         color(shared, format_number(total_tokens), Color::Yellow),
         color(shared, format_currency(total_cost), Color::Yellow),
-    ]);
+    ];
+    if shared.no_cost {
+        total_row.pop();
+    }
+    table.push(total_row);
     table.print()?;
     let missing_models = codex_missing_pricing_models(groups, pricing);
     print_missing_pricing_warnings_for_models(

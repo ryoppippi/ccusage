@@ -454,6 +454,9 @@ fn apply_shared_options(shared: &mut SharedArgs, options: SharedOptions) {
     if let Some(single_thread) = options.single_thread {
         shared.single_thread = single_thread;
     }
+    if let Some(no_cost) = options.no_cost {
+        shared.no_cost = no_cost;
+    }
 }
 
 impl From<ConfigCostMode> for CostMode {
@@ -554,7 +557,8 @@ mod tests {
                     "timezone": "Asia/Tokyo",
                     "jq": ".totals",
                     "compact": true,
-                    "singleThread": true
+                    "singleThread": true,
+                    "noCost": true,
                 }
             }),
             "daily",
@@ -581,6 +585,7 @@ mod tests {
         assert_eq!(shared.jq.as_deref(), Some(".totals"));
         assert!(shared.compact);
         assert!(shared.single_thread);
+        assert!(shared.no_cost);
     }
 
     #[test]

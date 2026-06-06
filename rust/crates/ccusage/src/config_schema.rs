@@ -325,6 +325,8 @@ pub(crate) struct SharedOptions {
     pub(crate) compact: Option<bool>,
     /// Disable parallel file processing.
     pub(crate) single_thread: Option<bool>,
+    /// Hide cost information in table and JSON output.
+    pub(crate) no_cost: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -534,6 +536,7 @@ impl SharedOptions {
             all: bool_option(map, "all"),
             compact: bool_option(map, "compact"),
             single_thread: bool_option(map, "singleThread"),
+            no_cost: bool_option(map, "noCost"),
         }
     }
 }
@@ -762,6 +765,7 @@ fn add_schema_defaults(schema: &mut Value) {
             ("all", json!(false)),
             ("compact", json!(false)),
             ("singleThread", json!(false)),
+            ("noCost", json!(false)),
         ],
     );
     set_definition_defaults(schema, "WeeklyOptions", &[("startOfWeek", json!("sunday"))]);
@@ -932,6 +936,7 @@ mod tests {
             "json",
             "mode",
             "noColor",
+            "noCost",
             "noOffline",
             "offline",
             "order",

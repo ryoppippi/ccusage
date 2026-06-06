@@ -20,6 +20,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         return print_json_or_jq(
             report_json(&entries, args.kind, &shared.order)?,
             shared.jq.as_deref(),
+            shared.no_cost,
         );
     }
     let mut rows = summarize_entries(&entries, args.kind)?;

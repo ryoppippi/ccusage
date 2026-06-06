@@ -22,7 +22,11 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         crate::adapter::opencode::summary_period(row)
     });
     if wants_json(&shared) {
-        return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
+        return print_json_or_jq(
+            report_from_rows(&rows, args.kind),
+            shared.jq.as_deref(),
+            shared.no_cost,
+        );
     }
     if rows.is_empty() {
         eprintln!("{}", empty_usage_message());

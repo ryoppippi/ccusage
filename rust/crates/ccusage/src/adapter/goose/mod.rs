@@ -19,7 +19,11 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let mut rows = summarize_entries(&entries, args.kind)?;
     sort_summaries(&mut rows, &shared.order, report::summary_period);
     if wants_json(&shared) {
-        return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
+        return print_json_or_jq(
+            report_from_rows(&rows, args.kind),
+            shared.jq.as_deref(),
+            shared.no_cost,
+        );
     }
     crate::adapter::amp::print_table_for_agent("Goose", args.kind, &rows, &shared)?;
     Ok(())
