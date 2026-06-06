@@ -397,3 +397,19 @@ jobs:
             git diff apps/ccusage/config-schema.json docs/public/config-schema.json
             exit 1
           fi
+
+  action-timeline:
+    needs:
+      - changes
+      - lint-check
+      - test
+      - build-native-packages
+      - npm-publish-dry-run-and-upload-pkg-pr-now
+      - ccusage-preview-e2e
+      - ccusage-perf-comment
+      - ccusage-rust-perf-comment
+      - schema-check
+    if: ${{ always() }}
+    runs-on: ubuntu-slim
+    steps:
+      - uses: Kesin11/actions-timeline@44c9c178ffb2fb1d9859614a3ffa79ccfb77565e # v3.1
