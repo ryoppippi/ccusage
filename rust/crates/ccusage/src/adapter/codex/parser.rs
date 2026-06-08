@@ -164,6 +164,15 @@ pub(super) fn visit_codex_session_file(
                             .get(0..19)
                             .is_some_and(|sec| sec.len() == 19 && sec == replay_ts.as_slice());
                         if matches_replay {
+                            if let Some(total_usage) = value
+                                .payload
+                                .as_ref()
+                                .and_then(|payload| payload.info.as_ref())
+                                .and_then(|info| info.total_token_usage.as_ref())
+                                .copied()
+                            {
+                                previous_totals.replace(total_usage);
+                            }
                             continue;
                         }
                         skip_replay = false;

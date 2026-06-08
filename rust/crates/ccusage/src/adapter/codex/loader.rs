@@ -661,6 +661,87 @@ mod tests {
     }
 
     #[test]
+    fn keeps_cumulative_baseline_when_skipping_subagent_replay() {
+        let fixture = fs_fixture!({
+            "2026-05-12T08-03-00-subagent.jsonl": [
+                json!({
+                    "timestamp": "2026-05-12T08:03:00.000Z",
+                    "type": "session_meta",
+                    "payload": {
+                        "id": "subagent-abc",
+                        "source": {
+                            "subagent": {
+                                "thread_spawn": {
+                                    "parent_thread_id": "parent-xyz"
+                                }
+                            }
+                        }
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-12T08:03:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 1_000,
+                                "cached_input_tokens": 100,
+                                "output_tokens": 200,
+                                "total_tokens": 1_200,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-12T08:03:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 1_500,
+                                "cached_input_tokens": 150,
+                                "output_tokens": 300,
+                                "total_tokens": 1_800,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-12T08:04:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 1_600,
+                                "cached_input_tokens": 160,
+                                "output_tokens": 320,
+                                "total_tokens": 1_920,
+                            },
+                            "model": "gpt-5.2",
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].input_tokens, 100);
+        assert_eq!(events[0].cached_input_tokens, 10);
+        assert_eq!(events[0].output_tokens, 20);
+        assert_eq!(events[0].total_tokens, 120);
+    }
+
+    #[test]
     fn skips_replayed_history_across_multiple_subagent_files() {
         let parent_line = json!({
             "timestamp": "2026-05-12T08:01:00.000Z",
