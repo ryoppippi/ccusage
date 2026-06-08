@@ -289,6 +289,45 @@ bun x ccusage statusline --visual-burn-rate emoji
 - ⚠️ Moderate (Yellow)
 - 🚨 High (Red)
 
+### Model Label Aliases
+
+Some setups report very long model identifiers. For example, AWS Bedrock
+inference profiles surface full ARNs such as
+`arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345`,
+which gets truncated in the statusline and hides which model is in use.
+
+Use `modelLabelAliases` in your configuration file to map a model identifier to
+a short display label. When the active model matches a key, the statusline shows
+the alias instead:
+
+```json
+{
+	"commands": {
+		"statusline": {
+			"modelLabelAliases": {
+				"arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345": "claude-opus-4-6"
+			}
+		}
+	}
+}
+```
+
+With the alias above, the statusline changes from:
+
+```text
+🤖 arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345 | 💰 ...
+```
+
+to:
+
+```text
+🤖 claude-opus-4-6 | 💰 ...
+```
+
+Keys are matched exactly against the model's display name. Models without a
+matching alias are shown unchanged. See the [Configuration Guide](/guide/configuration)
+for more details.
+
 ## Troubleshooting
 
 ### No Output Displayed
