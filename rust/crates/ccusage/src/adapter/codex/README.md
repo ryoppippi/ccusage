@@ -4,6 +4,7 @@ Data source:
 
 ```text
 ${CODEX_HOME:-~/.codex}/sessions/
+${CODEX_HOME:-~/.codex}/archived_sessions/
 ```
 
 Relevant JSONL event:
