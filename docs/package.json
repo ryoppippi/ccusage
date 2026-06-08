@@ -6,6 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",
+		"deploy": "wrangler deploy",
 		"dev": "cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress dev"
 	},
 	"devDependencies": {
