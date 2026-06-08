@@ -18,18 +18,7 @@ use crate::{
 
 use super::{parser, paths};
 
-type CodexEventKey = (
-    u64,
-    usize,
-    crate::TimestampMs,
-    u64,
-    usize,
-    u64,
-    u64,
-    u64,
-    u64,
-    u64,
-);
+type CodexEventKey = (crate::TimestampMs, u64, usize, u64, u64, u64, u64, u64);
 type CodexDedupeShards = [Mutex<FxHashSet<CodexEventKey>>];
 
 struct CodexAggregation {
@@ -356,8 +345,6 @@ fn codex_event_key(
     model: &str,
 ) -> CodexEventKey {
     (
-        hash_text(&event.session_id),
-        event.session_id.len(),
         timestamp,
         hash_text(model),
         model.len(),
@@ -462,6 +449,48 @@ mod tests {
     use serde_json::json;
 
     use crate::adapter::codex::paths::CodexUsageSource;
+
+    #[test]
+    fn dedupes_copied_token_usage_across_session_files() {
+        let usage_line = json!({
+            "timestamp": "2026-05-29T08:01:00.000Z",
+            "type": "event_msg",
+            "payload": {
+                "type": "token_count",
+                "info": {
+                    "model": "gpt-5.2",
+                    "last_token_usage": {
+                        "input_tokens": 1_000,
+                        "cached_input_tokens": 100,
+                        "output_tokens": 200,
+                        "reasoning_output_tokens": 20,
+                        "total_tokens": 1_200,
+                    },
+                },
+            },
+        })
+        .to_string();
+        let fixture = fs_fixture!({
+            "sessions/root.jsonl": &usage_line,
+            "sessions/goal.jsonl": &usage_line,
+        });
+        let shared = SharedArgs {
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+
+        let groups =
+            load_groups_from_directory(&fixture.path("sessions"), &shared, AgentReportKind::Daily)
+                .unwrap();
+
+        assert_eq!(groups.len(), 1);
+        let group = groups.get("2026-05-29").unwrap();
+        assert_eq!(group.input_tokens, 1_000);
+        assert_eq!(group.cached_input_tokens, 100);
+        assert_eq!(group.output_tokens, 200);
+        assert_eq!(group.reasoning_output_tokens, 20);
+        assert_eq!(group.total_tokens, 1_200);
+    }
 
     #[test]
     fn aggregates_active_copy_when_archived_file_has_same_relative_path() {
