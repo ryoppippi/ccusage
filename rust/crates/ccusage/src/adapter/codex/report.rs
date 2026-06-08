@@ -62,7 +62,8 @@ fn group_json(
     let mut row = json!({
         period_key(kind): period,
         "inputTokens": input_tokens,
-        "cachedInputTokens": group.cached_input_tokens,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": group.cached_input_tokens,
         "outputTokens": group.output_tokens,
         "reasoningOutputTokens": group.reasoning_output_tokens,
         "totalTokens": group.total_tokens,
@@ -85,7 +86,8 @@ pub(crate) fn non_cached_input_tokens(input_tokens: u64, cached_input_tokens: u6
 fn model_usage_json(usage: &CodexModelUsage) -> Value {
     json!({
         "inputTokens": non_cached_input_tokens(usage.input_tokens, usage.cached_input_tokens),
-        "cachedInputTokens": usage.cached_input_tokens,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": usage.cached_input_tokens,
         "outputTokens": usage.output_tokens,
         "reasoningOutputTokens": usage.reasoning_output_tokens,
         "totalTokens": usage.total_tokens,
@@ -114,7 +116,8 @@ fn totals_json<'a>(
     }
     json!({
         "inputTokens": input,
-        "cachedInputTokens": cached,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": cached,
         "outputTokens": output,
         "reasoningOutputTokens": reasoning,
         "totalTokens": total,

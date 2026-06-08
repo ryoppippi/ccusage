@@ -364,7 +364,10 @@ For a namespaced command, options are applied in this order:
 		"statusline": {
 			"offline": true,
 			"cache": true,
-			"refreshInterval": 2
+			"refreshInterval": 2,
+			"modelLabelAliases": {
+				"arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345": "claude-opus-4-6"
+			}
 		}
 	}
 }
@@ -381,6 +384,60 @@ ccusage daily --config ./my-config.json
 # Works with all commands
 ccusage blocks --config /path/to/team-config.json
 ```
+
+## Pricing Overrides
+
+ccusage looks up token costs from a LiteLLM pricing snapshot embedded in the binary, optionally refreshed at runtime (or skipped with `--offline`). When a model is missing from LiteLLM (private deployments, internal wrappers like Pi's `[pi] gpt-5.4`, custom proxies), or when the snapshot price differs from your contract, set `pricingOverrides` under `defaults` to supply per-model values.
+
+```json
+{
+	"$schema": "https://ccusage.com/config-schema.json",
+	"defaults": {
+		"pricingOverrides": {
+			"[pi] gpt-5.4": {
+				"inputCostPerToken": 0.0000025,
+				"outputCostPerToken": 0.000015,
+				"cacheReadInputTokenCost": 0.00000025
+			},
+			"my-private-claude": {
+				"inputCostPerToken": 0.000003,
+				"outputCostPerToken": 0.000015,
+				"maxInputTokens": 1000000
+			}
+		}
+	}
+}
+```
+
+### Raw Model Names
+
+Keys in `pricingOverrides` must match the **raw model name** as recorded in the source logs, including any adapter prefix:
+
+| Adapter                                | Prefix  | Example key                    |
+| -------------------------------------- | ------- | ------------------------------ |
+| Pi                                     | `[pi] ` | `[pi] gpt-5.4`                 |
+| Others (Claude, Codex, OpenCode, etc.) | none    | `claude-sonnet-4-5`, `gpt-5.5` |
+
+To find the exact name, run `ccusage <agent> daily --json` and look at the `model` field in the per-row breakdown.
+
+### Supported Fields
+
+All fields are optional. Unspecified fields fall back to the LiteLLM entry (when one exists) or `0.0`:
+
+- `inputCostPerToken`, `outputCostPerToken` — base per-token rates
+- `cacheCreationInputTokenCost`, `cacheReadInputTokenCost` — cache pricing
+- `inputCostPerTokenAbove200kTokens`, `outputCostPerTokenAbove200kTokens`, `cacheCreationInputTokenCostAbove200kTokens`, `cacheReadInputTokenCostAbove200kTokens` — tiered pricing past 200k tokens
+- `maxInputTokens` — context window limit (used by the Claude statusline hook)
+- `fastMultiplier` — multiplier applied when the message is recorded as fast-mode
+
+### Overrides vs Offline Mode
+
+`--offline` and `pricingOverrides` are independent:
+
+- `--offline` controls the **data source** — skip the network refresh and use the embedded LiteLLM snapshot only.
+- `pricingOverrides` controls **specific entries** — patch in or replace prices for individual models.
+
+Overrides apply in both online and offline modes.
 
 This is useful for:
 

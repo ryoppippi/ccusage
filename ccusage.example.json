@@ -5,7 +5,14 @@
 		"mode": "auto",
 		"timezone": "Asia/Tokyo",
 		"offline": false,
-		"breakdown": false
+		"breakdown": false,
+		"pricingOverrides": {
+			"[pi] gpt-5.4": {
+				"inputCostPerToken": 0.0000025,
+				"outputCostPerToken": 0.000015,
+				"cacheReadInputTokenCost": 0.00000025
+			}
+		}
 	},
 	"commands": {
 		"daily": {

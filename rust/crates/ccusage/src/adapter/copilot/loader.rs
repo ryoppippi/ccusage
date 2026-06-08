@@ -59,9 +59,11 @@ fn usage_entry_to_loaded(
         cache_creation_input_tokens: entry.cache_creation_tokens,
         cache_read_input_tokens: entry.cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let cost_usage = TokenUsageRaw {
         output_tokens: entry.output_tokens + entry.reasoning_output_tokens,
+        cache_creation: None,
         ..usage
     };
     let data = UsageEntry {

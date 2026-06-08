@@ -384,6 +384,22 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
     Ok(())
 }
 
+/// Resolve the model label shown in the statusline.
+///
+/// Looks up the model's `display_name` in the user-configured alias map and
+/// returns the matching short label when present. Long identifiers such as AWS
+/// Bedrock inference profile ARNs can therefore be displayed as a concise name.
+/// Falls back to the original `display_name` when no alias matches.
+fn resolve_model_label<'a>(
+    aliases: &'a std::collections::HashMap<String, String>,
+    display_name: &'a str,
+) -> &'a str {
+    aliases
+        .get(display_name)
+        .map(String::as_str)
+        .unwrap_or(display_name)
+}
+
 fn render_statusline(
     hook: &StatuslineHook,
     args: &StatuslineArgs,
@@ -475,6 +491,7 @@ fn render_statusline(
                 Path::new(&hook.transcript_path),
                 hook.model.id.as_deref(),
                 shared.offline,
+                shared,
             )
             .map(|context| (context.total_input_tokens, context.context_window_size))
         })
@@ -498,9 +515,11 @@ fn render_statusline(
             .unwrap_or_else(|| "N/A".to_string())
     };
 
+    let model_label = resolve_model_label(&args.model_label_aliases, &hook.model.display_name);
+
     Ok(format!(
         "🤖 {} | 💰 {} session / {} today / {}{} | 🧠 {}",
-        hook.model.display_name,
+        model_label,
         session_display,
         format_currency(today_cost),
         block_info,
@@ -519,6 +538,7 @@ fn statusline_today_shared(
         since: Some(today.clone()),
         until: Some(today),
         offline: shared.offline,
+        pricing_overrides: shared.pricing_overrides.clone(),
         timezone: args.timezone.clone(),
         ..SharedArgs::default()
     }
@@ -568,8 +588,10 @@ fn calculate_context_tokens_from_transcript(
     path: &Path,
     model_id: Option<&str>,
     offline: bool,
+    shared: &SharedArgs,
 ) -> Option<HookContext> {
     let content = fs::read_to_string(path).ok()?;
+    let mut pricing: Option<PricingMap> = None;
     for line in content.lines().rev() {
         let line = line.trim();
         if line.is_empty() {
@@ -603,7 +625,17 @@ fn calculate_context_tokens_from_transcript(
             .unwrap_or_default();
         let context_window_size = model_id
             .filter(|model_id| !model_id.is_empty())
-            .and_then(|model_id| PricingMap::load(offline, false).context_limit(model_id))
+            .and_then(|model_id| {
+                pricing
+                    .get_or_insert_with(|| {
+                        PricingMap::load_with_overrides(
+                            offline,
+                            false,
+                            shared.pricing_overrides.iter(),
+                        )
+                    })
+                    .context_limit(model_id)
+            })
             .unwrap_or(200_000);
         return Some(HookContext {
             total_input_tokens: input_tokens + cache_creation + cache_read,
@@ -803,9 +835,13 @@ mod tests {
             .join("\n"),
         });
 
-        let context =
-            calculate_context_tokens_from_transcript(&fixture.path("transcript.jsonl"), None, true)
-                .unwrap();
+        let context = calculate_context_tokens_from_transcript(
+            &fixture.path("transcript.jsonl"),
+            None,
+            true,
+            &SharedArgs::default(),
+        )
+        .unwrap();
 
         assert_eq!(context.total_input_tokens, 2150);
         assert_eq!(context.context_window_size, 200_000);
@@ -817,15 +853,25 @@ mod tests {
             "transcript.jsonl": r#"{"type":"assistant","message":{"usage":{"input_tokens":1000}}}"#,
         });
 
+        let mut shared = SharedArgs::default();
+        shared.pricing_overrides.insert(
+            "test-model-context-limit".to_string(),
+            ccusage_cli::PricingOverride {
+                max_input_tokens: Some(1_500_000),
+                ..Default::default()
+            },
+        );
+
         let context = calculate_context_tokens_from_transcript(
             &fixture.path("transcript.jsonl"),
-            Some("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+            Some("test-model-context-limit"),
             true,
+            &shared,
         )
         .unwrap();
 
         assert_eq!(context.total_input_tokens, 1000);
-        assert_eq!(context.context_window_size, 1_000_000);
+        assert_eq!(context.context_window_size, 1_500_000);
     }
 
     #[test]
@@ -846,10 +892,17 @@ mod tests {
             timezone: Some("Asia/Tokyo".to_string()),
             ..StatuslineArgs::default()
         };
-        let shared = SharedArgs {
+        let mut shared = SharedArgs {
             offline: true,
             ..SharedArgs::default()
         };
+        shared.pricing_overrides.insert(
+            "statusline-model".to_string(),
+            ccusage_cli::PricingOverride {
+                input_cost_per_token: Some(1e-6),
+                ..Default::default()
+            },
+        );
         let now = TimestampMs::from_millis(1_779_380_820_000);
 
         let today_shared = statusline_today_shared(&args, &shared, now);
@@ -857,6 +910,9 @@ mod tests {
         assert_eq!(today_shared.since.as_deref(), Some("20260522"));
         assert_eq!(today_shared.until.as_deref(), Some("20260522"));
         assert_eq!(today_shared.timezone.as_deref(), Some("Asia/Tokyo"));
+        assert!(today_shared
+            .pricing_overrides
+            .contains_key("statusline-model"));
     }
 
     #[test]
@@ -908,5 +964,30 @@ mod tests {
             cached_statusline_output(&cache, 456, 20_000, 1),
             Some("stale status")
         );
+    }
+
+    #[test]
+    fn resolves_model_label_from_alias_map() {
+        let mut aliases = std::collections::HashMap::new();
+        aliases.insert(
+            "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345"
+                .to_string(),
+            "claude-opus-4-6".to_string(),
+        );
+
+        assert_eq!(
+            resolve_model_label(
+                &aliases,
+                "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345"
+            ),
+            "claude-opus-4-6"
+        );
+    }
+
+    #[test]
+    fn falls_back_to_display_name_when_no_alias_matches() {
+        let aliases = std::collections::HashMap::new();
+
+        assert_eq!(resolve_model_label(&aliases, "Opus 4.1"), "Opus 4.1");
     }
 }

@@ -44,8 +44,6 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-nix
         if: matrix.platform == 'linux'
-        with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Cache Cargo build
         if: matrix.platform != 'linux'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4

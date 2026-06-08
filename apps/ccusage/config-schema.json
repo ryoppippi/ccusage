@@ -104,6 +104,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -212,6 +264,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -319,6 +423,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -431,6 +587,58 @@
 									"markdownDescription": "Sort order.",
 									"type": "string"
 								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
+								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -542,6 +750,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"recent": {
 											"description": "Show recent session blocks.",
@@ -660,6 +920,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"project": {
 											"description": "Filter to a project name or path.",
 											"markdownDescription": "Filter to a project name or path.",
@@ -777,6 +1089,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -885,6 +1249,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -946,6 +1362,14 @@
 											"description": "Show statusline debug information.",
 											"markdownDescription": "Show statusline debug information.",
 											"type": "boolean"
+										},
+										"modelLabelAliases": {
+											"additionalProperties": {
+												"type": "string"
+											},
+											"description": "Map model identifiers to short display labels.",
+											"markdownDescription": "Map model identifiers to short display labels.",
+											"type": "object"
 										},
 										"noCache": {
 											"default": false,
@@ -1059,6 +1483,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -1187,6 +1663,14 @@
 									"markdownDescription": "Cost calculation mode.",
 									"type": "string"
 								},
+								"modelLabelAliases": {
+									"additionalProperties": {
+										"type": "string"
+									},
+									"description": "Map model identifiers to short display labels.",
+									"markdownDescription": "Map model identifiers to short display labels.",
+									"type": "object"
+								},
 								"noCache": {
 									"description": "Disable statusline cache.",
 									"markdownDescription": "Disable statusline cache.",
@@ -1212,6 +1696,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"project": {
 									"description": "Filter to a project name or path.",
@@ -1384,6 +1920,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -1492,6 +2080,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -1599,6 +2239,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -1711,6 +2403,58 @@
 									"markdownDescription": "Sort order.",
 									"type": "string"
 								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
+								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -1818,6 +2562,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -1920,6 +2716,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -2021,6 +2869,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -2126,6 +3026,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -2241,6 +3193,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"recent": {
 									"description": "Show recent session blocks.",
@@ -2359,6 +3363,58 @@
 									"markdownDescription": "Sort order.",
 									"type": "string"
 								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
+								},
 								"project": {
 									"description": "Filter to a project name or path.",
 									"markdownDescription": "Filter to a project name or path.",
@@ -2476,6 +3532,58 @@
 									"markdownDescription": "Sort order.",
 									"type": "string"
 								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
+								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -2584,6 +3692,58 @@
 									"markdownDescription": "Sort order.",
 									"type": "string"
 								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
+								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -2645,6 +3805,14 @@
 									"description": "Show statusline debug information.",
 									"markdownDescription": "Show statusline debug information.",
 									"type": "boolean"
+								},
+								"modelLabelAliases": {
+									"additionalProperties": {
+										"type": "string"
+									},
+									"description": "Map model identifiers to short display labels.",
+									"markdownDescription": "Map model identifiers to short display labels.",
+									"type": "object"
 								},
 								"noCache": {
 									"default": false,
@@ -2758,6 +3926,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -2892,6 +4112,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3000,6 +4272,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3107,6 +4431,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3218,6 +4594,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3331,6 +4759,58 @@
 							"enum": ["desc", "asc"],
 							"markdownDescription": "Sort order.",
 							"type": "string"
+						},
+						"pricingOverrides": {
+							"additionalProperties": {
+								"additionalProperties": false,
+								"properties": {
+									"cacheCreationInputTokenCost": {
+										"format": "double",
+										"type": "number"
+									},
+									"cacheCreationInputTokenCostAbove200kTokens": {
+										"format": "double",
+										"type": "number"
+									},
+									"cacheReadInputTokenCost": {
+										"format": "double",
+										"type": "number"
+									},
+									"cacheReadInputTokenCostAbove200kTokens": {
+										"format": "double",
+										"type": "number"
+									},
+									"fastMultiplier": {
+										"format": "double",
+										"type": "number"
+									},
+									"inputCostPerToken": {
+										"format": "double",
+										"type": "number"
+									},
+									"inputCostPerTokenAbove200kTokens": {
+										"format": "double",
+										"type": "number"
+									},
+									"maxInputTokens": {
+										"format": "uint64",
+										"minimum": 0.0,
+										"type": "integer"
+									},
+									"outputCostPerToken": {
+										"format": "double",
+										"type": "number"
+									},
+									"outputCostPerTokenAbove200kTokens": {
+										"format": "double",
+										"type": "number"
+									}
+								},
+								"type": "object"
+							},
+							"description": "Runtime pricing overrides keyed by raw model name.",
+							"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+							"type": "object"
 						},
 						"since": {
 							"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3448,6 +4928,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3556,6 +5088,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3663,6 +5247,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3774,6 +5410,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -3894,6 +5582,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4002,6 +5742,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4109,6 +5901,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4220,6 +6064,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4340,6 +6236,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4448,6 +6396,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4555,6 +6555,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4666,6 +6718,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4786,6 +6890,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -4894,6 +7050,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5001,6 +7209,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5112,6 +7372,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5232,6 +7544,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5340,6 +7704,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5447,6 +7863,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5558,6 +8026,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5678,6 +8198,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5786,6 +8358,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -5893,6 +8517,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6004,6 +8680,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6117,6 +8845,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6217,6 +8997,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6316,6 +9148,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6419,6 +9303,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6538,6 +9474,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6645,6 +9633,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6754,6 +9794,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6861,6 +9953,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -6972,6 +10116,58 @@
 									"enum": ["desc", "asc"],
 									"markdownDescription": "Sort order.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7085,6 +10281,58 @@
 											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7185,6 +10433,58 @@
 											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7284,6 +10584,58 @@
 											"description": "Path or comma-separated paths to pi-agent sessions directories.",
 											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7387,6 +10739,58 @@
 									"description": "Path or comma-separated paths to pi-agent sessions directories.",
 									"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories.",
 									"type": "string"
+								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
 								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7506,6 +10910,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7614,6 +11070,58 @@
 											"markdownDescription": "Sort order.",
 											"type": "string"
 										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
+										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7721,6 +11229,58 @@
 											"enum": ["desc", "asc"],
 											"markdownDescription": "Sort order.",
 											"type": "string"
+										},
+										"pricingOverrides": {
+											"additionalProperties": {
+												"additionalProperties": false,
+												"properties": {
+													"cacheCreationInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheCreationInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCost": {
+														"format": "double",
+														"type": "number"
+													},
+													"cacheReadInputTokenCostAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"fastMultiplier": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"inputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													},
+													"maxInputTokens": {
+														"format": "uint64",
+														"minimum": 0.0,
+														"type": "integer"
+													},
+													"outputCostPerToken": {
+														"format": "double",
+														"type": "number"
+													},
+													"outputCostPerTokenAbove200kTokens": {
+														"format": "double",
+														"type": "number"
+													}
+												},
+												"type": "object"
+											},
+											"description": "Runtime pricing overrides keyed by raw model name.",
+											"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+											"type": "object"
 										},
 										"since": {
 											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7833,6 +11393,58 @@
 									"markdownDescription": "Sort order.",
 									"type": "string"
 								},
+								"pricingOverrides": {
+									"additionalProperties": {
+										"additionalProperties": false,
+										"properties": {
+											"cacheCreationInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheCreationInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCost": {
+												"format": "double",
+												"type": "number"
+											},
+											"cacheReadInputTokenCostAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"fastMultiplier": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"inputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											},
+											"maxInputTokens": {
+												"format": "uint64",
+												"minimum": 0.0,
+												"type": "integer"
+											},
+											"outputCostPerToken": {
+												"format": "double",
+												"type": "number"
+											},
+											"outputCostPerTokenAbove200kTokens": {
+												"format": "double",
+												"type": "number"
+											}
+										},
+										"type": "object"
+									},
+									"description": "Runtime pricing overrides keyed by raw model name.",
+									"markdownDescription": "Runtime pricing overrides keyed by raw model name.",
+									"type": "object"
+								},
 								"since": {
 									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
 									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
@@ -7887,6 +11499,13 @@
 			},
 			"defaults": {
 				"json": false,
+				"pricingOverrides": {
+					"[pi] gpt-5.4": {
+						"cacheReadInputTokenCost": 2.5e-7,
+						"inputCostPerToken": 2.5e-6,
+						"outputCostPerToken": 0.000015
+					}
+				},
 				"timezone": "Asia/Tokyo"
 			},
 			"gemini": {

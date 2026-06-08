@@ -3,9 +3,7 @@ use std::io::{self, Write};
 use crate::{
     style::{color, Color, TerminalStyle},
     terminal::DEFAULT_TERMINAL_WIDTH,
-    width::{
-        char_display_width, contains_ansi, visible_width, visible_width_max_line, visible_width_sum,
-    },
+    width::{char_display_width, contains_ansi, visible_width, visible_width_max_line},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -103,23 +101,12 @@ impl SimpleTable {
         let content_widths = self
             .headers
             .iter()
-            .enumerate()
-            .map(|(index, header)| {
-                if index == 1 {
-                    visible_width_sum(header)
-                } else {
-                    visible_width_max_line(header)
-                }
-            })
+            .map(|header| visible_width_max_line(header))
             .collect::<Vec<_>>();
         let mut content_widths = content_widths;
         for row in self.rows.iter().flatten() {
             for (index, cell) in row.iter().enumerate() {
-                let cell_width = if index == 1 {
-                    visible_width_sum(cell)
-                } else {
-                    visible_width_max_line(cell)
-                };
+                let cell_width = visible_width_max_line(cell);
                 if let Some(width) = content_widths.get_mut(index) {
                     *width = (*width).max(cell_width);
                 }
@@ -501,5 +488,47 @@ mod tests {
     #[test]
     fn snapshots_ansi_truncation_boundary() {
         insta::assert_snapshot!(truncate_visible("\x1b[33mvery-long-value\x1b[0m", 8));
+    }
+
+    #[test]
+    fn column_widths_uses_max_line_not_sum_for_multiline_cells() {
+        let mut table = SimpleTable::new(
+            vec!["Date", "Models", "Input", "Output", "Cost (USD)"],
+            vec![
+                Align::Left,
+                Align::Left,
+                Align::Right,
+                Align::Right,
+                Align::Right,
+            ],
+            TerminalStyle {
+                no_color: true,
+                ..TerminalStyle::default()
+            },
+        )
+        .with_terminal_width(200);
+        // 5 models — a realistic single-agent scenario where the bug would be severe
+        table.push(vec![
+            "2026-05-18".to_string(),
+            "- claude-sonnet-4-20250514 (self-serve)\n- claude-opus-4-5\n- gpt-5.2-codex\n- gemini-3.0-pro-wildly-long\n- claude-haiku-3-5-sonnet".to_string(),
+            "1,234".to_string(),
+            "56".to_string(),
+            "$0.42".to_string(),
+        ]);
+        let widths = table.column_widths();
+        let models_width = widths[1];
+        let cell = "- claude-sonnet-4-20250514 (self-serve)\n- claude-opus-4-5\n- gpt-5.2-codex\n- gemini-3.0-pro-wildly-long\n- claude-haiku-3-5-sonnet";
+        let widest_line = visible_width_max_line(cell);
+        let sum_of_lines = cell.lines().map(visible_width).sum::<usize>();
+        // If visible_width_sum were still used, models_width would be ~180
+        // With visible_width_max_line, it should be ~widest_line + padding
+        assert!(
+            models_width < sum_of_lines,
+            "Models column width ({models_width}) should be based on widest line ({widest_line}), not sum of all lines ({sum_of_lines})"
+        );
+        assert!(
+            models_width <= widest_line + 3,
+            "Models width ({models_width}) should be close to widest line width ({widest_line}), not {sum_of_lines}"
+        );
     }
 }

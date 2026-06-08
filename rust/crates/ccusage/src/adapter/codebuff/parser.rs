@@ -88,6 +88,7 @@ pub(super) fn load_chat_file(path: &Path) -> Result<Vec<CodebuffEntry>> {
                 cache_creation_input_tokens: usage.cache_creation_input_tokens,
                 cache_read_input_tokens: usage.cache_read_input_tokens,
                 speed: None,
+                cache_creation: None,
             },
             extra_total_tokens: usage.extra_total_tokens,
             dedup_key,
@@ -251,6 +252,7 @@ pub(super) fn parse_usage_object(value: Option<&Value>) -> AssistantUsage {
         cache_creation_input_tokens: usage.cache_creation_input_tokens,
         cache_read_input_tokens: usage.cache_read_input_tokens,
         speed: None,
+        cache_creation: None,
     };
     let (raw_usage, extra_total_tokens) =
         apply_total_token_fallback(raw_usage, usage.extra_total_tokens, total_tokens);
@@ -396,6 +398,7 @@ pub(super) fn calculate_codebuff_cost(entry: &CodebuffEntry, pricing: &PricingMa
             .usage
             .output_tokens
             .saturating_add(entry.extra_total_tokens),
+        cache_creation: None,
         ..entry.usage
     };
     let raw = calculate_cost_for_usage(
@@ -429,6 +432,7 @@ pub(super) fn missing_codebuff_pricing(
             .usage
             .output_tokens
             .saturating_add(entry.extra_total_tokens),
+        cache_creation: None,
         ..entry.usage
     };
     let mut candidates = vec![entry.model.clone()];

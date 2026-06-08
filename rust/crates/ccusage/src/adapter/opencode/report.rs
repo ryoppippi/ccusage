@@ -268,6 +268,7 @@ mod tests {
                         output_tokens: 0,
                         cache_creation_input_tokens: 0,
                         cache_read_input_tokens: 0,
+                        cache_creation: None,
                         speed: None,
                     },
                     model: Some("gpt-5.2-codex".to_string()),

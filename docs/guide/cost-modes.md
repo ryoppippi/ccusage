@@ -186,7 +186,8 @@ When calculating costs from tokens, ccusage uses:
 type TokenCosts = {
 	input: number; // Input tokens
 	output: number; // Output tokens
-	cacheCreate: number; // Cache creation tokens
+	cacheCreate5m: number; // 5-minute cache creation tokens
+	cacheCreate1h: number; // 1-hour cache creation tokens
 	cacheRead: number; // Cache read tokens
 };
 ```
@@ -197,9 +198,14 @@ type TokenCosts = {
 totalCost =
 	inputTokens * inputPrice +
 	outputTokens * outputPrice +
-	cacheCreateTokens * cacheCreatePrice +
+	cacheCreate5mTokens * cacheCreatePrice +
+	cacheCreate1hTokens * inputPrice * 2 +
 	cacheReadTokens * cacheReadPrice;
 ```
+
+When Claude Code records do not include the `cache_creation` duration
+breakdown, ccusage falls back to pricing `cache_creation_input_tokens` at the
+standard cache creation rate.
 
 ### Pre-calculated Costs
 
@@ -345,3 +351,4 @@ After understanding cost modes:
 
 - Explore [Configuration](/guide/configuration) for environment setup
 - Learn about [Claude Code](/guide/claude/) data paths for custom Claude Code directories
+- Set per-model prices via [Pricing Overrides](/guide/config-files#pricing-overrides) for private or proxied models

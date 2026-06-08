@@ -42,7 +42,14 @@ in
             ccusage-treefmt = {
               enable = true;
               name = "treefmt";
-              entry = lib.getExe config.treefmt.build.wrapper;
+              # `--no-cache` keeps the hook safe under prek's parallel,
+              # file-batched invocations. Without it each concurrent treefmt
+              # process races for the shared eval-cache SQLite db and the loser
+              # dies with "failed to open cache: ... timeout" (notably during
+              # `pnpm release`, which stages every package.json at once). prek
+              # already selects the changed files, so treefmt's own cache is
+              # redundant here anyway.
+              entry = "${lib.getExe config.treefmt.build.wrapper} --no-cache";
               files = ".*";
               pass_filenames = true;
               stages = [ "pre-commit" ];
