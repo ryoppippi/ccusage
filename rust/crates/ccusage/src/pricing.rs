@@ -837,11 +837,11 @@ impl PricingMap {
             },
         );
         // Source: https://docs.z.ai/guides/overview/pricing
-        let glm_base = Pricing {
-            input: 0.6e-6,
-            output: 2.2e-6,
-            cache_create: 0.75e-6,
-            cache_read: 0.11e-6,
+        let glm_pricing = |input: f64, output: f64, cache_read: f64| Pricing {
+            input,
+            output,
+            cache_create: 0.0,
+            cache_read,
             cache_read_explicit: true,
             input_above_200k: None,
             output_above_200k: None,
@@ -849,7 +849,31 @@ impl PricingMap {
             cache_read_above_200k: None,
             fast_multiplier: 1.0,
         };
+        let glm_base = glm_pricing(0.6e-6, 2.2e-6, 0.11e-6);
         self.entries.insert("glm-4.5".to_string(), glm_base);
+        self.entries.insert("zai/glm-4.5".to_string(), glm_base);
+        self.entries.insert(
+            "zai/glm-4.5-x".to_string(),
+            glm_pricing(2.2e-6, 8.9e-6, 0.45e-6),
+        );
+        self.entries.insert(
+            "zai/glm-4.5-air".to_string(),
+            glm_pricing(0.2e-6, 1.1e-6, 0.03e-6),
+        );
+        self.entries.insert(
+            "zai/glm-4.5-airx".to_string(),
+            glm_pricing(1.1e-6, 4.5e-6, 0.22e-6),
+        );
+        self.entries.insert(
+            "zai/glm-4.5v".to_string(),
+            glm_pricing(0.6e-6, 1.8e-6, 0.11e-6),
+        );
+        self.entries.insert(
+            "zai/glm-4-32b-0414-128k".to_string(),
+            glm_pricing(0.1e-6, 0.1e-6, 0.0),
+        );
+        self.entries
+            .insert("zai/glm-4.5-flash".to_string(), glm_pricing(0.0, 0.0, 0.0));
         self.entries.insert("glm-4.6".to_string(), glm_base);
         self.entries.insert("glm-4.7".to_string(), glm_base);
         self.entries.insert(
@@ -857,7 +881,6 @@ impl PricingMap {
             Pricing {
                 input: 1.0e-6,
                 output: 3.2e-6,
-                cache_create: 1.25e-6,
                 cache_read: 0.2e-6,
                 ..glm_base
             },
@@ -867,7 +890,6 @@ impl PricingMap {
             Pricing {
                 input: 1.2e-6,
                 output: 4.0e-6,
-                cache_create: 1.5e-6,
                 cache_read: 0.24e-6,
                 ..glm_base
             },
@@ -877,7 +899,6 @@ impl PricingMap {
             Pricing {
                 input: 1.4e-6,
                 output: 4.4e-6,
-                cache_create: 1.75e-6,
                 cache_read: 0.26e-6,
                 ..glm_base
             },
@@ -1109,23 +1130,70 @@ mod tests {
         let glm_51 = pricing.find("glm-5.1").unwrap();
         assert_eq!(glm_51.input, 1.4e-6);
         assert_eq!(glm_51.output, 4.4e-6);
+        assert_eq!(glm_51.cache_create, 0.0);
         assert_eq!(glm_51.cache_read, 0.26e-6);
         assert!(glm_51.cache_read_explicit);
 
         let glm_5 = pricing.find("glm-5").unwrap();
         assert_eq!(glm_5.input, 1.0e-6);
         assert_eq!(glm_5.output, 3.2e-6);
+        assert_eq!(glm_5.cache_create, 0.0);
         assert_eq!(glm_5.cache_read, 0.2e-6);
+        assert_eq!(pricing.context_limit("zai/glm-5"), Some(200_000));
 
         let glm_5_turbo = pricing.find("glm-5-turbo").unwrap();
         assert_eq!(glm_5_turbo.input, 1.2e-6);
         assert_eq!(glm_5_turbo.output, 4.0e-6);
+        assert_eq!(glm_5_turbo.cache_create, 0.0);
         assert_eq!(glm_5_turbo.cache_read, 0.24e-6);
 
         let glm_47 = pricing.find("glm-4.7").unwrap();
         assert_eq!(glm_47.input, 0.6e-6);
         assert_eq!(glm_47.output, 2.2e-6);
+        assert_eq!(glm_47.cache_create, 0.0);
         assert_eq!(glm_47.cache_read, 0.11e-6);
+
+        let glm_46 = pricing.find("glm-4.6").unwrap();
+        assert_eq!(glm_46.input, 0.6e-6);
+        assert_eq!(glm_46.output, 2.2e-6);
+        assert_eq!(glm_46.cache_create, 0.0);
+        assert_eq!(glm_46.cache_read, 0.11e-6);
+
+        let glm_45 = pricing.find("glm-4.5").unwrap();
+        assert_eq!(glm_45.input, 0.6e-6);
+        assert_eq!(glm_45.output, 2.2e-6);
+        assert_eq!(glm_45.cache_create, 0.0);
+        assert_eq!(glm_45.cache_read, 0.11e-6);
+
+        let zai_glm_45 = pricing.find("zai/glm-4.5").unwrap();
+        assert_eq!(zai_glm_45.input, 0.6e-6);
+        assert_eq!(zai_glm_45.output, 2.2e-6);
+        assert_eq!(zai_glm_45.cache_create, 0.0);
+        assert_eq!(zai_glm_45.cache_read, 0.11e-6);
+        assert_eq!(pricing.context_limit("zai/glm-4.5"), Some(128_000));
+    }
+
+    #[test]
+    fn embedded_pricing_patches_z_ai_glm_entries_without_litellm_cache_rates() {
+        let pricing = PricingMap::load_embedded();
+
+        let glm_45_air = pricing.find("zai/glm-4.5-air").unwrap();
+        assert_eq!(glm_45_air.input, 0.2e-6);
+        assert_eq!(glm_45_air.output, 1.1e-6);
+        assert_eq!(glm_45_air.cache_create, 0.0);
+        assert_eq!(glm_45_air.cache_read, 0.03e-6);
+
+        let glm_45_x = pricing.find("zai/glm-4.5-x").unwrap();
+        assert_eq!(glm_45_x.input, 2.2e-6);
+        assert_eq!(glm_45_x.output, 8.9e-6);
+        assert_eq!(glm_45_x.cache_create, 0.0);
+        assert_eq!(glm_45_x.cache_read, 0.45e-6);
+
+        let glm_45v = pricing.find("zai/glm-4.5v").unwrap();
+        assert_eq!(glm_45v.input, 0.6e-6);
+        assert_eq!(glm_45v.output, 1.8e-6);
+        assert_eq!(glm_45v.cache_create, 0.0);
+        assert_eq!(glm_45v.cache_read, 0.11e-6);
     }
 
     #[test]
