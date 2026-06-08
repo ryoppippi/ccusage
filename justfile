@@ -48,4 +48,4 @@ schema:
 # Bump every package version (Rust included via bump.config.ts), then commit, tag, push
 release: ccusage::typecheck ccusage::build
     pnpm bumpp -r
-    git checkout ./**/package.json package.json
+    git checkout -- $(git ls-files '*package.json')
