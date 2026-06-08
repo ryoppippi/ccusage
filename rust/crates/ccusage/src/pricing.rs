@@ -840,7 +840,7 @@ impl PricingMap {
         let glm_base = Pricing {
             input: 0.6e-6,
             output: 2.2e-6,
-            cache_create: 0.75e-6,
+            cache_create: 0.0,
             cache_read: 0.11e-6,
             cache_read_explicit: true,
             input_above_200k: None,
@@ -857,7 +857,6 @@ impl PricingMap {
             Pricing {
                 input: 1.0e-6,
                 output: 3.2e-6,
-                cache_create: 1.25e-6,
                 cache_read: 0.2e-6,
                 ..glm_base
             },
@@ -867,7 +866,6 @@ impl PricingMap {
             Pricing {
                 input: 1.2e-6,
                 output: 4.0e-6,
-                cache_create: 1.5e-6,
                 cache_read: 0.24e-6,
                 ..glm_base
             },
@@ -877,7 +875,6 @@ impl PricingMap {
             Pricing {
                 input: 1.4e-6,
                 output: 4.4e-6,
-                cache_create: 1.75e-6,
                 cache_read: 0.26e-6,
                 ..glm_base
             },
@@ -1109,23 +1106,39 @@ mod tests {
         let glm_51 = pricing.find("glm-5.1").unwrap();
         assert_eq!(glm_51.input, 1.4e-6);
         assert_eq!(glm_51.output, 4.4e-6);
+        assert_eq!(glm_51.cache_create, 0.0);
         assert_eq!(glm_51.cache_read, 0.26e-6);
         assert!(glm_51.cache_read_explicit);
 
         let glm_5 = pricing.find("glm-5").unwrap();
         assert_eq!(glm_5.input, 1.0e-6);
         assert_eq!(glm_5.output, 3.2e-6);
+        assert_eq!(glm_5.cache_create, 0.0);
         assert_eq!(glm_5.cache_read, 0.2e-6);
 
         let glm_5_turbo = pricing.find("glm-5-turbo").unwrap();
         assert_eq!(glm_5_turbo.input, 1.2e-6);
         assert_eq!(glm_5_turbo.output, 4.0e-6);
+        assert_eq!(glm_5_turbo.cache_create, 0.0);
         assert_eq!(glm_5_turbo.cache_read, 0.24e-6);
 
         let glm_47 = pricing.find("glm-4.7").unwrap();
         assert_eq!(glm_47.input, 0.6e-6);
         assert_eq!(glm_47.output, 2.2e-6);
+        assert_eq!(glm_47.cache_create, 0.0);
         assert_eq!(glm_47.cache_read, 0.11e-6);
+
+        let glm_46 = pricing.find("glm-4.6").unwrap();
+        assert_eq!(glm_46.input, 0.6e-6);
+        assert_eq!(glm_46.output, 2.2e-6);
+        assert_eq!(glm_46.cache_create, 0.0);
+        assert_eq!(glm_46.cache_read, 0.11e-6);
+
+        let glm_45 = pricing.find("glm-4.5").unwrap();
+        assert_eq!(glm_45.input, 0.6e-6);
+        assert_eq!(glm_45.output, 2.2e-6);
+        assert_eq!(glm_45.cache_create, 0.0);
+        assert_eq!(glm_45.cache_read, 0.11e-6);
     }
 
     #[test]
