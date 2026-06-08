@@ -145,5 +145,14 @@ in
           };
         };
       };
+
+      # `nix run .#generate-schema` regenerates apps/ccusage/config-schema.json
+      # (and the docs copy) from the current Rust source. It reuses the exact
+      # script the treefmt formatter and the config-schema flake check rely on,
+      # so the three can never drift apart. Run it from the repo root.
+      apps.generate-schema = {
+        type = "app";
+        program = lib.getExe schemaGen;
+      };
     };
 }
