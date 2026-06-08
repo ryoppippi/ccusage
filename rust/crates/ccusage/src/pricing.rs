@@ -836,6 +836,52 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        // Source: https://docs.z.ai/guides/overview/pricing
+        let glm_base = Pricing {
+            input: 0.6e-6,
+            output: 2.2e-6,
+            cache_create: 0.75e-6,
+            cache_read: 0.11e-6,
+            cache_read_explicit: true,
+            input_above_200k: None,
+            output_above_200k: None,
+            cache_create_above_200k: None,
+            cache_read_above_200k: None,
+            fast_multiplier: 1.0,
+        };
+        self.entries.insert("glm-4.5".to_string(), glm_base);
+        self.entries.insert("glm-4.6".to_string(), glm_base);
+        self.entries.insert("glm-4.7".to_string(), glm_base);
+        self.entries.insert(
+            "glm-5".to_string(),
+            Pricing {
+                input: 1.0e-6,
+                output: 3.2e-6,
+                cache_create: 1.25e-6,
+                cache_read: 0.2e-6,
+                ..glm_base
+            },
+        );
+        self.entries.insert(
+            "glm-5-turbo".to_string(),
+            Pricing {
+                input: 1.2e-6,
+                output: 4.0e-6,
+                cache_create: 1.5e-6,
+                cache_read: 0.24e-6,
+                ..glm_base
+            },
+        );
+        self.entries.insert(
+            "glm-5.1".to_string(),
+            Pricing {
+                input: 1.4e-6,
+                output: 4.4e-6,
+                cache_create: 1.75e-6,
+                cache_read: 0.26e-6,
+                ..glm_base
+            },
+        );
         self.context_limits.insert("gpt-5.5".to_string(), 1_050_000);
         self.context_limits
             .insert("grok-4.3".to_string(), 1_000_000);
@@ -1057,6 +1103,32 @@ mod tests {
     }
 
     #[test]
+    fn embedded_pricing_includes_z_ai_glm_models_for_offline_reports() {
+        let pricing = PricingMap::load_embedded();
+
+        let glm_51 = pricing.find("glm-5.1").unwrap();
+        assert_eq!(glm_51.input, 1.4e-6);
+        assert_eq!(glm_51.output, 4.4e-6);
+        assert_eq!(glm_51.cache_read, 0.26e-6);
+        assert!(glm_51.cache_read_explicit);
+
+        let glm_5 = pricing.find("glm-5").unwrap();
+        assert_eq!(glm_5.input, 1.0e-6);
+        assert_eq!(glm_5.output, 3.2e-6);
+        assert_eq!(glm_5.cache_read, 0.2e-6);
+
+        let glm_5_turbo = pricing.find("glm-5-turbo").unwrap();
+        assert_eq!(glm_5_turbo.input, 1.2e-6);
+        assert_eq!(glm_5_turbo.output, 4.0e-6);
+        assert_eq!(glm_5_turbo.cache_read, 0.24e-6);
+
+        let glm_47 = pricing.find("glm-4.7").unwrap();
+        assert_eq!(glm_47.input, 0.6e-6);
+        assert_eq!(glm_47.output, 2.2e-6);
+        assert_eq!(glm_47.cache_read, 0.11e-6);
+    }
+
+    #[test]
     fn records_whether_cache_read_rate_came_from_litellm_pricing() {
         let mut pricing = PricingMap::default();
         pricing.load_json(
@@ -1107,14 +1179,12 @@ mod tests {
     fn keeps_models_dev_fallback_disabled_for_embedded_and_offline_pricing() {
         use ccusage_cli::PricingOverride;
         assert!(!PricingMap::load_embedded().models_dev_fallback_enabled());
-        assert!(
-            !PricingMap::load_with_overrides(
-                true,
-                false,
-                std::iter::empty::<(&String, &PricingOverride)>(),
-            )
-            .models_dev_fallback_enabled()
-        );
+        assert!(!PricingMap::load_with_overrides(
+            true,
+            false,
+            std::iter::empty::<(&String, &PricingOverride)>(),
+        )
+        .models_dev_fallback_enabled());
     }
 
     #[test]
@@ -1790,7 +1860,7 @@ mod tests {
             let entry = pricing.find("claude-model").unwrap();
             assert_eq!(entry.input, 2e-6);
             assert_eq!(entry.output, 15e-6); // unchanged
-            // cache_create: 3.75e-6 * (2/3) = 2.5e-6
+                                             // cache_create: 3.75e-6 * (2/3) = 2.5e-6
             assert!((entry.cache_create - 2.5e-6).abs() < 1e-15);
             // cache_read: 3e-7 * (2/3) = 2e-7
             assert!((entry.cache_read - 2e-7).abs() < 1e-15);
@@ -1859,7 +1929,7 @@ mod tests {
             let entry = pricing.find("model").unwrap();
             assert_eq!(entry.input, 2e-6);
             assert_eq!(entry.cache_read, 5e-7); // explicit value, not 2e-7
-            // cache_create still scaled since not explicitly provided
+                                                // cache_create still scaled since not explicitly provided
             assert!((entry.cache_create - 2.5e-6).abs() < 1e-15);
         }
     }

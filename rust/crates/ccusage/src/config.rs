@@ -349,6 +349,9 @@ pub(crate) fn apply_config_to_statusline_args(args: &mut StatuslineArgs, config:
         if let Some(debug) = options.debug {
             args.debug = debug;
         }
+        if let Some(aliases) = options.model_label_aliases {
+            args.model_label_aliases = aliases;
+        }
     }
 }
 
@@ -492,11 +495,17 @@ fn merge_override_fields(target: &mut PricingOverride, source: ConfigPricingOver
         target.output_cost_per_token_above_200k_tokens =
             source.output_cost_per_token_above_200k_tokens;
     }
-    if source.cache_creation_input_token_cost_above_200k_tokens.is_some() {
+    if source
+        .cache_creation_input_token_cost_above_200k_tokens
+        .is_some()
+    {
         target.cache_creation_input_token_cost_above_200k_tokens =
             source.cache_creation_input_token_cost_above_200k_tokens;
     }
-    if source.cache_read_input_token_cost_above_200k_tokens.is_some() {
+    if source
+        .cache_read_input_token_cost_above_200k_tokens
+        .is_some()
+    {
         target.cache_read_input_token_cost_above_200k_tokens =
             source.cache_read_input_token_cost_above_200k_tokens;
     }
@@ -830,8 +839,8 @@ mod tests {
 
     #[test]
     fn merge_pricing_overrides_field_level_preserves_parent_fields() {
-        use ccusage_cli::PricingOverride;
         use crate::config_schema::ConfigPricingOverride;
+        use ccusage_cli::PricingOverride;
 
         let mut current = BTreeMap::new();
         current.insert(
@@ -865,8 +874,8 @@ mod tests {
 
     #[test]
     fn merge_pricing_overrides_child_overrides_parent_field() {
-        use ccusage_cli::PricingOverride;
         use crate::config_schema::ConfigPricingOverride;
+        use ccusage_cli::PricingOverride;
 
         let mut current = BTreeMap::new();
         current.insert(

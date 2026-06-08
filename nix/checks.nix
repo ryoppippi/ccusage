@@ -74,6 +74,9 @@ in
         gitleaks = mkRepoCheck "gitleaks-check" [ pkgs.gitleaks ] ''
           gitleaks detect --source . --config .gitleaks.toml --no-git
         '';
+        config-example = mkRepoCheck "config-example-check" [ pkgs.check-jsonschema ] ''
+          check-jsonschema --schemafile apps/ccusage/config-schema.json ccusage.example.json
+        '';
       };
     };
 }

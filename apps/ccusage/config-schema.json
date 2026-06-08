@@ -1363,6 +1363,14 @@
 											"markdownDescription": "Show statusline debug information.",
 											"type": "boolean"
 										},
+										"modelLabelAliases": {
+											"additionalProperties": {
+												"type": "string"
+											},
+											"description": "Map model identifiers to short display labels.",
+											"markdownDescription": "Map model identifiers to short display labels.",
+											"type": "object"
+										},
 										"noCache": {
 											"default": false,
 											"description": "Disable statusline cache.",
@@ -1654,6 +1662,14 @@
 									"enum": ["auto", "calculate", "display"],
 									"markdownDescription": "Cost calculation mode.",
 									"type": "string"
+								},
+								"modelLabelAliases": {
+									"additionalProperties": {
+										"type": "string"
+									},
+									"description": "Map model identifiers to short display labels.",
+									"markdownDescription": "Map model identifiers to short display labels.",
+									"type": "object"
 								},
 								"noCache": {
 									"description": "Disable statusline cache.",
@@ -3789,6 +3805,14 @@
 									"description": "Show statusline debug information.",
 									"markdownDescription": "Show statusline debug information.",
 									"type": "boolean"
+								},
+								"modelLabelAliases": {
+									"additionalProperties": {
+										"type": "string"
+									},
+									"description": "Map model identifiers to short display labels.",
+									"markdownDescription": "Map model identifiers to short display labels.",
+									"type": "object"
 								},
 								"noCache": {
 									"default": false,
