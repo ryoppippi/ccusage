@@ -23,7 +23,7 @@ Most users can start with unified reports such as `ccusage daily`. Add the `code
 
 ## Data Source
 
-The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). `CODEX_HOME` can be one directory or a comma-separated list of directories. Entries with a `sessions/` directory are treated as Codex homes; entries without `sessions/` are read directly as JSONL directories, which lets saved `codex exec --json` output live beside normal Codex homes.
+The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). `CODEX_HOME` can be one directory or a comma-separated list of directories. Entries with a `sessions/` directory are treated as Codex homes, and matching `archived_sessions/` directories are read automatically. Entries without `sessions/` are read directly as JSONL directories, which lets saved `codex exec --json` output live beside normal Codex homes.
 
 ```bash
 CODEX_HOME="$HOME/.codex,$HOME/.codex-work,$HOME/codex-exec-logs" ccusage codex daily
