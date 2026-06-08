@@ -1,6 +1,6 @@
 {
 	"name": "ccusage-monorepo",
-	"version": "20.0.7",
+	"version": "20.0.8",
 	"private": true,
 	"workspaces": [
 		"apps/*",

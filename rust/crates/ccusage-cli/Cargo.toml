@@ -1,6 +1,6 @@
 [package]
 name = "ccusage-cli"
-version = "20.0.7"
+version = "20.0.8"
 edition = "2021"
 build = "build.rs"
 
