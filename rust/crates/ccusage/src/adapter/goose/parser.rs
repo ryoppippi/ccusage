@@ -41,6 +41,7 @@ pub(super) fn row_to_entry(
         cache_creation_input_tokens: 0,
         cache_read_input_tokens: 0,
         speed: None,
+        cache_creation: None,
     };
     let timestamp_text = crate::format_rfc3339_millis(timestamp);
     let data = UsageEntry {
@@ -165,6 +166,7 @@ fn calculate_goose_cost(
 ) -> f64 {
     let cost_usage = TokenUsageRaw {
         output_tokens: usage.output_tokens.saturating_add(reasoning_tokens),
+        cache_creation: None,
         ..usage
     };
     let raw = calculate_cost_for_usage(
@@ -196,6 +198,7 @@ fn missing_goose_pricing(
 ) -> Option<String> {
     let cost_usage = TokenUsageRaw {
         output_tokens: usage.output_tokens.saturating_add(reasoning_tokens),
+        cache_creation: None,
         ..usage
     };
     let mut candidates = vec![model.to_string()];

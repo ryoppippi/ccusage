@@ -94,6 +94,7 @@ fn parse_line(
         cache_creation_input_tokens: 0,
         cache_read_input_tokens: cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let (display_usage, extra_total_tokens) =
         apply_total_token_fallback(display_usage, reasoning_tokens, total_tokens);
@@ -123,6 +124,7 @@ fn parse_line(
         output_tokens: display_usage
             .output_tokens
             .saturating_add(extra_total_tokens),
+        cache_creation: None,
         ..display_usage
     };
     let cost = calculate_qwen_cost(&model, billable_usage, mode, pricing);
@@ -272,6 +274,7 @@ mod tests {
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
                 speed: None,
+                cache_creation: None,
             },
             CostMode::Calculate,
             Some(&pricing),
@@ -318,6 +321,7 @@ mod tests {
                         cache_creation_input_tokens: 0,
                         cache_read_input_tokens: 3,
                         speed: None,
+                        cache_creation: None,
                     },
                     model: Some("model:1".to_string()),
                     id: None,

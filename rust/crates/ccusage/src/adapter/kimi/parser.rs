@@ -101,6 +101,7 @@ fn wire_line_to_entry(
         cache_creation_input_tokens: cache_creation_tokens,
         cache_read_input_tokens: cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let (usage, extra_total_tokens) = apply_total_token_fallback(usage, 0, total_tokens);
     if crate::total_usage_tokens(usage) + extra_total_tokens == 0 {
@@ -173,6 +174,7 @@ pub(super) fn kimi_entry_to_loaded(
         cache_creation_input_tokens: entry.cache_creation_tokens,
         cache_read_input_tokens: entry.cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let cost = calculate_kimi_cost(&entry, mode, pricing, usage);
     let missing_pricing_model = missing_kimi_pricing(&entry, mode, pricing, usage);
@@ -310,6 +312,7 @@ mod tests {
             cache_creation_input_tokens: 20,
             cache_read_input_tokens: 10,
             speed: None,
+            cache_creation: None,
         };
         let before_cutoff = KimiUsageEntry {
             timestamp: TimestampMs::from_millis(1_776_698_890_071),

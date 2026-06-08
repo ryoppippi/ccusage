@@ -95,6 +95,7 @@ mod tests {
                         cache_creation_input_tokens: 0,
                         cache_read_input_tokens: 0,
                         speed: None,
+                        cache_creation: None,
                     },
                     model: Some("claude-sonnet-4-20250514".to_string()),
                     id: Some("session-a".to_string()),

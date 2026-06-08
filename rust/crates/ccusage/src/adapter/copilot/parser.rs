@@ -161,6 +161,7 @@ fn to_candidate(
         cache_creation_input_tokens: cache_creation,
         cache_read_input_tokens: cache_read,
         speed: None,
+        cache_creation: None,
     };
     let (usage, reasoning) = apply_total_token_fallback(usage, reasoning, total);
     if crate::total_usage_tokens(usage) + reasoning == 0 {

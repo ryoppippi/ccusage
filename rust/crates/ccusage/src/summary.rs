@@ -75,7 +75,7 @@ impl UsageAccumulator {
             let breakdown = &mut self.breakdowns[index];
             breakdown.input_tokens += usage.input_tokens;
             breakdown.output_tokens += usage.output_tokens;
-            breakdown.cache_creation_tokens += usage.cache_creation_input_tokens;
+            breakdown.cache_creation_tokens += usage.cache_creation_token_count();
             breakdown.cache_read_tokens += usage.cache_read_input_tokens;
             breakdown.extra_total_tokens += entry.extra_total_tokens;
             breakdown.cost += entry.cost;
@@ -599,6 +599,7 @@ mod tests {
             cache_creation_input_tokens: fixture.cache_creation_tokens,
             cache_read_input_tokens: fixture.cache_read_tokens,
             speed: None,
+            cache_creation: None,
         };
         let timestamp = TimestampMs::from_millis(fixture.timestamp);
         LoadedEntry {

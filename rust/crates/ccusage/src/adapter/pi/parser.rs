@@ -53,6 +53,7 @@ pub(crate) fn read_session_file(
             cache_creation_input_tokens: cache_create,
             cache_read_input_tokens: cache_read,
             speed: None,
+            cache_creation: None,
         };
         let (usage, extra_total_tokens) = apply_total_token_fallback(usage, 0, total);
         if crate::total_usage_tokens(usage) + extra_total_tokens == 0 {

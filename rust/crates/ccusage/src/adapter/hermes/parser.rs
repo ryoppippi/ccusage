@@ -59,6 +59,7 @@ pub(super) fn read_session_row(statement: &sqlite::Statement<'_>) -> Option<Herm
             cache_creation_input_tokens: cache_creation_tokens,
             cache_read_input_tokens: cache_read_tokens,
             speed: None,
+            cache_creation: None,
         },
         reasoning_tokens,
         message_count,
@@ -182,6 +183,7 @@ fn calculate_hermes_cost(entry: &HermesEntry, pricing: &PricingMap) -> f64 {
     }
     let usage = TokenUsageRaw {
         output_tokens: entry.usage.output_tokens + entry.reasoning_tokens,
+        cache_creation: None,
         ..entry.usage
     };
     for candidate in model_candidates(entry) {
@@ -205,6 +207,7 @@ fn missing_hermes_pricing(entry: &HermesEntry, pricing: &PricingMap) -> Option<S
     }
     let usage = TokenUsageRaw {
         output_tokens: entry.usage.output_tokens + entry.reasoning_tokens,
+        cache_creation: None,
         ..entry.usage
     };
     missing_pricing_model_for_candidates(
@@ -248,6 +251,7 @@ mod tests {
                     cache_creation_input_tokens: 0,
                     cache_read_input_tokens: 0,
                     speed: None,
+                    cache_creation: None,
                 },
                 reasoning_tokens: 50,
                 message_count: 1,
@@ -276,6 +280,7 @@ mod tests {
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 3_339_776,
                 speed: None,
+                cache_creation: None,
             },
             reasoning_tokens: 3_216,
             message_count: 72,
@@ -303,6 +308,7 @@ mod tests {
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
                 speed: None,
+                cache_creation: None,
             },
             reasoning_tokens: 0,
             message_count: 1,

@@ -14,7 +14,7 @@ pub(crate) fn non_empty_json_string(value: Option<&Value>) -> Option<String> {
 pub(crate) fn total_usage_tokens(usage: TokenUsageRaw) -> u64 {
     usage.input_tokens
         + usage.output_tokens
-        + usage.cache_creation_input_tokens
+        + usage.cache_creation_token_count()
         + usage.cache_read_input_tokens
 }
 
@@ -49,6 +49,7 @@ mod tests {
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 25,
                 speed: None,
+                cache_creation: None,
             },
             0,
             175,
@@ -69,6 +70,7 @@ mod tests {
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 25,
                 speed: None,
+                cache_creation: None,
             },
             0,
             200,
