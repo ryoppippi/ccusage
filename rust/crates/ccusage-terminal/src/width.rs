@@ -37,10 +37,6 @@ pub(crate) fn visible_width_max_line(value: &str) -> usize {
     value.lines().map(visible_width).max().unwrap_or_default()
 }
 
-pub(crate) fn visible_width_sum(value: &str) -> usize {
-    value.lines().map(visible_width).sum()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
