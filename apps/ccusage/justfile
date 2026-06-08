@@ -1,0 +1,17 @@
+# Recipes for the published `ccusage` npm package. Run from the repo root as
+# `just ccusage::<recipe>`, or from this directory as `just <recipe>`.
+
+[private]
+default:
+    @just --list
+
+# Build the package: config schema, bundle, then the native binary glue.
+# Delegated to the pnpm script because npm `prepack` and `pkg-pr-new publish`
+# invoke `pnpm run build` by name (and tsdown lives in this package's
+# node_modules), so the script must stay the single source of truth.
+build:
+    pnpm run build
+
+# Type-check the package (tsgo comes from the Nix dev shell, so call it directly)
+typecheck:
+    tsgo --noEmit
