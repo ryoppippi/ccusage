@@ -102,6 +102,7 @@ Create a `ccusage.json` file with your preferred defaults:
 		"json": false,
 		"mode": "auto",
 		"offline": false,
+		"noCost": false,
 		"timezone": "Asia/Tokyo",
 		"breakdown": true
 	}
@@ -145,10 +146,13 @@ The `defaults` section sets shared default values for unified reports and legacy
 		"order": "asc",
 		"breakdown": false,
 		"offline": false,
+		"noCost": false,
 		"timezone": "UTC"
 	}
 }
 ```
+
+Set `noCost` to `true` to hide cost columns in tables and remove cost fields from JSON output by default.
 
 ### Command-Specific Configuration
 
@@ -364,7 +368,10 @@ For a namespaced command, options are applied in this order:
 		"statusline": {
 			"offline": true,
 			"cache": true,
-			"refreshInterval": 2
+			"refreshInterval": 2,
+			"modelLabelAliases": {
+				"arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345": "claude-opus-4-6"
+			}
 		}
 	}
 }

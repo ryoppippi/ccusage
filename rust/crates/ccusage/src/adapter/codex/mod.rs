@@ -138,16 +138,19 @@ mod tests {
         .unwrap();
 
         assert_eq!(report["daily"][0]["inputTokens"], 10);
-        assert_eq!(report["daily"][0]["cachedInputTokens"], 90);
+        assert_eq!(report["daily"][0]["cacheCreationTokens"], 0);
+        assert_eq!(report["daily"][0]["cacheReadTokens"], 90);
         assert_eq!(report["daily"][0]["totalTokens"], 105);
         assert_eq!(report["totals"]["inputTokens"], 10);
-        assert_eq!(report["totals"]["cachedInputTokens"], 90);
+        assert_eq!(report["totals"]["cacheCreationTokens"], 0);
+        assert_eq!(report["totals"]["cacheReadTokens"], 90);
         assert_eq!(report["totals"]["totalTokens"], 105);
         assert_eq!(report["daily"][0]["models"]["gpt-5"]["inputTokens"], 10);
         assert_eq!(
-            report["daily"][0]["models"]["gpt-5"]["cachedInputTokens"],
-            90
+            report["daily"][0]["models"]["gpt-5"]["cacheCreationTokens"],
+            0
         );
+        assert_eq!(report["daily"][0]["models"]["gpt-5"]["cacheReadTokens"], 90);
     }
 
     #[test]

@@ -568,6 +568,78 @@ mod tests {
     }
 
     #[test]
+    fn strip_cost_json_removes_cost_fields_recursively() {
+        let mut value = json!({
+            "daily": [
+                {
+                    "date": "2026-01-02",
+                    "totalTokens": 172,
+                    "totalCost": 0.25,
+                    "modelBreakdowns": [
+                        {
+                            "modelName": "gpt-5",
+                            "costUSD": 0.1,
+                            "inputTokens": 100
+                        }
+                    ],
+                }
+            ],
+            "blocks": [
+                {
+                    "id": "2026-01-02T00:00:00.000Z",
+                    "costUSD": 1.5,
+                    "burnRate": {
+                        "tokensPerMinute": 10,
+                        "cost": 0.25
+                    },
+                    "projection": {
+                        "totalTokens": 300,
+                        "totalCost": 2.0
+                    }
+                }
+            ],
+            "totals": {
+                "totalTokens": 172,
+                "totalCost": 0.25
+            }
+        });
+
+        strip_cost_json(&mut value);
+
+        assert_eq!(
+            value,
+            json!({
+                "daily": [
+                    {
+                        "date": "2026-01-02",
+                        "totalTokens": 172,
+                        "modelBreakdowns": [
+                            {
+                                "modelName": "gpt-5",
+                                "inputTokens": 100
+                            }
+                        ],
+                    }
+                ],
+                "blocks": [
+                    {
+                        "id": "2026-01-02T00:00:00.000Z",
+                        "burnRate": {
+                            "tokensPerMinute": 10
+                        },
+                        "projection": {
+                            "totalTokens": 300
+                        }
+                    }
+                ],
+                "totals": {
+                    "totalTokens": 172
+                }
+            })
+        );
+    }
+
+    #[test]
     fn snapshots_summary_json_with_optional_fields_and_model_breakdowns() {
         let row = snapshot_summary("2026-01-02", Some("workspace/api"), Some(1.25));
 

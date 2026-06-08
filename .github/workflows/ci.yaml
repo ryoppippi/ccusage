@@ -116,8 +116,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix
         if: matrix.platform == 'linux'
-        with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Cache Cargo build
         if: matrix.platform != 'linux'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -373,27 +371,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
-  schema-check:
-    needs: changes
-    if: needs.changes.outputs.code-changed == 'true'
-    runs-on: ubuntu-24.04-arm
+  action-timeline:
+    needs:
+      - changes
+      - lint-check
+      - test
+      - build-native-packages
+      - npm-publish-dry-run-and-upload-pkg-pr-now
+      - ccusage-preview-e2e
+      - ccusage-perf-comment
+      - ccusage-rust-perf-comment
+    if: ${{ always() }}
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: ./.github/actions/setup-nix
-      - name: Generate schema files
-        run: nix develop --command pnpm run generate:schema
-        working-directory: apps/ccusage
-      - name: Check if schema files are up-to-date
-        run: |
-          if git diff --exit-code apps/ccusage/config-schema.json docs/public/config-schema.json; then
-            echo "✅ Schema files are up-to-date"
-          else
-            echo "❌ Schema files are not up-to-date. Please run 'pnpm run generate:schema' and commit the changes."
-            echo ""
-            echo "Changed files:"
-            git diff --name-only apps/ccusage/config-schema.json docs/public/config-schema.json
-            echo ""
-            echo "Diff:"
-            git diff apps/ccusage/config-schema.json docs/public/config-schema.json
-            exit 1
-          fi
+      - uses: Kesin11/actions-timeline@44c9c178ffb2fb1d9859614a3ffa79ccfb77565e # v3.1

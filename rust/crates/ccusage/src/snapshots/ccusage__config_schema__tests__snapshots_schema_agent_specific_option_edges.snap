@@ -46,6 +46,14 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "markdownDescription": "Show statusline debug information.",
         "type": "boolean"
       },
+      "modelLabelAliases": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "Map model identifiers to short display labels.",
+        "markdownDescription": "Map model identifiers to short display labels.",
+        "type": "object"
+      },
       "noCache": {
         "default": false,
         "description": "Disable statusline cache.",

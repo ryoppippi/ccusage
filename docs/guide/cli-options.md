@@ -34,9 +34,15 @@ ccusage daily -j
 ccusage daily --breakdown
 ccusage daily -b
 
+# Hide cost columns and JSON cost fields
+ccusage daily --no-cost
+ccusage daily --json --no-cost
+
 # Combine options
 ccusage daily --json --breakdown
 ```
+
+`--no-cost` removes cost columns from table output and removes cost fields such as `totalCost`, `costUSD`, and `cost` from JSON output.
 
 ### Cost Calculation Mode
 
@@ -210,6 +216,9 @@ ccusage statusline --refresh-interval 5
 ```bash
 # Print JSON output
 ccusage daily --json
+
+# Print JSON without cost fields
+ccusage daily --json --no-cost
 
 # Pipe JSON output to jq
 ccusage daily --json | jq ".data[]"
