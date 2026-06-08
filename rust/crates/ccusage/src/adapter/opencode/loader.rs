@@ -45,9 +45,10 @@ pub(crate) fn load_entries_from_directory(
     let pricing = if shared.mode == CostMode::Display {
         None
     } else {
-        Some(PricingMap::load(
+        Some(PricingMap::load_with_overrides(
             shared.offline,
             crate::log_level() != Some(0),
+            shared.pricing_overrides.iter(),
         ))
     };
     let tz = parse_tz(shared.timezone.as_deref());

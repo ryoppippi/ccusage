@@ -141,6 +141,7 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 🔒 **Cost Hiding**: Remove cost columns and JSON cost fields with `--no-cost`
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline`
+- 🧩 **Custom Pricing Overrides**: Override token pricing per raw model name in `ccusage.json` without rebuilding
 - 🏗️ **Claude Instance Support**: Group Claude Code usage by project with `--instances` and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation

@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+};
 
 pub struct Cli {
     pub command: Option<Command>,
@@ -29,7 +32,7 @@ pub enum Command {
     OpenClaw(AgentCommandArgs),
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SharedArgs {
     pub since: Option<String>,
     pub until: Option<String>,
@@ -49,6 +52,7 @@ pub struct SharedArgs {
     pub compact: bool,
     pub single_thread: bool,
     pub no_cost: bool,
+    pub pricing_overrides: BTreeMap<String, PricingOverride>,
 }
 
 impl SharedArgs {
@@ -210,6 +214,20 @@ pub enum CostSource {
     Ccusage,
     Cc,
     Both,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PricingOverride {
+    pub input_cost_per_token: Option<f64>,
+    pub output_cost_per_token: Option<f64>,
+    pub cache_creation_input_token_cost: Option<f64>,
+    pub cache_read_input_token_cost: Option<f64>,
+    pub input_cost_per_token_above_200k_tokens: Option<f64>,
+    pub output_cost_per_token_above_200k_tokens: Option<f64>,
+    pub cache_creation_input_token_cost_above_200k_tokens: Option<f64>,
+    pub cache_read_input_token_cost_above_200k_tokens: Option<f64>,
+    pub max_input_tokens: Option<u64>,
+    pub fast_multiplier: Option<f64>,
 }
 
 pub trait CliConfig {

@@ -227,6 +227,7 @@ fn build_event(
         cache_creation_input_tokens: 0,
         cache_read_input_tokens: cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let (display_usage, extra_total_tokens) =
         apply_total_token_fallback(display_usage, tokens.thoughts, total_tokens);
@@ -344,9 +345,11 @@ pub(super) fn event_to_loaded(
         cache_creation_input_tokens: 0,
         cache_read_input_tokens: event.cache_read_tokens,
         speed: None,
+        cache_creation: None,
     };
     let cost_usage = TokenUsageRaw {
         output_tokens: event.output_tokens + event.reasoning_tokens,
+        cache_creation: None,
         ..usage
     };
     let extra_total_tokens = event

@@ -31,7 +31,11 @@ use serde_json::Value;
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
-    let pricing = PricingMap::load(shared.offline, log_level() != Some(0));
+    let pricing = PricingMap::load_with_overrides(
+        shared.offline,
+        log_level() != Some(0),
+        shared.pricing_overrides.iter(),
+    );
     let groups = load_groups(&shared, args.kind)?;
     let speed = resolve_codex_speed(args.codex_speed);
     if wants_json(&shared) {

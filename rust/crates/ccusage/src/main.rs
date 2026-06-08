@@ -765,6 +765,7 @@ mod tests {
                         cache_creation_input_tokens: 20,
                         cache_read_input_tokens: 10,
                         speed: None,
+                        cache_creation: None,
                     },
                     model: Some("claude-sonnet-4-20250514".to_string()),
                     id: Some("event-a".to_string()),
@@ -815,6 +816,8 @@ mod tests {
         let entries = adapter::pi::read_session_file(
             &fixture.path("sessions/project-a/prefix_session-a.jsonl"),
             parse_tz(Some("UTC")).as_ref(),
+            CostMode::Display,
+            None,
         )
         .unwrap();
 
@@ -847,6 +850,7 @@ mod tests {
                         cache_creation_input_tokens: 20,
                         cache_read_input_tokens: 10,
                         speed: None,
+                        cache_creation: None,
                     },
                     model: Some("[pi] gpt-5.4".to_string()),
                     id: None,
@@ -897,6 +901,7 @@ mod tests {
                         cache_creation_input_tokens: 20,
                         cache_read_input_tokens: 10,
                         speed: None,
+                        cache_creation: None,
                     },
                     model: Some("claude-sonnet-4-20250514".to_string()),
                     id: Some("msg-1".to_string()),

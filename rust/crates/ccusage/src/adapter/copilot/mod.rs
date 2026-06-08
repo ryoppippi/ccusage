@@ -14,7 +14,11 @@ pub(crate) use report::{report_from_rows, summarize_entries};
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
-    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
+    let pricing = PricingMap::load_with_overrides(
+        shared.offline,
+        crate::log_level() != Some(0),
+        shared.pricing_overrides.iter(),
+    );
     let mut entries = load_entries(&shared, &pricing)?;
     filter_loaded_entries_by_date(&mut entries, &shared);
     let mut rows = summarize_entries(&entries, args.kind)?;
