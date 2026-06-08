@@ -166,7 +166,7 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
 
     let mut rows = Vec::with_capacity(grouped.len());
     for group in grouped {
-        rows.push(group.into_summary(session_shared.timezone.as_deref())?);
+        rows.push(group.into_summary()?);
     }
     if session_shared.since.is_some() || session_shared.until.is_some() {
         rows.retain(|row| {

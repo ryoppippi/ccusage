@@ -187,7 +187,8 @@ ccusage session --json
 			"cacheReadTokens": 1024,
 			"totalTokens": 356894,
 			"totalCost": 156.4,
-			"lastActivity": "2026-05-16",
+			"firstActivity": "2026-05-15T09:30:00.000Z",
+			"lastActivity": "2026-05-16T17:45:30.000Z",
 			"modelsUsed": ["opus-4-1", "sonnet-4-5"],
 			"modelBreakdowns": [
 				{

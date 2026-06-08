@@ -154,7 +154,7 @@ ccusage openclaw monthly --since 2026-01-01 --until 2026-03-31
 
 ## Session View
 
-This view shows usage grouped by individual OpenClaw sessions. Session IDs come from the JSONL filename stem (the part before `.jsonl`, ignoring `.deleted.<ts>` or `.reset.<ts>` suffixes), and metadata records the last activity date and provider that produced the most recent activity.
+This view shows usage grouped by individual OpenClaw sessions. Session IDs come from the JSONL filename stem (the part before `.jsonl`, ignoring `.deleted.<ts>` or `.reset.<ts>` suffixes), and JSON output records activity timestamps and provider metadata for the most recent activity.
 
 ```bash
 ccusage openclaw session

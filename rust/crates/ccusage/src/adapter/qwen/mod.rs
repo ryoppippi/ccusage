@@ -183,6 +183,7 @@ mod tests {
             session_id: Some(session_id.to_string()),
             project_path: None,
             last_activity: Some(last_activity.to_string()),
+            first_activity: None,
             input_tokens: 0,
             output_tokens: 0,
             cache_creation_tokens: 0,

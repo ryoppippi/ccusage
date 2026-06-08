@@ -199,6 +199,7 @@ fn all_rows_as_usage_summaries(rows: &[AllRow]) -> Vec<UsageSummary> {
             session_id: None,
             project_path: None,
             last_activity: None,
+            first_activity: None,
             input_tokens: row.input_tokens,
             output_tokens: row.output_tokens,
             cache_creation_tokens: row.cache_creation_tokens,

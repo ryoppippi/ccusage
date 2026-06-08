@@ -166,7 +166,8 @@ ccusage daily --project my-frontend-app --json
 			"cacheReadTokens": 1024,
 			"totalTokens": 356894,
 			"costUSD": 156.4,
-			"lastActivity": "2026-05-15"
+			"firstActivity": "2026-05-15T09:30:00.000Z",
+			"lastActivity": "2026-05-15T17:45:30.000Z"
 		}
 	],
 	"summary": {
@@ -239,7 +240,8 @@ ccusage daily --project my-frontend-app --json
 #### Session Reports
 
 - `session`: Session identifier
-- `lastActivity`: Date of last activity in the session
+- `firstActivity`: RFC 3339 timestamp of first activity in the session
+- `lastActivity`: RFC 3339 timestamp of last activity in the session
 
 #### Blocks Reports
 
