@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -432,6 +434,8 @@ pub(crate) struct StatuslineSpecificOptions {
     pub(crate) timezone: Option<String>,
     /// Show statusline debug information.
     pub(crate) debug: Option<bool>,
+    /// Map model identifiers to short display labels.
+    pub(crate) model_label_aliases: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -581,6 +585,7 @@ impl StatuslineSpecificOptions {
             context_medium_threshold: u64_option(map, "contextMediumThreshold"),
             timezone: string_option(map, "timezone"),
             debug: bool_option(map, "debug"),
+            model_label_aliases: hashmap_option(map, "modelLabelAliases"),
         }
     }
 }
@@ -718,6 +723,21 @@ where
     T: DeserializeOwned,
 {
     serde_json::from_value(map.get(key)?.clone()).ok()
+}
+
+fn hashmap_option(map: &Map<String, Value>, key: &str) -> Option<HashMap<String, String>> {
+    let obj = map.get(key)?.as_object()?;
+    let mut result = HashMap::new();
+    for (k, v) in obj {
+        if let Some(s) = v.as_str() {
+            result.insert(k.clone(), s.to_string());
+        }
+    }
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
 }
 
 fn enrich_schema(value: &mut Value) {
@@ -917,6 +937,7 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::generate_config_schema_json;
+    use super::StatuslineSpecificOptions;
 
     #[test]
     fn schema_option_sets_expose_expected_keys() {
@@ -969,6 +990,7 @@ mod tests {
                 "contextMediumThreshold",
                 "costSource",
                 "debug",
+                "modelLabelAliases",
                 "noCache",
                 "noOffline",
                 "offline",
@@ -1246,6 +1268,39 @@ mod tests {
             property_default(&schema, &["codex", "defaults", "speed"]),
             Some(&json!("auto"))
         );
+    }
+
+    #[test]
+    fn statusline_options_parse_model_label_aliases() {
+        let map = serde_json::json!({
+            "modelLabelAliases": {
+                "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345": "claude-opus-4-6"
+            }
+        });
+        let options = StatuslineSpecificOptions::from_map(map.as_object().unwrap());
+
+        let aliases = options.model_label_aliases.unwrap();
+        assert_eq!(
+            aliases.get(
+                "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345"
+            ),
+            Some(&"claude-opus-4-6".to_string())
+        );
+    }
+
+    #[test]
+    fn statusline_options_ignore_non_string_alias_values() {
+        let map = serde_json::json!({
+            "modelLabelAliases": {
+                "valid": "short",
+                "invalid": 123
+            }
+        });
+        let options = StatuslineSpecificOptions::from_map(map.as_object().unwrap());
+
+        let aliases = options.model_label_aliases.unwrap();
+        assert_eq!(aliases.get("valid"), Some(&"short".to_string()));
+        assert!(!aliases.contains_key("invalid"));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 pub struct Cli {
     pub command: Option<Command>,
@@ -108,6 +108,7 @@ pub struct StatuslineArgs {
     pub timezone: Option<String>,
     pub config: Option<PathBuf>,
     pub debug: bool,
+    pub model_label_aliases: HashMap<String, String>,
 }
 
 #[derive(Clone)]
@@ -163,6 +164,7 @@ impl Default for StatuslineArgs {
             timezone: None,
             config: None,
             debug: false,
+            model_label_aliases: HashMap::new(),
         }
     }
 }
