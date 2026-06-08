@@ -937,6 +937,7 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::generate_config_schema_json;
+    use super::StatuslineSpecificOptions;
 
     #[test]
     fn schema_option_sets_expose_expected_keys() {
@@ -1267,6 +1268,39 @@ mod tests {
             property_default(&schema, &["codex", "defaults", "speed"]),
             Some(&json!("auto"))
         );
+    }
+
+    #[test]
+    fn statusline_options_parse_model_label_aliases() {
+        let map = serde_json::json!({
+            "modelLabelAliases": {
+                "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345": "claude-opus-4-6"
+            }
+        });
+        let options = StatuslineSpecificOptions::from_map(map.as_object().unwrap());
+
+        let aliases = options.model_label_aliases.unwrap();
+        assert_eq!(
+            aliases.get(
+                "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345"
+            ),
+            Some(&"claude-opus-4-6".to_string())
+        );
+    }
+
+    #[test]
+    fn statusline_options_ignore_non_string_alias_values() {
+        let map = serde_json::json!({
+            "modelLabelAliases": {
+                "valid": "short",
+                "invalid": 123
+            }
+        });
+        let options = StatuslineSpecificOptions::from_map(map.as_object().unwrap());
+
+        let aliases = options.model_label_aliases.unwrap();
+        assert_eq!(aliases.get("valid"), Some(&"short".to_string()));
+        assert!(!aliases.contains_key("invalid"));
     }
 
     #[test]

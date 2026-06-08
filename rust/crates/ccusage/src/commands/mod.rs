@@ -384,6 +384,22 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
     Ok(())
 }
 
+/// Resolve the model label shown in the statusline.
+///
+/// Looks up the model's `display_name` in the user-configured alias map and
+/// returns the matching short label when present. Long identifiers such as AWS
+/// Bedrock inference profile ARNs can therefore be displayed as a concise name.
+/// Falls back to the original `display_name` when no alias matches.
+fn resolve_model_label<'a>(
+    aliases: &'a std::collections::HashMap<String, String>,
+    display_name: &'a str,
+) -> &'a str {
+    aliases
+        .get(display_name)
+        .map(String::as_str)
+        .unwrap_or(display_name)
+}
+
 fn render_statusline(
     hook: &StatuslineHook,
     args: &StatuslineArgs,
@@ -498,10 +514,7 @@ fn render_statusline(
             .unwrap_or_else(|| "N/A".to_string())
     };
 
-    let model_label = args
-        .model_label_aliases
-        .get(&hook.model.display_name)
-        .unwrap_or(&hook.model.display_name);
+    let model_label = resolve_model_label(&args.model_label_aliases, &hook.model.display_name);
 
     Ok(format!(
         "🤖 {} | 💰 {} session / {} today / {}{} | 🧠 {}",
@@ -913,5 +926,30 @@ mod tests {
             cached_statusline_output(&cache, 456, 20_000, 1),
             Some("stale status")
         );
+    }
+
+    #[test]
+    fn resolves_model_label_from_alias_map() {
+        let mut aliases = std::collections::HashMap::new();
+        aliases.insert(
+            "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345"
+                .to_string(),
+            "claude-opus-4-6".to_string(),
+        );
+
+        assert_eq!(
+            resolve_model_label(
+                &aliases,
+                "arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345"
+            ),
+            "claude-opus-4-6"
+        );
+    }
+
+    #[test]
+    fn falls_back_to_display_name_when_no_alias_matches() {
+        let aliases = std::collections::HashMap::new();
+
+        assert_eq!(resolve_model_label(&aliases, "Opus 4.1"), "Opus 4.1");
     }
 }
