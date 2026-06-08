@@ -68,4 +68,34 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn uses_sessions_without_missing_archived_sessions_path() {
+        let fixture = Fixture::new();
+        let _ = fixture.create_dir_all("codex/sessions");
+
+        let paths = codex_usage_paths_from_homes(vec![fixture.path("codex")]);
+
+        assert_eq!(paths, vec![fixture.path("codex/sessions")]);
+    }
+
+    #[test]
+    fn uses_archived_sessions_without_direct_path_fallback() {
+        let fixture = Fixture::new();
+        let _ = fixture.create_dir_all("codex/archived_sessions");
+
+        let paths = codex_usage_paths_from_homes(vec![fixture.path("codex")]);
+
+        assert_eq!(paths, vec![fixture.path("codex/archived_sessions")]);
+    }
+
+    #[test]
+    fn falls_back_to_direct_path_when_no_session_directories_exist() {
+        let fixture = Fixture::new();
+        let home = fixture.create_dir_all("codex");
+
+        let paths = codex_usage_paths_from_homes(vec![home.clone()]);
+
+        assert_eq!(paths, vec![home]);
+    }
 }
