@@ -12,6 +12,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         return print_json_or_jq(
             report::report_json(&result.rows, kind),
             shared.jq.as_deref(),
+            shared.no_cost,
         );
     }
     report::print_table(&result.rows, kind, &shared, &result.detected_agents)

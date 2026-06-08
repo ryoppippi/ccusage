@@ -102,6 +102,7 @@ Create a `ccusage.json` file with your preferred defaults:
 		"json": false,
 		"mode": "auto",
 		"offline": false,
+		"noCost": false,
 		"timezone": "Asia/Tokyo",
 		"breakdown": true
 	}
@@ -145,10 +146,13 @@ The `defaults` section sets shared default values for unified reports and legacy
 		"order": "asc",
 		"breakdown": false,
 		"offline": false,
+		"noCost": false,
 		"timezone": "UTC"
 	}
 }
 ```
+
+Set `noCost` to `true` to hide cost columns in tables and remove cost fields from JSON output by default.
 
 ### Command-Specific Configuration
 

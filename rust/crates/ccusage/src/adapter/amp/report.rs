@@ -107,51 +107,55 @@ pub(crate) fn print_table_for_agent(
     );
     let first_column = opencode::first_column(kind);
     let mut table = if compact {
-        SimpleTable::new(
-            vec![
-                first_column,
-                "Models",
-                "Input",
-                "Output",
-                "Credits",
-                "Cost (USD)",
-            ],
-            vec![
-                Align::Left,
-                Align::Left,
-                Align::Right,
-                Align::Right,
-                Align::Right,
-                Align::Right,
-            ],
-            crate::terminal_style(shared),
-        )
+        let mut headers = vec![
+            first_column,
+            "Models",
+            "Input",
+            "Output",
+            "Credits",
+            "Cost (USD)",
+        ];
+        let mut aligns = vec![
+            Align::Left,
+            Align::Left,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+        ];
+        if shared.no_cost {
+            headers.pop();
+            aligns.pop();
+        }
+        SimpleTable::new(headers, aligns, crate::terminal_style(shared))
     } else {
-        SimpleTable::new(
-            vec![
-                first_column,
-                "Models",
-                "Input",
-                "Output",
-                "Cache Create",
-                "Cache Read",
-                "Total Tokens",
-                "Credits",
-                "Cost (USD)",
-            ],
-            vec![
-                Align::Left,
-                Align::Left,
-                Align::Right,
-                Align::Right,
-                Align::Right,
-                Align::Right,
-                Align::Right,
-                Align::Right,
-                Align::Right,
-            ],
-            crate::terminal_style(shared),
-        )
+        let mut headers = vec![
+            first_column,
+            "Models",
+            "Input",
+            "Output",
+            "Cache Create",
+            "Cache Read",
+            "Total Tokens",
+            "Credits",
+            "Cost (USD)",
+        ];
+        let mut aligns = vec![
+            Align::Left,
+            Align::Left,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+        ];
+        if shared.no_cost {
+            headers.pop();
+            aligns.pop();
+        }
+        SimpleTable::new(headers, aligns, crate::terminal_style(shared))
     }
     .with_terminal_width(terminal_width)
     .with_date_compaction(true);
@@ -165,16 +169,20 @@ pub(crate) fn print_table_for_agent(
             .unwrap_or("");
         let models = format_models_multiline(&row.models_used);
         if compact {
-            table.push(vec![
+            let mut row = vec![
                 label.to_string(),
                 models,
                 format_number(row.input_tokens),
                 format_number(row.output_tokens),
                 format!("{:.2}", row.credits.unwrap_or_default()),
                 format_currency(row.total_cost),
-            ]);
+            ];
+            if shared.no_cost {
+                row.pop();
+            }
+            table.push(row);
         } else {
-            table.push(vec![
+            let mut row = vec![
                 label.to_string(),
                 models,
                 format_number(row.input_tokens),
@@ -189,7 +197,11 @@ pub(crate) fn print_table_for_agent(
                 ),
                 format!("{:.2}", row.credits.unwrap_or_default()),
                 format_currency(row.total_cost),
-            ]);
+            ];
+            if shared.no_cost {
+                row.pop();
+            }
+            table.push(row);
         }
     }
 
@@ -200,7 +212,7 @@ pub(crate) fn print_table_for_agent(
         .and_then(Value::as_f64)
         .unwrap_or_default();
     if compact {
-        table.push(vec![
+        let mut row = vec![
             crate::color(shared, "Total", Color::Yellow),
             String::new(),
             crate::color(
@@ -224,13 +236,17 @@ pub(crate) fn print_table_for_agent(
                 ),
                 Color::Yellow,
             ),
-        ]);
+        ];
+        if shared.no_cost {
+            row.pop();
+        }
+        table.push(row);
     } else {
         let input = json_value_u64(totals.get("inputTokens"));
         let output = json_value_u64(totals.get("outputTokens"));
         let cache_create = json_value_u64(totals.get("cacheCreationTokens"));
         let cache_read = json_value_u64(totals.get("cacheReadTokens"));
-        table.push(vec![
+        let mut row = vec![
             crate::color(shared, "Total", Color::Yellow),
             String::new(),
             crate::color(shared, format_number(input), Color::Yellow),
@@ -253,7 +269,11 @@ pub(crate) fn print_table_for_agent(
                 ),
                 Color::Yellow,
             ),
-        ]);
+        ];
+        if shared.no_cost {
+            row.pop();
+        }
+        table.push(row);
     }
     table.print()?;
     Ok(())

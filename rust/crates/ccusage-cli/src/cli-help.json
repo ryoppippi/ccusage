@@ -32,6 +32,11 @@
 			"default": "false"
 		},
 		{
+			"flags": "--no-cost",
+			"description": "Hide cost information in table and JSON output",
+			"default": "false"
+		},
+		{
 			"flags": "--color",
 			"description": "Enable colored output. FORCE_COLOR=1 has the same effect.",
 			"default": "auto"
@@ -90,6 +95,11 @@
 		{
 			"flags": "--compact",
 			"description": "Force compact table layout for narrow terminals",
+			"default": "false"
+		},
+		{
+			"flags": "--no-cost",
+			"description": "Hide cost information in table and JSON output",
 			"default": "false"
 		},
 		{
@@ -173,6 +183,11 @@
 		{
 			"flags": "--compact",
 			"description": "Force compact table layout for narrow terminals",
+			"default": "false"
+		},
+		{
+			"flags": "--no-cost",
+			"description": "Hide cost information in table and JSON output",
 			"default": "false"
 		},
 		{

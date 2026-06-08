@@ -111,7 +111,10 @@ pub(crate) fn group_project_output(rows: &[UsageSummary]) -> Value {
     json!(projects)
 }
 
-pub(crate) fn print_json_or_jq(value: Value, jq: Option<&str>) -> Result<()> {
+pub(crate) fn print_json_or_jq(mut value: Value, jq: Option<&str>, no_cost: bool) -> Result<()> {
+    if no_cost {
+        strip_cost_json(&mut value);
+    }
     if let Some(filter) = jq {
         let mut child = std::process::Command::new("jq")
             .arg(filter)
@@ -195,6 +198,10 @@ pub(crate) fn print_usage_table(
             Align::Right,
         ]
     };
+    if shared.no_cost {
+        headers.pop();
+        aligns.pop();
+    }
     if include_last_activity {
         headers.push("Last Activity");
         aligns.push(Align::Left);
@@ -249,6 +256,9 @@ pub(crate) fn print_usage_table(
                 format_currency(row.total_cost),
             ]
         };
+        if shared.no_cost {
+            values.pop();
+        }
         if include_last_activity {
             values.push(truncate_rfc3339_to_date(
                 row.last_activity.as_deref().unwrap_or_default(),
@@ -306,6 +316,9 @@ pub(crate) fn print_usage_table(
             color(shared, format_currency(total_cost), Color::Yellow),
         ]
     };
+    if shared.no_cost {
+        total_row.pop();
+    }
     if include_last_activity {
         total_row.push(String::new());
     }
@@ -438,6 +451,9 @@ fn push_breakdown_rows(
                 color(shared, format_currency(breakdown.cost), Color::Grey),
             ]
         };
+        if shared.no_cost {
+            values.pop();
+        }
         if include_last_activity {
             values.push(String::new());
         }
@@ -473,6 +489,25 @@ pub(crate) fn format_number(value: u64) -> String {
 
 pub(crate) fn format_currency(value: f64) -> String {
     format!("${value:.2}")
+}
+
+pub(crate) fn strip_cost_json(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.remove("totalCost");
+            map.remove("costUSD");
+            map.remove("cost");
+            for (_, child) in map.iter_mut() {
+                strip_cost_json(child);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                strip_cost_json(child);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn truncate_rfc3339_to_date(s: &str) -> String {
@@ -538,6 +573,78 @@ mod tests {
         }]);
 
         assert_eq!(totals["totalTokens"], 172);
+    }
+
+    #[test]
+    fn strip_cost_json_removes_cost_fields_recursively() {
+        let mut value = json!({
+            "daily": [
+                {
+                    "date": "2026-01-02",
+                    "totalTokens": 172,
+                    "totalCost": 0.25,
+                    "modelBreakdowns": [
+                        {
+                            "modelName": "gpt-5",
+                            "costUSD": 0.1,
+                            "inputTokens": 100
+                        }
+                    ],
+                }
+            ],
+            "blocks": [
+                {
+                    "id": "2026-01-02T00:00:00.000Z",
+                    "costUSD": 1.5,
+                    "burnRate": {
+                        "tokensPerMinute": 10,
+                        "cost": 0.25
+                    },
+                    "projection": {
+                        "totalTokens": 300,
+                        "totalCost": 2.0
+                    }
+                }
+            ],
+            "totals": {
+                "totalTokens": 172,
+                "totalCost": 0.25
+            }
+        });
+
+        strip_cost_json(&mut value);
+
+        assert_eq!(
+            value,
+            json!({
+                "daily": [
+                    {
+                        "date": "2026-01-02",
+                        "totalTokens": 172,
+                        "modelBreakdowns": [
+                            {
+                                "modelName": "gpt-5",
+                                "inputTokens": 100
+                            }
+                        ],
+                    }
+                ],
+                "blocks": [
+                    {
+                        "id": "2026-01-02T00:00:00.000Z",
+                        "burnRate": {
+                            "tokensPerMinute": 10
+                        },
+                        "projection": {
+                            "totalTokens": 300
+                        }
+                    }
+                ],
+                "totals": {
+                    "totalTokens": 172
+                }
+            })
+        );
     }
 
     #[test]

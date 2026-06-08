@@ -1,5 +1,5 @@
 ---
-source: crates/ccusage/src/cli.rs
+source: crates/ccusage-cli/src/tests.rs
 expression: help_text()
 ---
 USAGE:
@@ -61,6 +61,7 @@ OPTIONS:
   -O, --offline                        Use cached pricing data where supported (default: false)
   --no-offline                         Negatable of -O, --offline
   --compact                            Force compact table layout for narrow terminals (default: false)
+  --no-cost                            Hide cost information in table and JSON output (default: false)
   --color                              Enable colored output. FORCE_COLOR=1 has the same effect. (default: auto)
   --no-color                           Disable colored output. NO_COLOR=1 has the same effect. (default: auto)
   --config <config>                    Path to configuration file (default: auto-discovery)

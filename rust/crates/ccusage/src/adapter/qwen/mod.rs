@@ -30,6 +30,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
         return print_json_or_jq(
             report_from_rows(&rows, args.kind),
             args.shared.jq.as_deref(),
+            args.shared.no_cost,
         );
     }
     print_usage_table(

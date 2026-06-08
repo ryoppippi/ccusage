@@ -107,6 +107,7 @@ bunx ccusage daily --all
 # Filters and options
 bunx ccusage daily --since 2026-04-25 --until 2026-05-16
 bunx ccusage daily --json  # JSON output
+bunx ccusage daily --no-cost  # Hide cost columns and JSON cost fields
 bunx ccusage daily --timezone UTC  # Use UTC timezone
 
 # Project analysis
@@ -137,6 +138,7 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 📋 **Enhanced Model Display**: Model names shown as bulleted lists for better readability
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
+- 🔒 **Cost Hiding**: Remove cost columns and JSON cost fields with `--no-cost`
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline`
 - 🧩 **Custom Pricing Overrides**: Override token pricing per raw model name in `ccusage.json` without rebuilding

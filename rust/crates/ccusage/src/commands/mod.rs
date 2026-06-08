@@ -44,13 +44,13 @@ pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
                 "projects": group_project_output(&rows),
                 "totals": totals_json(&rows),
             });
-            print_json_or_jq(output, shared.jq.as_deref())?;
+            print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost)?;
         } else {
             let output = json!({
                 "daily": rows.iter().map(summary_json).collect::<Vec<_>>(),
                 "totals": totals_json(&rows),
             });
-            print_json_or_jq(output, shared.jq.as_deref())?;
+            print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost)?;
         }
         return Ok(());
     }
@@ -92,7 +92,7 @@ pub(crate) fn run_bucket(shared: SharedArgs, kind: BucketKind) -> Result<()> {
             key: buckets.iter().map(summary_json).collect::<Vec<_>>(),
             "totals": totals_json(&buckets),
         });
-        print_json_or_jq(output, shared.jq.as_deref())?;
+        print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost)?;
         return Ok(());
     }
 
@@ -125,7 +125,7 @@ pub(crate) fn run_weekly(args: WeeklyArgs) -> Result<()> {
             "weekly": weekly.iter().map(summary_json).collect::<Vec<_>>(),
             "totals": totals_json(&weekly),
         });
-        print_json_or_jq(output, shared.jq.as_deref())?;
+        print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost)?;
         return Ok(());
     }
 
@@ -198,7 +198,7 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
             "sessions": rows.iter().map(session_summary_json).collect::<Vec<_>>(),
             "totals": totals_json(&rows),
         });
-        print_json_or_jq(output, session_shared.jq.as_deref())?;
+        print_json_or_jq(output, session_shared.jq.as_deref(), session_shared.no_cost)?;
         return Ok(());
     }
 
@@ -253,12 +253,14 @@ fn run_session_id(id: &str, shared: &SharedArgs) -> Result<()> {
                 "costUSD": entry.data.cost_usd.unwrap_or(0.0),
             })).collect::<Vec<_>>(),
         });
-        print_json_or_jq(output, shared.jq.as_deref())?;
+        print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost)?;
         return Ok(());
     }
 
     println!("Claude Code Session Usage - {id}");
-    println!("Total Cost: {}", format_currency(total_cost));
+    if !shared.no_cost {
+        println!("Total Cost: {}", format_currency(total_cost));
+    }
     println!("Total Tokens: {}", format_number(total_tokens));
     println!("Total Entries: {}", session_entries.len());
     Ok(())
@@ -296,7 +298,7 @@ pub(crate) fn run_blocks(args: BlocksArgs) -> Result<()> {
         let output = json!({
             "blocks": blocks.iter().map(|block| block_json(block, args.token_limit.as_deref(), max_tokens)).collect::<Vec<_>>(),
         });
-        print_json_or_jq(output, shared.jq.as_deref())?;
+        print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost)?;
         return Ok(());
     }
 

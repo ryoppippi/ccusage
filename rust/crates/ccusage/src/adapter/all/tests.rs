@@ -462,7 +462,7 @@ fn displays_total_tokens_with_cache_tokens_like_typescript_table() {
         model_breakdowns: Vec::new(),
     };
 
-    let cells = all_table_row(&row, false, false);
+    let cells = all_table_row(&row, false, false, false);
 
     assert_eq!(cells[7], "130");
 }
@@ -530,14 +530,15 @@ fn all_table_rows_match_main_agent_breakdown_display() {
     };
 
     assert_eq!(
-        all_table_row(&row, true, false),
+        all_table_row(&row, true, false, false),
         vec!["2026-01-02", "All", "", "100", "20", "$0.01"]
     );
     assert_eq!(
         all_table_row(
             row.agent_breakdowns.as_ref().unwrap().first().unwrap(),
             true,
-            true
+            true,
+            false,
         ),
         vec!["", "- Codex", "- gpt-5", "100", "20", "$0.01"]
     );
@@ -569,7 +570,7 @@ fn all_report_title_lists_detected_agents() {
 
 #[test]
 fn compact_table_columns_omit_cache_and_total_token_metrics() {
-    let (headers, aligns) = all_table_columns(AgentReportKind::Daily, true);
+    let (headers, aligns) = all_table_columns(AgentReportKind::Daily, true, false);
 
     assert_eq!(
         headers,
@@ -590,7 +591,7 @@ fn compact_table_columns_omit_cache_and_total_token_metrics() {
 
 #[test]
 fn full_table_columns_include_cache_and_total_token_metrics() {
-    let (headers, aligns) = all_table_columns(AgentReportKind::Daily, false);
+    let (headers, aligns) = all_table_columns(AgentReportKind::Daily, false, false);
 
     assert_eq!(
         headers,

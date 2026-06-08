@@ -40,7 +40,7 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let speed = resolve_codex_speed(args.codex_speed);
     if wants_json(&shared) {
         let output = report_from_groups(&groups, args.kind, &pricing, speed);
-        return print_json_or_jq(output, shared.jq.as_deref());
+        return print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost);
     }
     print_table_from_groups(&groups, args.kind, &pricing, speed, &shared)
 }

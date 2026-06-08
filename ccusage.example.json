@@ -5,6 +5,7 @@
 		"mode": "auto",
 		"timezone": "Asia/Tokyo",
 		"offline": false,
+		"noCost": false,
 		"breakdown": false,
 		"pricingOverrides": {
 			"[pi] gpt-5.4": {

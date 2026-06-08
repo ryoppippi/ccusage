@@ -161,6 +161,11 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "markdownDescription": "Disable colored output.",
         "type": "boolean"
       },
+      "noCost": {
+        "description": "Hide cost information in table and JSON output.",
+        "markdownDescription": "Hide cost information in table and JSON output.",
+        "type": "boolean"
+      },
       "noOffline": {
         "description": "Disable cached pricing data where supported.",
         "markdownDescription": "Disable cached pricing data where supported.",
@@ -337,6 +342,12 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "markdownDescription": "Disable colored output.",
         "type": "boolean"
       },
+      "noCost": {
+        "default": false,
+        "description": "Hide cost information in table and JSON output.",
+        "markdownDescription": "Hide cost information in table and JSON output.",
+        "type": "boolean"
+      },
       "noOffline": {
         "default": false,
         "description": "Disable cached pricing data where supported.",
@@ -493,6 +504,11 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
       "noColor": {
         "description": "Disable colored output.",
         "markdownDescription": "Disable colored output.",
+        "type": "boolean"
+      },
+      "noCost": {
+        "description": "Hide cost information in table and JSON output.",
+        "markdownDescription": "Hide cost information in table and JSON output.",
         "type": "boolean"
       },
       "noOffline": {
@@ -663,6 +679,12 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
         "markdownDescription": "Disable colored output.",
         "type": "boolean"
       },
+      "noCost": {
+        "default": false,
+        "description": "Hide cost information in table and JSON output.",
+        "markdownDescription": "Hide cost information in table and JSON output.",
+        "type": "boolean"
+      },
       "noOffline": {
         "default": false,
         "description": "Disable cached pricing data where supported.",
@@ -819,6 +841,11 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
       "noColor": {
         "description": "Disable colored output.",
         "markdownDescription": "Disable colored output.",
+        "type": "boolean"
+      },
+      "noCost": {
+        "description": "Hide cost information in table and JSON output.",
+        "markdownDescription": "Hide cost information in table and JSON output.",
         "type": "boolean"
       },
       "noOffline": {
@@ -984,6 +1011,11 @@ expression: "json!({\n    \"rootRef\": schema[\"$ref\"], \"rootProperties\":\n  
       "noColor": {
         "description": "Disable colored output.",
         "markdownDescription": "Disable colored output.",
+        "type": "boolean"
+      },
+      "noCost": {
+        "description": "Hide cost information in table and JSON output.",
+        "markdownDescription": "Hide cost information in table and JSON output.",
         "type": "boolean"
       },
       "noOffline": {

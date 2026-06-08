@@ -20,6 +20,15 @@ ccusage session --json
 ccusage blocks --json
 ```
 
+Use `--no-cost` with `--json` when reports should omit cost data:
+
+```bash
+ccusage daily --json --no-cost
+ccusage blocks --json --no-cost
+```
+
+This removes cost fields such as `totalCost`, `costUSD`, and nested `cost` values while keeping token, model, date, block, burn-rate, and projection fields.
+
 ## JSON Structure
 
 ### Daily Reports (Standard)
@@ -261,6 +270,9 @@ ccusage daily --json --order asc
 
 # With model breakdown
 ccusage daily --json --breakdown
+
+# Hide cost fields
+ccusage daily --json --no-cost
 
 # Project analysis
 ccusage daily --json --instances                    # Group by project
