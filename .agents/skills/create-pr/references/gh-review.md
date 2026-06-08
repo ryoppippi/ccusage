@@ -37,7 +37,7 @@ Reply to an inline review comment:
 
 ```sh
 gh api -X POST repos/:owner/:repo/pulls/<pr-number>/comments/<comment-id>/replies \
-  -f body='@coderabbitai Fixed in <commit-sha>. Validation: pnpm typecheck, pnpm run test.'
+  -f body='@coderabbitai Fixed in <commit-sha>. Validation: just typecheck, just test.'
 ```
 
 Add a top-level PR comment:

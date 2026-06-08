@@ -101,16 +101,16 @@ pnpm --filter ccusage start monthly --json
 
 ```bash
 # Run tests
-pnpm run test
+just test
 
 # Type checking
-pnpm typecheck
+just typecheck
 
 # Build distribution
-pnpm --filter ccusage build
+just build
 
 # Lint and format
-pnpm run format
+just fmt
 ```
 
 ## Runtime Requirements

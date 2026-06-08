@@ -44,7 +44,7 @@ gh pr create --title "docs(skills): add create-pr workflow" --body-file - <<'EOF
 Adds a repo-local create-pr skill and documents the PR review loop.
 
 Testing:
-- pnpm run format
+- just fmt
 EOF
 ```
 
@@ -56,14 +56,14 @@ printf "%s\n" \
 	"Adds a repo-local create-pr skill and documents the PR review loop." \
 	"" \
 	"Testing:" \
-	"- pnpm run format" \
+	"- just fmt" \
 	| gh pr create --title "docs(skills): add create-pr workflow" --body-file -
 ```
 
 Bad:
 
 ```sh
-gh pr create --title "docs(skills): add create-pr workflow" --body "Adds skill.\n\nTesting:\n- pnpm run format"
+gh pr create --title "docs(skills): add create-pr workflow" --body "Adds skill.\n\nTesting:\n- just fmt"
 ```
 
 Open the PR in the browser with `gh pr view --web` when that helps the user or

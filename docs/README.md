@@ -16,9 +16,9 @@ The docs build copies `apps/ccusage/config-schema.json` to
 ## Commands
 
 ```sh
-pnpm --filter docs dev
-pnpm --filter docs build
-pnpm --filter docs preview
-pnpm --filter docs format
-pnpm --filter docs typecheck
+just docs::dev
+just docs::build
+just docs::preview
+just docs::typecheck
+just fmt
 ```

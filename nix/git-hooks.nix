@@ -46,7 +46,7 @@ in
               # file-batched invocations. Without it each concurrent treefmt
               # process races for the shared eval-cache SQLite db and the loser
               # dies with "failed to open cache: ... timeout" (notably during
-              # `pnpm release`, which stages every package.json at once). prek
+              # `just release`, which stages every package.json at once). prek
               # already selects the changed files, so treefmt's own cache is
               # redundant here anyway.
               entry = "${lib.getExe config.treefmt.build.wrapper} --no-cache";

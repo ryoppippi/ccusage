@@ -39,6 +39,7 @@ in
             actionlint
             zizmor
             oxlint
+            just
             prek
             gitleaks
             renovate

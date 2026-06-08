@@ -44,9 +44,9 @@ Do not open a PR unless you have already been approved with `lgtm`.
 Before submitting a PR, run:
 
 ```bash
-pnpm run format
-pnpm typecheck
-pnpm run test
+just fmt
+just typecheck
+just test
 ```
 
 Use the canonical `ccusage` command in docs and tests. Standalone wrapper packages such as `ccusage-codex`, `ccusage-opencode`, `ccusage-amp`, and `ccusage-pi` have been removed and should not be reintroduced.
