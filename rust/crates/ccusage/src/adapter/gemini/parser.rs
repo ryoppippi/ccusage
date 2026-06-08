@@ -5,8 +5,8 @@ use serde_json::{Map, Value};
 
 use crate::{
     apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
-    non_empty_json_string, LoadedEntry, PricingMap, Result, TimestampMs, TokenUsageRaw, UsageEntry,
-    UsageMessage,
+    missing_pricing_model_for_candidates, non_empty_json_string, LoadedEntry, PricingMap, Result,
+    TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 const DEFAULT_MODEL: &str = "unknown";
@@ -353,6 +353,7 @@ pub(super) fn event_to_loaded(
         .total_tokens
         .saturating_sub(event.input_tokens + event.output_tokens + event.cache_read_tokens);
     let cost = calculate_gemini_cost(&event.model, cost_usage, mode, pricing);
+    let missing_pricing_model = missing_gemini_pricing(&event.model, cost_usage, mode, pricing);
     let data = UsageEntry {
         session_id: Some(event.session_id.clone()),
         timestamp: event.timestamp_text,
@@ -379,6 +380,7 @@ pub(super) fn event_to_loaded(
         message_count: None,
         model: Some(event.model),
         usage_limit_reset_time: None,
+        missing_pricing_model,
         data,
     }
 }
@@ -406,6 +408,23 @@ fn calculate_gemini_cost(
             0.0
         }
     }
+}
+
+fn missing_gemini_pricing(
+    model: &str,
+    usage: TokenUsageRaw,
+    mode: CostMode,
+    pricing: &PricingMap,
+) -> Option<String> {
+    if mode == CostMode::Display {
+        return None;
+    }
+    missing_pricing_model_for_candidates(
+        model,
+        model_candidates(model),
+        crate::total_usage_tokens(usage),
+        Some(pricing),
+    )
 }
 
 fn model_candidates(model: &str) -> Vec<String> {

@@ -37,14 +37,24 @@ in
         name = "ccusage-schema-gen";
         runtimeInputs = [
           pkgs.coreutils
+          pkgs.diffutils
           pkgs.oxfmt
           generateConfigSchema
         ];
+        # Generate the schema into a temp file and only overwrite the tracked
+        # files when the content actually differs. This keeps the formatter
+        # idempotent: rewriting an unchanged file bumps its mtime, which
+        # `treefmt --fail-on-change` (pre-push) reports as a spurious change.
         text = ''
-          generate-config-schema apps/ccusage/config-schema.json
-          oxfmt --write apps/ccusage/config-schema.json
-          if [ -d docs/public ]; then
-            cp apps/ccusage/config-schema.json docs/public/config-schema.json
+          tmp="$(mktemp --suffix=.json)"
+          trap 'rm -f "$tmp"' EXIT
+          generate-config-schema "$tmp"
+          oxfmt --write "$tmp"
+          if ! cmp -s "$tmp" apps/ccusage/config-schema.json; then
+            cp -f "$tmp" apps/ccusage/config-schema.json
+          fi
+          if [ -d docs/public ] && ! cmp -s apps/ccusage/config-schema.json docs/public/config-schema.json; then
+            cp -f apps/ccusage/config-schema.json docs/public/config-schema.json
           fi
         '';
       };
@@ -52,7 +62,7 @@ in
     {
       treefmt = {
         inherit pkgs;
-        projectRootFile = ".git/config";
+        projectRootFile = "flake.nix";
 
         programs = {
           deadnix.enable = true;
@@ -79,6 +89,37 @@ in
             includes = [ "*" ];
             priority = 4;
           };
+          actionlint = {
+            command = lib.getExe pkgs.actionlint;
+            options = [
+              "-ignore"
+              ''unknown permission scope "code-quality"''
+              "-ignore"
+              "shellcheck reported issue in this script: SC2016:info:"
+            ];
+            includes = [
+              ".github/workflows/*.yaml"
+              ".github/workflows/*.yml"
+            ];
+            priority = 5;
+          };
+          zizmor = {
+            command = lib.getExe pkgs.zizmor;
+            options = [
+              "--offline"
+              "--min-severity"
+              "high"
+              "--min-confidence"
+              "high"
+            ];
+            includes = [
+              ".github/workflows/*.yaml"
+              ".github/workflows/*.yml"
+              ".github/actions/*/action.yaml"
+              ".github/actions/*/action.yml"
+            ];
+            priority = 6;
+          };
           oxlint = {
             command = lib.getExe pkgs.oxlint;
             options = [ "--fix" ];
@@ -90,9 +131,9 @@ in
               "*.ts"
               "*.tsx"
             ];
-            priority = 5;
+            priority = 7;
           };
-          rustfmt.priority = 6;
+          rustfmt.priority = 8;
           schema-gen = {
             command = lib.getExe schemaGen;
             includes = [
@@ -100,7 +141,7 @@ in
               "rust/crates/ccusage/src/config_schema.rs"
               "rust/crates/ccusage/src/bin/generate_config_schema.rs"
             ];
-            priority = 7;
+            priority = 9;
           };
         };
       };

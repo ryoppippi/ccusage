@@ -1,4 +1,5 @@
 {
+	"$schema": "https://unpkg.com/oxlint/configuration_schema.json",
 	"ignorePatterns": [
 		"dist",
 		"target",
@@ -6,5 +7,8 @@
 		"coverage",
 		".git",
 		".claude/settings.local.json"
-	]
+	],
+	"rules": {
+		"vitest/prefer-describe-function-title": "error"
+	}
 }

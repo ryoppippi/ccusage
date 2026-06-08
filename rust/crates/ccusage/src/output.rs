@@ -1,6 +1,6 @@
 use std::{
-    collections::BTreeMap,
-    io::{BufWriter, Write},
+    collections::{BTreeMap, BTreeSet},
+    io::{self, BufWriter, IsTerminal, Write},
 };
 
 use serde_json::{json, Value};
@@ -13,6 +13,15 @@ use crate::{
 
 pub(crate) fn wants_json(shared: &SharedArgs) -> bool {
     shared.json || shared.jq.is_some()
+}
+
+pub(crate) fn should_use_compact_layout(
+    shared: &SharedArgs,
+    is_stdout_tty: bool,
+    terminal_width: usize,
+    compact_width_threshold: usize,
+) -> bool {
+    shared.compact || (is_stdout_tty && terminal_width < compact_width_threshold)
 }
 
 pub(crate) fn summary_json(row: &UsageSummary) -> Value {
@@ -142,7 +151,13 @@ pub(crate) fn print_usage_table(
         return Ok(());
     }
     let terminal_width = terminal_width();
-    let compact = shared.compact || terminal_width < USAGE_COMPACT_WIDTH_THRESHOLD;
+    let is_tty = io::stdout().is_terminal();
+    let compact = should_use_compact_layout(
+        shared,
+        is_tty,
+        terminal_width,
+        USAGE_COMPACT_WIDTH_THRESHOLD,
+    );
     let include_last_activity = rows.iter().any(|row| row.last_activity.is_some());
     print_box_title(title, shared);
     let mut headers = if compact {
@@ -293,6 +308,7 @@ pub(crate) fn print_usage_table(
     }
     table.push(total_row);
     table.print()?;
+    print_missing_pricing_warnings(rows, shared.offline);
     if compact {
         eprintln!("\nRunning in Compact Mode");
         eprintln!("Expand terminal width to see cache metrics and total tokens");
@@ -302,6 +318,53 @@ pub(crate) fn print_usage_table(
 
 fn empty_usage_table_message() -> &'static str {
     "No usage data found."
+}
+
+pub(crate) fn print_missing_pricing_warnings(rows: &[UsageSummary], offline: bool) {
+    for warning in missing_pricing_warnings(rows, offline) {
+        eprintln!("{warning}");
+    }
+}
+
+pub(crate) fn missing_pricing_warnings(rows: &[UsageSummary], offline: bool) -> Vec<String> {
+    let models = rows
+        .iter()
+        .flat_map(|row| &row.model_breakdowns)
+        .filter(|breakdown| breakdown.missing_pricing)
+        .map(|breakdown| breakdown.model_name.as_str());
+
+    missing_pricing_warnings_for_models(models, offline)
+}
+
+pub(crate) fn print_missing_pricing_warnings_for_models<'a>(
+    models: impl IntoIterator<Item = &'a str>,
+    offline: bool,
+) {
+    for warning in missing_pricing_warnings_for_models(models, offline) {
+        eprintln!("{warning}");
+    }
+}
+
+pub(crate) fn missing_pricing_warnings_for_models<'a>(
+    models: impl IntoIterator<Item = &'a str>,
+    offline: bool,
+) -> Vec<String> {
+    let models = models.into_iter().collect::<BTreeSet<_>>();
+
+    models
+        .into_iter()
+        .map(|model| {
+            if offline {
+                format!(
+                    "WARN  Missing embedded pricing for {model}; cost excludes this model. Run without --offline or update ccusage after pricing is added."
+                )
+            } else {
+                format!(
+                    "WARN  Missing pricing for {model}; cost excludes this model. Update pricing or run again after LiteLLM has the model."
+                )
+            }
+        })
+        .collect()
 }
 
 pub(crate) fn json_float(value: f64) -> Value {
@@ -415,6 +478,30 @@ mod tests {
     use crate::ModelBreakdown;
 
     #[test]
+    fn narrow_non_tty_output_does_not_auto_compact() {
+        let shared = SharedArgs::default();
+
+        assert!(!should_use_compact_layout(&shared, false, 80, 100));
+    }
+
+    #[test]
+    fn narrow_tty_output_auto_compacts() {
+        let shared = SharedArgs::default();
+
+        assert!(should_use_compact_layout(&shared, true, 80, 100));
+    }
+
+    #[test]
+    fn compact_flag_forces_compact_for_non_tty_output() {
+        let shared = SharedArgs {
+            compact: true,
+            ..SharedArgs::default()
+        };
+
+        assert!(should_use_compact_layout(&shared, false, 120, 100));
+    }
+
+    #[test]
     fn empty_usage_table_message_is_provider_agnostic() {
         assert_eq!(empty_usage_table_message(), "No usage data found.");
     }
@@ -450,6 +537,34 @@ mod tests {
         let row = snapshot_summary("2026-01-02", Some("workspace/api"), Some(1.25));
 
         insta::assert_json_snapshot!(summary_json(&row));
+    }
+
+    #[test]
+    fn missing_pricing_warnings_deduplicate_models() {
+        let mut row = snapshot_summary("2026-01-02", None, None);
+        row.model_breakdowns[0].missing_pricing = true;
+        row.model_breakdowns[1].missing_pricing = true;
+
+        assert_eq!(
+            missing_pricing_warnings(&[row], false),
+            vec![
+                "WARN  Missing pricing for claude-sonnet-4-20250514; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
+                "WARN  Missing pricing for gpt-5.2-codex; cost excludes this model. Update pricing or run again after LiteLLM has the model.",
+            ]
+        );
+    }
+
+    #[test]
+    fn missing_pricing_warnings_mention_embedded_pricing_offline() {
+        let mut row = snapshot_summary("2026-01-02", None, None);
+        row.model_breakdowns[0].missing_pricing = true;
+
+        assert_eq!(
+            missing_pricing_warnings(&[row], true),
+            vec![
+                "WARN  Missing embedded pricing for gpt-5.2-codex; cost excludes this model. Run without --offline or update ccusage after pricing is added.",
+            ]
+        );
     }
 
     #[test]
@@ -528,6 +643,7 @@ mod tests {
                     cache_read_tokens: 10,
                     extra_total_tokens: 0,
                     cost: 0.3,
+                    missing_pricing: false,
                 },
                 ModelBreakdown {
                     model_name: "claude-sonnet-4-20250514".to_string(),
@@ -537,6 +653,7 @@ mod tests {
                     cache_read_tokens: 0,
                     extra_total_tokens: 0,
                     cost: 0.12,
+                    missing_pricing: false,
                 },
             ],
             project: project.map(str::to_string),

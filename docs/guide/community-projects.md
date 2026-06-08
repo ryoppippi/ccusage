@@ -24,6 +24,7 @@ These projects are maintained independently and are not affiliated with the ccus
 
 - [Straude](https://straude.com) - Strava-style Claude Code telemetry for logging usage, tracking spend, and comparing pace
 - [viberank](https://viberank.app) - A community-driven leaderboard for Claude Code usage. ([GitHub](https://github.com/sculptdotfun/viberank))
+- [CCWarriors](https://ccwarriors.xyz) - Live leaderboard of AI coding spend across Claude Code, Codex, Gemini, and other ccusage-readable agents, with per-tool filters and real-time updates. ([GitHub](https://github.com/distroinfinity/ccwarriors))
 
 ## Contributing
 

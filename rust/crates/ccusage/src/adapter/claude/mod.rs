@@ -18,8 +18,9 @@ use crate::{
     cli::{CostMode, SharedArgs},
     debug_log,
     fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
-    format_date_tz, log_level, parse_ts_timestamp, parse_tz, progress, LoadedEntry, LoadedFile,
-    PricingMap, Result, Speed, TimestampMs, UsageEntry, UsageSummary,
+    format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
+    progress, LoadedEntry, LoadedFile, PricingMap, Result, Speed, TimestampMs, UsageEntry,
+    UsageSummary,
 };
 
 #[cfg(test)]
@@ -362,6 +363,13 @@ fn read_usage_file(
         }
         let date = format_date_tz(timestamp, tz);
         let cost = calculate_cost(&data, mode, pricing);
+        let missing_pricing_model = missing_pricing_model_for_usage(
+            data.message.model.as_deref(),
+            data.message.usage,
+            data.cost_usd,
+            mode,
+            pricing,
+        );
         let usage_limit_reset_time =
             usage_limit_reset_time_from_line_bytes(line, data.is_api_error_message);
         let model = data.message.model.as_ref().and_then(|model| {
@@ -386,6 +394,7 @@ fn read_usage_file(
             message_count: None,
             model,
             usage_limit_reset_time,
+            missing_pricing_model,
         });
     }
     loaded_file
@@ -772,6 +781,7 @@ mod tests {
             message_count: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
         }
     }
 }

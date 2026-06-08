@@ -79,6 +79,9 @@ impl UsageAccumulator {
             breakdown.cache_read_tokens += usage.cache_read_input_tokens;
             breakdown.extra_total_tokens += entry.extra_total_tokens;
             breakdown.cost += entry.cost;
+            if entry.missing_pricing_model.is_some() {
+                breakdown.missing_pricing = true;
+            }
         }
     }
 
@@ -243,6 +246,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
             breakdown.cache_read_tokens += item.cache_read_tokens;
             breakdown.extra_total_tokens += item.extra_total_tokens;
             breakdown.cost += item.cost;
+            breakdown.missing_pricing |= item.missing_pricing;
         }
     }
     summary
@@ -322,6 +326,7 @@ mod tests {
                 credits: Some(1.0),
                 message_count: Some(2),
                 version: Some("1.0.0"),
+                missing_pricing_model: None,
             }),
             loaded_entry(LoadedEntryFixture {
                 date: "2026-01-02",
@@ -337,7 +342,8 @@ mod tests {
                 cost: 0.25,
                 credits: Some(0.5),
                 message_count: Some(3),
-                version: Some("1.1.0"),
+                version: Some("1.0.1"),
+                missing_pricing_model: None,
             }),
             loaded_entry(LoadedEntryFixture {
                 date: "2026-01-03",
@@ -354,6 +360,7 @@ mod tests {
                 credits: None,
                 message_count: None,
                 version: None,
+                missing_pricing_model: None,
             }),
         ];
 
@@ -388,6 +395,7 @@ mod tests {
             credits: None,
             message_count: Some(1),
             version: Some("1.0.0"),
+            missing_pricing_model: None,
         }));
         accumulator.add_entry(&loaded_entry(LoadedEntryFixture {
             date: "2026-01-03",
@@ -404,6 +412,7 @@ mod tests {
             credits: None,
             message_count: Some(4),
             version: Some("1.1.0"),
+            missing_pricing_model: None,
         }));
 
         let row = accumulator.into_summary(Some("UTC")).unwrap();
@@ -538,6 +547,33 @@ mod tests {
         assert_eq!(dashed, vec!["on-boundary", "after"]);
     }
 
+    #[test]
+    fn tracks_missing_pricing_in_model_breakdowns() {
+        let mut accumulator = SessionAccumulator::default();
+        accumulator.add_entry(&loaded_entry(LoadedEntryFixture {
+            date: "2026-01-02",
+            timestamp: 1_767_316_800_000,
+            session_id: "session-a",
+            project_path: "/workspace/project",
+            model: Some("claude-opus-4-9"),
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_tokens: 10,
+            cache_read_tokens: 5,
+            extra_total_tokens: 0,
+            cost: 0.0,
+            credits: None,
+            message_count: Some(1),
+            version: Some("1.0.0"),
+            missing_pricing_model: Some("claude-opus-4-9"),
+        }));
+
+        let row = accumulator.into_summary(None).unwrap();
+
+        assert_eq!(row.model_breakdowns[0].model_name, "claude-opus-4-9");
+        assert!(row.model_breakdowns[0].missing_pricing);
+    }
+
     struct LoadedEntryFixture {
         date: &'static str,
         timestamp: i64,
@@ -553,6 +589,7 @@ mod tests {
         credits: Option<f64>,
         message_count: Option<u64>,
         version: Option<&'static str>,
+        missing_pricing_model: Option<&'static str>,
     }
 
     fn loaded_entry(fixture: LoadedEntryFixture) -> LoadedEntry {
@@ -590,6 +627,7 @@ mod tests {
             message_count: fixture.message_count,
             model: fixture.model.map(str::to_string),
             usage_limit_reset_time: None,
+            missing_pricing_model: fixture.missing_pricing_model.map(str::to_string),
         }
     }
 
@@ -625,6 +663,7 @@ mod tests {
                 cache_read_tokens: 2,
                 extra_total_tokens: 3,
                 cost: fixture.cost,
+                missing_pricing: false,
             }],
             project: None,
             versions: None,

@@ -1,20 +1,19 @@
 # Sponsors
 
-Support ccusage development by becoming a sponsor! Your contribution helps maintain and improve this tool.
-
-## Featured Sponsor
-
-Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.youtube.com/watch?v=Ak6qpQ5qdgk)
+ccusage is sponsored by CodeRabbit.
 
 <p align="center">
-    <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
-        <img src="/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" width="600">
+    <a href="https://coderabbit.link/ryoppippi">
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="/coderabbit-logo-dark.svg">
+            <img src="/coderabbit-logo.svg" alt="CodeRabbit" width="320">
+        </picture>
     </a>
 </p>
 
 <p align="center">
     <a href="https://github.com/sponsors/ryoppippi">
-        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">
+        <img src="https://sponsors.ryoppippi.com/sponsors.png" alt="Sponsors">
     </a>
 </p>
 

@@ -105,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage"
-version = "20.0.5"
+version = "20.0.7"
 dependencies = [
  "ccusage-cli",
  "ccusage-terminal",
@@ -128,7 +128,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage-cli"
-version = "20.0.5"
+version = "20.0.7"
 dependencies = [
  "insta",
  "serde_json",
@@ -136,7 +136,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage-terminal"
-version = "20.0.5"
+version = "20.0.7"
 dependencies = [
  "insta",
  "terminal_size",
@@ -145,7 +145,7 @@ dependencies = [
 
 [[package]]
 name = "ccusage-test-support"
-version = "20.0.5"
+version = "20.0.7"
 dependencies = [
  "assert_fs",
 ]

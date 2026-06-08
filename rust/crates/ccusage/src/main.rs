@@ -27,12 +27,16 @@ pub(crate) use blocks::{
     block_json, calculate_burn_rate, filter_blocks_by_date, format_remaining_time,
     identify_session_blocks, print_active_block_detail, print_blocks_table, sort_blocks,
 };
-pub(crate) use cost::{calculate_cost, calculate_cost_for_usage};
+pub(crate) use cost::{
+    calculate_cost, calculate_cost_for_usage, missing_pricing_model_for_candidates,
+    missing_pricing_model_for_token_total, missing_pricing_model_for_usage,
+};
 pub(crate) use date_utils::*;
 pub(crate) use logger::{debug_log, log_level};
 pub(crate) use output::{
     format_currency, format_models_multiline, format_number, group_project_output, json_float,
-    print_json_or_jq, print_usage_table, session_summary_json, summary_json, totals_json,
+    print_json_or_jq, print_missing_pricing_warnings, print_missing_pricing_warnings_for_models,
+    print_usage_table, session_summary_json, should_use_compact_layout, summary_json, totals_json,
     wants_json,
 };
 pub(crate) use project_names::{format_project_name, parse_project_aliases, short_model_name};
@@ -779,6 +783,7 @@ mod tests {
             message_count: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
         };
 
         let rows = adapter::amp::summarize_entries(&[entry], AgentReportKind::Daily).unwrap();
@@ -860,6 +865,7 @@ mod tests {
             message_count: None,
             model: Some("[pi] gpt-5.4".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
         };
 
         let rows = adapter::pi::summarize_entries(&[entry], AgentReportKind::Daily).unwrap();
@@ -909,6 +915,7 @@ mod tests {
             message_count: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
+            missing_pricing_model: None,
         };
 
         let report =
