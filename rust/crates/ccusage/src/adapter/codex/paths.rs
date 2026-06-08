@@ -98,4 +98,15 @@ mod tests {
 
         assert_eq!(paths, vec![home]);
     }
+
+    #[test]
+    fn deduplicates_usage_paths_across_repeated_homes() {
+        let fixture = Fixture::new();
+        let home = fixture.create_dir_all("codex");
+        let _ = fixture.create_dir_all("codex/sessions");
+
+        let paths = codex_usage_paths_from_homes(vec![home.clone(), home]);
+
+        assert_eq!(paths, vec![fixture.path("codex/sessions")]);
+    }
 }
