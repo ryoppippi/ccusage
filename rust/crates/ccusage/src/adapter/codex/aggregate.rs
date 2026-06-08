@@ -41,16 +41,24 @@ pub(crate) fn load_groups(
     shared: &SharedArgs,
     kind: AgentReportKind,
 ) -> Result<BTreeMap<String, CodexGroup>> {
-    let paths = paths::codex_usage_paths()?;
-    if paths.len() == 1 && !wants_json(shared) {
-        return load_groups_from_directory(&paths[0], shared, kind);
+    let sources = paths::codex_usage_sources()?;
+    if sources.len() == 1 && !wants_json(shared) {
+        return load_groups_from_directory(&sources[0].dir, shared, kind);
     }
+    load_groups_from_sources(&sources, shared, kind)
+}
+
+fn load_groups_from_sources(
+    sources: &[paths::CodexUsageSource],
+    shared: &SharedArgs,
+    kind: AgentReportKind,
+) -> Result<BTreeMap<String, CodexGroup>> {
     let mut groups = BTreeMap::new();
     let seen = create_dedupe_shards();
-    for path in paths {
+    for group in paths::collect_deduped_codex_usage_files(sources) {
         merge_groups(
             &mut groups,
-            load_groups_from_directory_with_dedupe(&path, shared, kind, &seen)?,
+            aggregate_files_with_dedupe(&group.dir, &group.files, shared, kind, &seen)?,
         );
     }
     Ok(groups)
@@ -61,8 +69,7 @@ pub(super) fn load_groups_from_directory(
     shared: &SharedArgs,
     kind: AgentReportKind,
 ) -> Result<BTreeMap<String, CodexGroup>> {
-    let mut files = Vec::new();
-    crate::collect_usage_files(sessions_dir, &mut files);
+    let files = paths::collect_codex_usage_files(sessions_dir);
     if shared.single_thread {
         return aggregate_files_local(sessions_dir, &files, shared, kind);
     }
@@ -70,18 +77,17 @@ pub(super) fn load_groups_from_directory(
     aggregate_files_parallel(sessions_dir, &files, shared, kind, &seen)
 }
 
-pub(super) fn load_groups_from_directory_with_dedupe(
+fn aggregate_files_with_dedupe(
     sessions_dir: &Path,
+    files: &[PathBuf],
     shared: &SharedArgs,
     kind: AgentReportKind,
     seen: &CodexDedupeShards,
 ) -> Result<BTreeMap<String, CodexGroup>> {
-    let mut files = Vec::new();
-    crate::collect_usage_files(sessions_dir, &mut files);
     if shared.single_thread {
-        return aggregate_files(sessions_dir, &files, shared, kind, seen);
+        return aggregate_files(sessions_dir, files, shared, kind, seen);
     }
-    aggregate_files_parallel(sessions_dir, &files, shared, kind, seen)
+    aggregate_files_parallel(sessions_dir, files, shared, kind, seen)
 }
 
 fn aggregate_files(
@@ -446,4 +452,129 @@ pub(crate) fn filter_events_by_date(
     }
     *events = kept;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use ccusage_test_support::fs_fixture;
+    use serde_json::json;
+
+    use crate::adapter::codex::paths::CodexUsageSource;
+
+    #[test]
+    fn aggregates_active_copy_when_archived_file_has_same_relative_path() {
+        let active_usage = [
+            json!({
+                "timestamp": "2026-05-12T08:00:00.000Z",
+                "type": "turn_context",
+                "payload": {
+                    "model": "gpt-5.2",
+                },
+            })
+            .to_string(),
+            json!({
+                "timestamp": "2026-05-12T08:01:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 111,
+                            "cached_input_tokens": 10,
+                            "output_tokens": 20,
+                            "reasoning_output_tokens": 1,
+                            "total_tokens": 131,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let archived_usage = [
+            json!({
+                "timestamp": "2026-05-12T09:00:00.000Z",
+                "type": "turn_context",
+                "payload": {
+                    "model": "gpt-5.2",
+                },
+            })
+            .to_string(),
+            json!({
+                "timestamp": "2026-05-12T09:01:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 999,
+                            "cached_input_tokens": 90,
+                            "output_tokens": 80,
+                            "reasoning_output_tokens": 7,
+                            "total_tokens": 1_079,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let fixture = fs_fixture!({
+            "codex/sessions/duplicate.jsonl": active_usage,
+            "codex/archived_sessions/duplicate.jsonl": archived_usage,
+            "codex/archived_sessions/archived-only.jsonl": [
+                json!({
+                    "timestamp": "2026-05-13T08:00:00.000Z",
+                    "type": "turn_context",
+                    "payload": {
+                        "model": "gpt-5.2",
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-13T08:01:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 222,
+                                "cached_input_tokens": 20,
+                                "output_tokens": 30,
+                                "reasoning_output_tokens": 2,
+                                "total_tokens": 252,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        for single_thread in [true, false] {
+            let shared = SharedArgs {
+                single_thread,
+                ..SharedArgs::default()
+            };
+            let sources = vec![
+                CodexUsageSource::new_for_test(
+                    fixture.path("codex/sessions"),
+                    fixture.path("codex"),
+                ),
+                CodexUsageSource::new_for_test(
+                    fixture.path("codex/archived_sessions"),
+                    fixture.path("codex"),
+                ),
+            ];
+            let groups =
+                load_groups_from_sources(&sources, &shared, AgentReportKind::Daily).unwrap();
+
+            assert_eq!(groups.len(), 2);
+            assert_eq!(groups["2026-05-12"].input_tokens, 111);
+            assert_eq!(groups["2026-05-13"].input_tokens, 222);
+        }
+    }
 }

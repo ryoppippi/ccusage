@@ -364,7 +364,10 @@ For a namespaced command, options are applied in this order:
 		"statusline": {
 			"offline": true,
 			"cache": true,
-			"refreshInterval": 2
+			"refreshInterval": 2,
+			"modelLabelAliases": {
+				"arn:aws:bedrock:ap-northeast-1:012345678910:application-inference-profile/abcde12345": "claude-opus-4-6"
+			}
 		}
 	}
 }

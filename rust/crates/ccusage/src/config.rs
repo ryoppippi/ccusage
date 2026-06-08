@@ -347,6 +347,9 @@ pub(crate) fn apply_config_to_statusline_args(args: &mut StatuslineArgs, config:
         if let Some(debug) = options.debug {
             args.debug = debug;
         }
+        if let Some(aliases) = options.model_label_aliases {
+            args.model_label_aliases = aliases;
+        }
     }
 }
 

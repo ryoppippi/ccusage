@@ -16,19 +16,19 @@ permissions:
 
 jobs:
   pullfrog:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       id-token: write
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6 # zizmor: ignore[unpinned-uses]
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
       - name: Run agent
-        uses: pullfrog/pullfrog@v0 # zizmor: ignore[unpinned-uses]
+        uses: pullfrog/pullfrog@f8b4f87eca4fab7e705a3d871e1885baeb0f1117 # v0
         with:
           prompt: ${{ inputs.prompt }}
         env:
