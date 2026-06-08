@@ -4,6 +4,8 @@ use crate::{
     types::{Speed, UsageEntry},
 };
 
+const CACHE_CREATE_1H_INPUT_MULTIPLIER: f64 = 2.0;
+
 pub(crate) fn calculate_cost(
     data: &UsageEntry,
     mode: CostMode,
@@ -101,8 +103,10 @@ fn calculate_cost_from_tokens(
         } else {
             (usage.cache_creation_input_tokens, 0)
         };
-    let cache_create_1h_cost = pricing.input * 2.0;
-    let cache_create_1h_cost_above_200k = pricing.input_above_200k.map(|c| c * 2.0);
+    let cache_create_1h_cost = pricing.input * CACHE_CREATE_1H_INPUT_MULTIPLIER;
+    let cache_create_1h_cost_above_200k = pricing
+        .input_above_200k
+        .map(|c| c * CACHE_CREATE_1H_INPUT_MULTIPLIER);
     (tiered_cost(usage.input_tokens, pricing.input, pricing.input_above_200k)
         + tiered_cost(
             usage.output_tokens,
@@ -138,4 +142,91 @@ pub(crate) fn tiered_cost(tokens: u64, base: f64, above: Option<f64>) -> f64 {
         }
     }
     tokens as f64 * base
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        cli::CostMode,
+        pricing::PricingMap,
+        types::{CacheCreationRaw, TokenUsageRaw},
+    };
+
+    use super::calculate_cost_for_usage;
+
+    fn pricing() -> PricingMap {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "test-model": {
+                    "input_cost_per_token": 1.0,
+                    "output_cost_per_token": 10.0,
+                    "cache_creation_input_token_cost": 1.25,
+                    "cache_read_input_token_cost": 0.1,
+                    "input_cost_per_token_above_200k_tokens": 2.0,
+                    "cache_creation_input_token_cost_above_200k_tokens": 1.5
+                }
+            }"#,
+        );
+        pricing
+    }
+
+    #[test]
+    fn prices_cache_creation_breakdown_by_duration() {
+        let usage = TokenUsageRaw {
+            cache_creation_input_tokens: 999,
+            cache_read_input_tokens: 30,
+            cache_creation: Some(CacheCreationRaw {
+                ephemeral_5m_input_tokens: 10,
+                ephemeral_1h_input_tokens: 20,
+            }),
+            ..TokenUsageRaw::default()
+        };
+
+        let cost = calculate_cost_for_usage(
+            Some("test-model"),
+            usage,
+            None,
+            CostMode::Calculate,
+            Some(&pricing()),
+        );
+
+        assert!((cost - 55.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn falls_back_to_flat_cache_creation_rate_without_breakdown() {
+        let usage = TokenUsageRaw {
+            cache_creation_input_tokens: 10,
+            ..TokenUsageRaw::default()
+        };
+
+        let cost = calculate_cost_for_usage(
+            Some("test-model"),
+            usage,
+            None,
+            CostMode::Calculate,
+            Some(&pricing()),
+        );
+
+        assert!((cost - 12.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn parses_cache_creation_breakdown_from_usage_json() {
+        let usage = serde_json::from_str::<TokenUsageRaw>(
+            r#"{
+                "input_tokens": 1,
+                "output_tokens": 2,
+                "cache_creation_input_tokens": 300,
+                "cache_creation": {
+                    "ephemeral_5m_input_tokens": 100,
+                    "ephemeral_1h_input_tokens": 200
+                }
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(usage.cache_creation_token_count(), 300);
+    }
 }

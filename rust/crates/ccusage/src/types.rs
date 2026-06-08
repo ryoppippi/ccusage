@@ -39,8 +39,8 @@ pub(crate) struct TokenUsageRaw {
 }
 
 impl TokenUsageRaw {
-    pub(crate) fn cache_creation_token_count(self) -> u64 {
-        if let Some(b) = self.cache_creation {
+    pub(crate) fn cache_creation_token_count(&self) -> u64 {
+        if let Some(b) = &self.cache_creation {
             b.ephemeral_5m_input_tokens + b.ephemeral_1h_input_tokens
         } else {
             self.cache_creation_input_tokens
@@ -50,9 +50,9 @@ impl TokenUsageRaw {
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
 pub(crate) struct CacheCreationRaw {
-    #[serde(rename = "ephemeral_5m_input_tokens", default)]
+    #[serde(default)]
     pub(crate) ephemeral_5m_input_tokens: u64,
-    #[serde(rename = "ephemeral_1h_input_tokens", default)]
+    #[serde(default)]
     pub(crate) ephemeral_1h_input_tokens: u64,
 }
 
