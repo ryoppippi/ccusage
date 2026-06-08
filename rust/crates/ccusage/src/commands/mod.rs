@@ -520,6 +520,7 @@ fn statusline_today_shared(
         since: Some(today.clone()),
         until: Some(today),
         offline: shared.offline,
+        pricing_overrides: shared.pricing_overrides.clone(),
         timezone: args.timezone.clone(),
         ..SharedArgs::default()
     }
@@ -873,10 +874,17 @@ mod tests {
             timezone: Some("Asia/Tokyo".to_string()),
             ..StatuslineArgs::default()
         };
-        let shared = SharedArgs {
+        let mut shared = SharedArgs {
             offline: true,
             ..SharedArgs::default()
         };
+        shared.pricing_overrides.insert(
+            "statusline-model".to_string(),
+            ccusage_cli::PricingOverride {
+                input_cost_per_token: Some(1e-6),
+                ..Default::default()
+            },
+        );
         let now = TimestampMs::from_millis(1_779_380_820_000);
 
         let today_shared = statusline_today_shared(&args, &shared, now);
@@ -884,6 +892,9 @@ mod tests {
         assert_eq!(today_shared.since.as_deref(), Some("20260522"));
         assert_eq!(today_shared.until.as_deref(), Some("20260522"));
         assert_eq!(today_shared.timezone.as_deref(), Some("Asia/Tokyo"));
+        assert!(today_shared
+            .pricing_overrides
+            .contains_key("statusline-model"));
     }
 
     #[test]

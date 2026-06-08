@@ -12,7 +12,12 @@ pub(crate) use loader::load_entries;
 pub(crate) use report::{report_from_rows, summarize_entries};
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
-    let mut entries = load_entries(&args.shared, args.open_claw_path.as_deref())?;
+    let pricing = crate::PricingMap::load_with_overrides(
+        args.shared.offline,
+        crate::log_level() != Some(0),
+        args.shared.pricing_overrides.iter(),
+    );
+    let mut entries = load_entries(&args.shared, args.open_claw_path.as_deref(), Some(&pricing))?;
     filter_loaded_entries_by_date(&mut entries, &args.shared);
     let mut rows = summarize_entries(&entries, args.kind)?;
     sort_summaries(&mut rows, &args.shared.order, |row| {

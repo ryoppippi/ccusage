@@ -167,7 +167,7 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                         "openclaw",
                         load_kind,
                         &loader_shared,
-                        || openclaw::load_entries(&loader_shared, None),
+                        || openclaw::load_entries(&loader_shared, None, Some(&pricing)),
                         openclaw::summarize_entries,
                     )
                 }),
