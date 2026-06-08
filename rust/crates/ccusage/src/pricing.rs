@@ -850,6 +850,7 @@ impl PricingMap {
             fast_multiplier: 1.0,
         };
         self.entries.insert("glm-4.5".to_string(), glm_base);
+        self.entries.insert("zai/glm-4.5".to_string(), glm_base);
         self.entries.insert("glm-4.6".to_string(), glm_base);
         self.entries.insert("glm-4.7".to_string(), glm_base);
         self.entries.insert(
@@ -1115,6 +1116,7 @@ mod tests {
         assert_eq!(glm_5.output, 3.2e-6);
         assert_eq!(glm_5.cache_create, 0.0);
         assert_eq!(glm_5.cache_read, 0.2e-6);
+        assert_eq!(pricing.context_limit("zai/glm-5"), Some(200_000));
 
         let glm_5_turbo = pricing.find("glm-5-turbo").unwrap();
         assert_eq!(glm_5_turbo.input, 1.2e-6);
@@ -1139,6 +1141,13 @@ mod tests {
         assert_eq!(glm_45.output, 2.2e-6);
         assert_eq!(glm_45.cache_create, 0.0);
         assert_eq!(glm_45.cache_read, 0.11e-6);
+
+        let zai_glm_45 = pricing.find("zai/glm-4.5").unwrap();
+        assert_eq!(zai_glm_45.input, 0.6e-6);
+        assert_eq!(zai_glm_45.output, 2.2e-6);
+        assert_eq!(zai_glm_45.cache_create, 0.0);
+        assert_eq!(zai_glm_45.cache_read, 0.11e-6);
+        assert_eq!(pricing.context_limit("zai/glm-4.5"), Some(128_000));
     }
 
     #[test]
