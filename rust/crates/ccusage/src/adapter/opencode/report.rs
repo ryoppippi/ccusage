@@ -123,9 +123,6 @@ pub(crate) fn summarize_entries(
             for group in grouped {
                 rows.push(group.into_summary()?);
             }
-            for row in &mut rows {
-                row.session_id = row.date.take();
-            }
             Ok(rows)
         }
     }
@@ -169,8 +166,13 @@ pub(crate) fn summary_period(row: &crate::UsageSummary) -> &str {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
-    use crate::{cli::AgentReportKind, ModelBreakdown, UsageSummary};
+    use crate::{
+        cli::AgentReportKind, format_rfc3339_millis, LoadedEntry, ModelBreakdown, TimestampMs,
+        TokenUsageRaw, UsageEntry, UsageMessage, UsageSummary,
+    };
 
     #[test]
     fn snapshots_agent_summary_json_period_keys_and_session_metadata() {
@@ -194,6 +196,27 @@ mod tests {
             "dailyReport": report_from_rows(std::slice::from_ref(&daily), AgentReportKind::Daily),
             "sessionReport": report_from_rows(&[session], AgentReportKind::Session),
         }));
+    }
+
+    #[test]
+    fn summarize_session_entries_preserves_session_id_and_activity_bounds() {
+        let entries = vec![
+            loaded_entry("session-a", 1_767_316_800_000, 100),
+            loaded_entry("session-a", 1_767_402_000_000, 20),
+        ];
+
+        let rows = summarize_entries(&entries, AgentReportKind::Session).unwrap();
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].session_id.as_deref(), Some("session-a"));
+        assert_eq!(
+            rows[0].first_activity.as_deref(),
+            Some("2026-01-02T01:20:00.000Z")
+        );
+        assert_eq!(
+            rows[0].last_activity.as_deref(),
+            Some("2026-01-03T01:00:00.000Z")
+        );
     }
 
     fn snapshot_row() -> UsageSummary {
@@ -229,6 +252,44 @@ mod tests {
             }],
             project: None,
             versions: Some(vec!["1.0.0".to_string()]),
+        }
+    }
+
+    fn loaded_entry(session_id: &str, timestamp_millis: i64, input_tokens: u64) -> LoadedEntry {
+        let timestamp = TimestampMs::from_millis(timestamp_millis);
+        LoadedEntry {
+            data: UsageEntry {
+                session_id: Some(session_id.to_string()),
+                timestamp: format_rfc3339_millis(timestamp),
+                version: None,
+                message: UsageMessage {
+                    usage: TokenUsageRaw {
+                        input_tokens,
+                        output_tokens: 0,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: 0,
+                        speed: None,
+                    },
+                    model: Some("gpt-5.2-codex".to_string()),
+                    id: Some(format!("msg-{timestamp_millis}")),
+                },
+                cost_usd: None,
+                request_id: None,
+                is_api_error_message: None,
+                is_sidechain: None,
+            },
+            timestamp,
+            date: "2026-01-02".to_string(),
+            project: Arc::from("opencode"),
+            session_id: Arc::from(session_id),
+            project_path: Arc::from("/workspace/api"),
+            cost: 0.0,
+            extra_total_tokens: 0,
+            credits: None,
+            message_count: Some(1),
+            model: Some("gpt-5.2-codex".to_string()),
+            usage_limit_reset_time: None,
+            missing_pricing_model: None,
         }
     }
 }
