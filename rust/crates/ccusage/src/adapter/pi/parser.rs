@@ -65,13 +65,8 @@ pub(crate) fn read_session_file(
             .and_then(|cost| cost.get("total"))
             .and_then(Value::as_f64);
         let cost = calculate_cost_for_usage(model.as_deref(), usage, display_cost, mode, pricing);
-        let missing_pricing_model = missing_pricing_model_for_usage(
-            model.as_deref(),
-            usage,
-            display_cost,
-            mode,
-            pricing,
-        );
+        let missing_pricing_model =
+            missing_pricing_model_for_usage(model.as_deref(), usage, display_cost, mode, pricing);
         let data = UsageEntry {
             session_id: Some(session_id.clone()),
             timestamp: timestamp_text,
@@ -190,8 +185,7 @@ mod tests {
 
         // Use Calculate mode with an empty PricingMap so model won't be found
         let pricing = PricingMap::default();
-        let entries =
-            read_session_file(&file, None, CostMode::Calculate, Some(&pricing)).unwrap();
+        let entries = read_session_file(&file, None, CostMode::Calculate, Some(&pricing)).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(
@@ -208,8 +202,7 @@ mod tests {
         let file = fixture.path("sessions/project-a/agent_session-a.jsonl");
 
         let pricing = PricingMap::default();
-        let entries =
-            read_session_file(&file, None, CostMode::Display, Some(&pricing)).unwrap();
+        let entries = read_session_file(&file, None, CostMode::Display, Some(&pricing)).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].missing_pricing_model, None);
