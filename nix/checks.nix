@@ -49,6 +49,53 @@ in
         sourceRoot = "source/rust";
         cargoExtraArgs = "--all";
       };
+      # Build the schema generator straight from the current Rust source so the
+      # drift check below can never go stale: it always reflects whatever
+      # `rust/crates/ccusage/src/config_schema.rs` looks like right now.
+      generateConfigSchema = craneLib.buildPackage (
+        commonArgs
+        // {
+          pname = "generate-config-schema";
+          inherit cargoArtifacts;
+          cargoExtraArgs = "-p ccusage --bin generate-config-schema";
+          doCheck = false;
+          meta = {
+            mainProgram = "generate-config-schema";
+          };
+        }
+      );
+      # Fail `nix flake check` when the committed config schema drifts from what
+      # the Rust source generates. This catches PRs that add or change a config
+      # field without regenerating the schema (run
+      # `pnpm --filter ccusage run generate:schema` to fix). Only the tracked
+      # apps/ccusage/config-schema.json is checked; docs/public/config-schema.json
+      # is a gitignored build copy.
+      config-schema =
+        pkgs.runCommand "config-schema-check"
+          {
+            src = repoSrc;
+            nativeBuildInputs = [
+              generateConfigSchema
+              pkgs.oxfmt
+              pkgs.diffutils
+            ];
+          }
+          ''
+            cp -R "$src" source
+            chmod -R u+w source
+            cd source
+
+            generate-config-schema generated.json
+            oxfmt --write generated.json
+
+            if ! diff -u apps/ccusage/config-schema.json generated.json; then
+              echo "ERROR: apps/ccusage/config-schema.json is out of sync with the Rust schema source." >&2
+              echo "Run 'nix run .#generate-schema' (or 'pnpm --filter ccusage run generate:schema') and commit the result." >&2
+              exit 1
+            fi
+
+            touch "$out"
+          '';
       mkRepoCheck =
         name: nativeBuildInputs: command:
         pkgs.runCommand name
@@ -66,7 +113,7 @@ in
     in
     {
       checks = {
-        inherit ccusage-clippy ccusage-fmt;
+        inherit ccusage-clippy ccusage-fmt config-schema;
         ccusage = config.packages.ccusage;
         oxlint = mkRepoCheck "oxlint-check" [ pkgs.oxlint ] ''
           oxlint .
