@@ -49,7 +49,7 @@ pub(crate) fn summarize_entries(
             }
             groups
                 .into_values()
-                .map(|group| group.into_summary(None))
+                .map(|group| group.into_summary())
                 .collect()
         }
         AgentReportKind::Weekly => {

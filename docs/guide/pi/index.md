@@ -302,7 +302,8 @@ Returns structured data including full paths:
       "cacheCreationTokens": 1234,
       "cacheReadTokens": 9876,
       "totalCost": 0.12,
-      "lastActivity": "2026-05-16",
+      "firstActivity": "2026-05-15T09:30:00.000Z",
+      "lastActivity": "2026-05-16T17:45:30.000Z",
       "modelsUsed": ["claude-opus-4-1-20250805"],
       "modelBreakdowns": [...]
     }

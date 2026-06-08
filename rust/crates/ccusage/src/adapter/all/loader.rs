@@ -374,7 +374,7 @@ fn load_session_capable_summary_agent_rows(
     let mut entries = load_entries(shared, None, Some(pricing))?;
     let detected = !entries.is_empty();
     let summaries = if kind == AgentReportKind::Session {
-        let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
+        let mut summaries = summarize_entry_sessions(&entries)?;
         filter_session_summaries(&mut summaries, shared);
         summaries
     } else {
@@ -391,7 +391,7 @@ fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentR
     if kind == AgentReportKind::Session {
         let entries = claude::load_entries(shared, None)?;
         let detected = !entries.is_empty();
-        let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
+        let mut summaries = summarize_entry_sessions(&entries)?;
         filter_session_summaries(&mut summaries, shared);
         return Ok(AgentRows {
             rows: summary_rows("claude", summaries),
@@ -487,10 +487,7 @@ fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRow
     })
 }
 
-fn summarize_entry_sessions(
-    entries: &[LoadedEntry],
-    timezone: Option<&str>,
-) -> Result<Vec<UsageSummary>> {
+fn summarize_entry_sessions(entries: &[LoadedEntry]) -> Result<Vec<UsageSummary>> {
     let mut groups = BTreeMap::<(String, String), SessionAccumulator>::new();
     for entry in entries {
         groups
@@ -500,7 +497,7 @@ fn summarize_entry_sessions(
     }
     groups
         .into_values()
-        .map(|group| group.into_summary(timezone))
+        .map(|group| group.into_summary())
         .collect()
 }
 
@@ -654,6 +651,7 @@ mod tests {
             session_id: None,
             project_path: None,
             last_activity: None,
+            first_activity: None,
             input_tokens,
             output_tokens: 0,
             cache_creation_tokens: 0,

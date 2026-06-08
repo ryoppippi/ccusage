@@ -186,6 +186,8 @@ pub(crate) struct UsageSummary {
     pub(crate) project_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) last_activity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) first_activity: Option<String>,
     pub(crate) input_tokens: u64,
     pub(crate) output_tokens: u64,
     pub(crate) cache_creation_tokens: u64,

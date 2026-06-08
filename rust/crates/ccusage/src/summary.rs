@@ -7,7 +7,7 @@ use crate::{
     cli::{SharedArgs, SortOrder, WeekDay},
     cli_error,
     fast::{FxHashMap, FxHashSet},
-    format_date, format_naive_date, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
+    format_naive_date, format_rfc3339_millis, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
     TimestampMs, TokenCounts, UsageSummary,
 };
 
@@ -94,6 +94,7 @@ impl UsageAccumulator {
             session_id: None,
             project_path: None,
             last_activity: None,
+            first_activity: None,
             input_tokens: self.counts.input_tokens,
             output_tokens: self.counts.output_tokens,
             cache_creation_tokens: self.counts.cache_creation_tokens,
@@ -114,6 +115,7 @@ impl UsageAccumulator {
 pub(crate) struct SessionAccumulator {
     usage: UsageAccumulator,
     latest: Option<(TimestampMs, Arc<str>, Arc<str>)>,
+    earliest: Option<TimestampMs>,
     versions: BTreeSet<String>,
 }
 
@@ -131,19 +133,26 @@ impl SessionAccumulator {
                 Arc::clone(&entry.project_path),
             ));
         }
+        if self
+            .earliest
+            .is_none_or(|earliest| entry.timestamp < earliest)
+        {
+            self.earliest = Some(entry.timestamp);
+        }
         if let Some(version) = &entry.data.version {
             self.versions.insert(version.clone());
         }
     }
 
-    pub(crate) fn into_summary(self, timezone: Option<&str>) -> Result<UsageSummary> {
+    pub(crate) fn into_summary(self) -> Result<UsageSummary> {
         let Some((timestamp, session_id, project_path)) = self.latest else {
             return Err(cli_error("empty session group"));
         };
         let mut summary = self.usage.into_summary();
         summary.session_id = Some(session_id.to_string());
         summary.project_path = Some(project_path.to_string());
-        summary.last_activity = Some(format_date(timestamp, timezone));
+        summary.last_activity = Some(format_rfc3339_millis(timestamp));
+        summary.first_activity = self.earliest.map(format_rfc3339_millis);
         summary.versions = Some(self.versions.into_iter().collect());
         Ok(summary)
     }
@@ -193,6 +202,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         session_id: None,
         project_path: None,
         last_activity: None,
+        first_activity: None,
         input_tokens: 0,
         output_tokens: 0,
         cache_creation_tokens: 0,
@@ -415,7 +425,7 @@ mod tests {
             missing_pricing_model: None,
         }));
 
-        let row = accumulator.into_summary(Some("UTC")).unwrap();
+        let row = accumulator.into_summary().unwrap();
 
         insta::assert_json_snapshot!(row);
     }
@@ -568,7 +578,7 @@ mod tests {
             missing_pricing_model: Some("claude-opus-4-9"),
         }));
 
-        let row = accumulator.into_summary(None).unwrap();
+        let row = accumulator.into_summary().unwrap();
 
         assert_eq!(row.model_breakdowns[0].model_name, "claude-opus-4-9");
         assert!(row.model_breakdowns[0].missing_pricing);
@@ -647,6 +657,7 @@ mod tests {
             session_id: None,
             project_path: None,
             last_activity: None,
+            first_activity: None,
             input_tokens: fixture.input_tokens,
             output_tokens: 10,
             cache_creation_tokens: 1,
