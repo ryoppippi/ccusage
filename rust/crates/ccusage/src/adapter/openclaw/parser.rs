@@ -9,8 +9,9 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{Map, Value};
 
 use crate::{
-    apply_total_token_fallback, format_date_tz, json_value_u64, non_empty_json_string, LoadedEntry,
-    Result, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
+    apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
+    json_value_u64, missing_pricing_model_for_usage, non_empty_json_string, LoadedEntry,
+    PricingMap, Result, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 #[derive(Debug, Clone)]
@@ -25,12 +26,14 @@ struct OpenClawEntry {
     cache_creation_tokens: u64,
     cache_read_tokens: u64,
     total_tokens: u64,
-    cost: f64,
+    cost: Option<f64>,
 }
 
 pub(super) fn parse_session_file(
     path: &Path,
     tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
 ) -> Result<Vec<LoadedEntry>> {
     let session_id = extract_session_id(path);
     let fallback_timestamp = file_modified_timestamp(path);
@@ -75,7 +78,7 @@ pub(super) fn parse_session_file(
             current_provider.as_deref(),
             fallback_timestamp,
         ) {
-            entries.push(openclaw_entry_to_loaded(entry, tz));
+            entries.push(openclaw_entry_to_loaded(entry, tz, mode, pricing));
         }
     }
     Ok(entries)
@@ -144,12 +147,16 @@ fn parse_message_entry(
         cost: usage
             .get("cost")
             .and_then(|cost| cost.get("total"))
-            .and_then(Value::as_f64)
-            .unwrap_or(0.0),
+            .and_then(Value::as_f64),
     })
 }
 
-fn openclaw_entry_to_loaded(entry: OpenClawEntry, tz: Option<&JiffTimeZone>) -> LoadedEntry {
+fn openclaw_entry_to_loaded(
+    entry: OpenClawEntry,
+    tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> LoadedEntry {
     let usage = TokenUsageRaw {
         input_tokens: entry.input_tokens,
         output_tokens: entry.output_tokens,
@@ -166,18 +173,21 @@ fn openclaw_entry_to_loaded(entry: OpenClawEntry, tz: Option<&JiffTimeZone>) -> 
             model: Some(entry.model.clone()),
             id: None,
         },
-        cost_usd: Some(entry.cost),
+        cost_usd: entry.cost,
         request_id: None,
         is_api_error_message: None,
         is_sidechain: None,
     };
+    let cost = calculate_cost_for_usage(Some(&entry.model), usage, entry.cost, mode, pricing);
+    let missing_pricing_model =
+        missing_pricing_model_for_usage(Some(&entry.model), usage, entry.cost, mode, pricing);
     LoadedEntry {
         date: format_date_tz(entry.timestamp, tz),
         timestamp: entry.timestamp,
         project: Arc::from("openclaw"),
         session_id: Arc::from(entry.session_id),
         project_path: Arc::from("OpenClaw"),
-        cost: entry.cost,
+        cost,
         extra_total_tokens: entry.total_tokens.saturating_sub(
             entry.input_tokens
                 + entry.output_tokens
@@ -189,7 +199,7 @@ fn openclaw_entry_to_loaded(entry: OpenClawEntry, tz: Option<&JiffTimeZone>) -> 
         model: Some(entry.model),
         data,
         usage_limit_reset_time: None,
-        missing_pricing_model: None,
+        missing_pricing_model,
     }
 }
 

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{cli::SharedArgs, parse_tz, LoadedEntry, Result};
+use crate::{cli::SharedArgs, parse_tz, LoadedEntry, PricingMap, Result};
 
 use super::{
     parser::{entry_id, parse_session_file},
@@ -10,21 +10,26 @@ use super::{
 pub(crate) fn load_entries(
     shared: &SharedArgs,
     custom_path: Option<&str>,
+    pricing: Option<&PricingMap>,
 ) -> Result<Vec<LoadedEntry>> {
     crate::progress::track_usage_load(
         crate::progress::UsageLoadAgent::OpenClaw,
         shared.json,
-        || load_entries_inner(shared, custom_path),
+        || load_entries_inner(shared, custom_path, pricing),
     )
 }
 
-fn load_entries_inner(shared: &SharedArgs, custom_path: Option<&str>) -> Result<Vec<LoadedEntry>> {
+fn load_entries_inner(
+    shared: &SharedArgs,
+    custom_path: Option<&str>,
+    pricing: Option<&PricingMap>,
+) -> Result<Vec<LoadedEntry>> {
     let tz = parse_tz(shared.timezone.as_deref());
     let mut entries = Vec::new();
     let mut seen = HashSet::new();
     for root in paths(custom_path) {
         for file in collect_session_files(&root)? {
-            for entry in parse_session_file(&file, tz.as_ref())? {
+            for entry in parse_session_file(&file, tz.as_ref(), shared.mode, pricing)? {
                 if seen.insert(entry_id(&entry)) {
                     entries.push(entry);
                 }
@@ -58,7 +63,7 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
-        let entries = load_entries(&shared, fixture.root().to_str()).unwrap();
+        let entries = load_entries(&shared, fixture.root().to_str(), None).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-01-30");
@@ -82,8 +87,37 @@ mod tests {
         let fixture = fs_fixture!({
             "agents/main/sessions/session.jsonl": format!("{line}\n{line}\n"),
         });
-        let entries = load_entries(&SharedArgs::default(), fixture.root().to_str()).unwrap();
+        let entries = load_entries(&SharedArgs::default(), fixture.root().to_str(), None).unwrap();
 
         assert_eq!(entries.len(), 1);
+    }
+
+    #[test]
+    fn calculates_cost_from_pricing_overrides() {
+        let _guard = OPENCLAW_DIR_LOCK.lock().unwrap();
+        let fixture = fs_fixture!({
+            "agents/main/sessions/abc.jsonl": r#"{"type":"message","message":{"role":"assistant","model":"gpt-5.2","usage":{"input":1000,"output":500,"cost":{"total":0.99}},"timestamp":1769753935279}}"#,
+        });
+        let mut shared = SharedArgs {
+            mode: crate::cli::CostMode::Calculate,
+            offline: true,
+            ..SharedArgs::default()
+        };
+        shared.pricing_overrides.insert(
+            "[openclaw] gpt-5.2".to_string(),
+            ccusage_cli::PricingOverride {
+                input_cost_per_token: Some(1e-6),
+                output_cost_per_token: Some(2e-6),
+                ..Default::default()
+            },
+        );
+        let pricing =
+            PricingMap::load_with_overrides(shared.offline, false, shared.pricing_overrides.iter());
+
+        let entries = load_entries(&shared, fixture.root().to_str(), Some(&pricing)).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert!((entries[0].cost - 0.002).abs() < f64::EPSILON);
+        assert_eq!(entries[0].data.cost_usd, Some(0.99));
     }
 }

@@ -491,6 +491,7 @@ fn render_statusline(
                 Path::new(&hook.transcript_path),
                 hook.model.id.as_deref(),
                 shared.offline,
+                shared,
             )
             .map(|context| (context.total_input_tokens, context.context_window_size))
         })
@@ -537,6 +538,7 @@ fn statusline_today_shared(
         since: Some(today.clone()),
         until: Some(today),
         offline: shared.offline,
+        pricing_overrides: shared.pricing_overrides.clone(),
         timezone: args.timezone.clone(),
         ..SharedArgs::default()
     }
@@ -586,8 +588,10 @@ fn calculate_context_tokens_from_transcript(
     path: &Path,
     model_id: Option<&str>,
     offline: bool,
+    shared: &SharedArgs,
 ) -> Option<HookContext> {
     let content = fs::read_to_string(path).ok()?;
+    let mut pricing: Option<PricingMap> = None;
     for line in content.lines().rev() {
         let line = line.trim();
         if line.is_empty() {
@@ -621,7 +625,17 @@ fn calculate_context_tokens_from_transcript(
             .unwrap_or_default();
         let context_window_size = model_id
             .filter(|model_id| !model_id.is_empty())
-            .and_then(|model_id| PricingMap::load(offline, false).context_limit(model_id))
+            .and_then(|model_id| {
+                pricing
+                    .get_or_insert_with(|| {
+                        PricingMap::load_with_overrides(
+                            offline,
+                            false,
+                            shared.pricing_overrides.iter(),
+                        )
+                    })
+                    .context_limit(model_id)
+            })
             .unwrap_or(200_000);
         return Some(HookContext {
             total_input_tokens: input_tokens + cache_creation + cache_read,
@@ -821,9 +835,13 @@ mod tests {
             .join("\n"),
         });
 
-        let context =
-            calculate_context_tokens_from_transcript(&fixture.path("transcript.jsonl"), None, true)
-                .unwrap();
+        let context = calculate_context_tokens_from_transcript(
+            &fixture.path("transcript.jsonl"),
+            None,
+            true,
+            &SharedArgs::default(),
+        )
+        .unwrap();
 
         assert_eq!(context.total_input_tokens, 2150);
         assert_eq!(context.context_window_size, 200_000);
@@ -835,15 +853,25 @@ mod tests {
             "transcript.jsonl": r#"{"type":"assistant","message":{"usage":{"input_tokens":1000}}}"#,
         });
 
+        let mut shared = SharedArgs::default();
+        shared.pricing_overrides.insert(
+            "test-model-context-limit".to_string(),
+            ccusage_cli::PricingOverride {
+                max_input_tokens: Some(1_500_000),
+                ..Default::default()
+            },
+        );
+
         let context = calculate_context_tokens_from_transcript(
             &fixture.path("transcript.jsonl"),
-            Some("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+            Some("test-model-context-limit"),
             true,
+            &shared,
         )
         .unwrap();
 
         assert_eq!(context.total_input_tokens, 1000);
-        assert_eq!(context.context_window_size, 1_000_000);
+        assert_eq!(context.context_window_size, 1_500_000);
     }
 
     #[test]
@@ -864,10 +892,17 @@ mod tests {
             timezone: Some("Asia/Tokyo".to_string()),
             ..StatuslineArgs::default()
         };
-        let shared = SharedArgs {
+        let mut shared = SharedArgs {
             offline: true,
             ..SharedArgs::default()
         };
+        shared.pricing_overrides.insert(
+            "statusline-model".to_string(),
+            ccusage_cli::PricingOverride {
+                input_cost_per_token: Some(1e-6),
+                ..Default::default()
+            },
+        );
         let now = TimestampMs::from_millis(1_779_380_820_000);
 
         let today_shared = statusline_today_shared(&args, &shared, now);
@@ -875,6 +910,9 @@ mod tests {
         assert_eq!(today_shared.since.as_deref(), Some("20260522"));
         assert_eq!(today_shared.until.as_deref(), Some("20260522"));
         assert_eq!(today_shared.timezone.as_deref(), Some("Asia/Tokyo"));
+        assert!(today_shared
+            .pricing_overrides
+            .contains_key("statusline-model"));
     }
 
     #[test]

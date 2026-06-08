@@ -8,9 +8,8 @@ use crate::{
         opencode, pi, qwen,
     },
     cli::{AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
-    filter_loaded_entries_by_date, json_float, summarize_by_key, summarize_summaries_by_bucket,
-    BucketKind, CodexGroup, LoadedEntry, ModelBreakdown, PricingMap, Result, SessionAccumulator,
-    UsageSummary,
+    filter_loaded_entries_by_date, json_float, CodexGroup, LoadedEntry, ModelBreakdown, PricingMap,
+    Result, SessionAccumulator, UsageSummary,
 };
 
 use super::{
@@ -26,7 +25,11 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                 crate::progress::usage_load_output_is_tty(),
             ),
     );
-    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
+    let pricing = PricingMap::load_with_overrides(
+        shared.offline,
+        crate::log_level() != Some(0),
+        shared.pricing_overrides.iter(),
+    );
     let load_kind = match kind {
         AgentReportKind::Session => AgentReportKind::Session,
         AgentReportKind::Daily | AgentReportKind::Weekly | AgentReportKind::Monthly => {
@@ -134,6 +137,7 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                         "pi",
                         load_kind,
                         &loader_shared,
+                        &pricing,
                         pi::load_entries,
                         pi::summarize_entries,
                     )
@@ -163,7 +167,7 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
                         "openclaw",
                         load_kind,
                         &loader_shared,
-                        || openclaw::load_entries(&loader_shared, None),
+                        || openclaw::load_entries(&loader_shared, None, Some(&pricing)),
                         openclaw::summarize_entries,
                     )
                 }),
@@ -359,10 +363,15 @@ fn load_session_capable_summary_agent_rows(
     agent: &'static str,
     kind: AgentReportKind,
     shared: &SharedArgs,
-    load_entries: impl FnOnce(&SharedArgs, Option<&str>) -> Result<Vec<LoadedEntry>>,
+    pricing: &PricingMap,
+    load_entries: impl FnOnce(
+        &SharedArgs,
+        Option<&str>,
+        Option<&PricingMap>,
+    ) -> Result<Vec<LoadedEntry>>,
     summarize_entries: impl FnOnce(&[LoadedEntry], AgentReportKind) -> Result<Vec<UsageSummary>>,
 ) -> Result<AgentRows> {
-    let mut entries = load_entries(shared, None)?;
+    let mut entries = load_entries(shared, None, Some(pricing))?;
     let detected = !entries.is_empty();
     let summaries = if kind == AgentReportKind::Session {
         let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
@@ -380,13 +389,14 @@ fn load_session_capable_summary_agent_rows(
 
 fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     if kind == AgentReportKind::Session {
-        return load_session_capable_summary_agent_rows(
-            "claude",
-            kind,
-            shared,
-            claude::load_entries,
-            summarize_entries,
-        );
+        let entries = claude::load_entries(shared, None)?;
+        let detected = !entries.is_empty();
+        let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
+        filter_session_summaries(&mut summaries, shared);
+        return Ok(AgentRows {
+            rows: summary_rows("claude", summaries),
+            detected,
+        });
     }
 
     let mut summaries = claude::load_daily_summaries(shared, None, false)?;
@@ -475,43 +485,6 @@ fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRow
         rows: summary_rows("qwen", summaries),
         detected,
     })
-}
-
-fn summarize_entries(entries: &[LoadedEntry], kind: AgentReportKind) -> Result<Vec<UsageSummary>> {
-    match kind {
-        AgentReportKind::Daily => summarize_by_key(
-            entries,
-            |entry| entry.date.clone(),
-            |date| (date.to_string(), None),
-        ),
-        AgentReportKind::Monthly => {
-            let daily = summarize_entries(entries, AgentReportKind::Daily)?;
-            Ok(summarize_summaries_by_bucket(
-                &daily,
-                BucketKind::Monthly,
-                WeekDay::Sunday,
-            ))
-        }
-        AgentReportKind::Weekly => {
-            let daily = summarize_entries(entries, AgentReportKind::Daily)?;
-            Ok(summarize_summaries_by_bucket(
-                &daily,
-                BucketKind::Weekly,
-                WeekDay::Monday,
-            ))
-        }
-        AgentReportKind::Session => summarize_by_key(
-            entries,
-            |entry| entry.session_id.to_string(),
-            |session_id| (session_id.to_string(), None),
-        )
-        .map(|mut rows| {
-            for row in &mut rows {
-                row.session_id = row.date.take();
-            }
-            rows
-        }),
-    }
 }
 
 fn summarize_entry_sessions(
