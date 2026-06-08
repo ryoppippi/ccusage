@@ -27,15 +27,25 @@ function getUpdatedRustReleaseFiles(cwd: string): string[] {
 
 export default defineConfig({
 	async execute(operation) {
-		const result = spawnSync('pnpm', ['run', 'sync:rust-version'], {
-			cwd: operation.options.cwd,
-			stdio: 'inherit',
-		});
+		const result = spawnSync(
+			'cargo',
+			[
+				'set-version',
+				'--manifest-path',
+				'rust/Cargo.toml',
+				'--workspace',
+				operation.state.newVersion,
+			],
+			{
+				cwd: operation.options.cwd,
+				stdio: 'inherit',
+			},
+		);
 		if (result.error != null) {
 			throw result.error;
 		}
 		if (result.status !== 0) {
-			throw new Error(`sync:rust-version failed with exit code ${result.status ?? 'unknown'}`);
+			throw new Error(`cargo set-version failed with exit code ${result.status ?? 'unknown'}`);
 		}
 		operation.update({
 			updatedFiles: [
