@@ -474,22 +474,28 @@ mod tests {
             "sessions/root.jsonl": &usage_line,
             "sessions/goal.jsonl": &usage_line,
         });
-        let shared = SharedArgs {
-            timezone: Some("UTC".to_string()),
-            ..SharedArgs::default()
-        };
+        for single_thread in [true, false] {
+            let shared = SharedArgs {
+                single_thread,
+                timezone: Some("UTC".to_string()),
+                ..SharedArgs::default()
+            };
 
-        let groups =
-            load_groups_from_directory(&fixture.path("sessions"), &shared, AgentReportKind::Daily)
-                .unwrap();
+            let groups = load_groups_from_directory(
+                &fixture.path("sessions"),
+                &shared,
+                AgentReportKind::Daily,
+            )
+            .unwrap();
 
-        assert_eq!(groups.len(), 1);
-        let group = groups.get("2026-05-29").unwrap();
-        assert_eq!(group.input_tokens, 1_000);
-        assert_eq!(group.cached_input_tokens, 100);
-        assert_eq!(group.output_tokens, 200);
-        assert_eq!(group.reasoning_output_tokens, 20);
-        assert_eq!(group.total_tokens, 1_200);
+            assert_eq!(groups.len(), 1);
+            let group = groups.get("2026-05-29").unwrap();
+            assert_eq!(group.input_tokens, 1_000);
+            assert_eq!(group.cached_input_tokens, 100);
+            assert_eq!(group.output_tokens, 200);
+            assert_eq!(group.reasoning_output_tokens, 20);
+            assert_eq!(group.total_tokens, 1_200);
+        }
     }
 
     #[test]
