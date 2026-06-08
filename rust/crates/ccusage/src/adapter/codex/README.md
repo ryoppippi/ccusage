@@ -7,6 +7,9 @@ ${CODEX_HOME:-~/.codex}/sessions/
 ${CODEX_HOME:-~/.codex}/archived_sessions/
 ```
 
+When both directories contain the same relative JSONL path for one Codex home,
+the active `sessions/` copy wins.
+
 Relevant JSONL event:
 
 - `type === "event_msg"`

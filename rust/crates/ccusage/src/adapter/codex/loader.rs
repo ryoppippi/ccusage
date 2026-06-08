@@ -6,19 +6,23 @@ use std::{
 use compact_str::CompactString;
 
 use crate::{
-    chunk_file_indexes_by_size, cli::SharedArgs, collect_usage_files, fast::FxHashSet, progress,
-    CodexTokenUsageEvent, Result,
+    chunk_file_indexes_by_size, cli::SharedArgs, fast::FxHashSet, progress, CodexTokenUsageEvent,
+    Result,
 };
 
-use super::{parser::visit_codex_session_file, paths::codex_usage_paths};
+use super::{
+    parser::visit_codex_session_file,
+    paths::{
+        codex_usage_sources, collect_codex_usage_files, collect_deduped_codex_usage_files,
+        CodexUsageSource,
+    },
+};
 
 pub(crate) fn load_codex_events_from_directory(
     sessions_dir: &Path,
     single_thread: bool,
 ) -> Result<Vec<CodexTokenUsageEvent>> {
-    let mut files = Vec::new();
-    collect_usage_files(sessions_dir, &mut files);
-    files.sort_by_cached_key(|path| path.to_string_lossy().into_owned());
+    let files = collect_codex_usage_files(sessions_dir);
     let mut events = if single_thread {
         files
             .iter()
@@ -38,12 +42,29 @@ pub(crate) fn load_codex_events(shared: &SharedArgs) -> Result<Vec<CodexTokenUsa
 }
 
 fn load_codex_events_inner(shared: &SharedArgs) -> Result<Vec<CodexTokenUsageEvent>> {
+    load_codex_events_from_sources(&codex_usage_sources()?, shared.single_thread)
+}
+
+fn load_codex_events_from_sources(
+    sources: &[CodexUsageSource],
+    single_thread: bool,
+) -> Result<Vec<CodexTokenUsageEvent>> {
+    if let [source] = sources {
+        return load_codex_events_from_directory(&source.dir, single_thread);
+    }
+
     let mut events = Vec::new();
-    for path in codex_usage_paths()? {
-        events.extend(load_codex_events_from_directory(
-            &path,
-            shared.single_thread,
-        )?);
+    for group in collect_deduped_codex_usage_files(sources) {
+        let mut source_events = if single_thread {
+            group
+                .files
+                .iter()
+                .flat_map(|file| read_codex_session_file(&group.dir, file))
+                .collect::<Vec<_>>()
+        } else {
+            read_codex_session_files_parallel(&group.dir, &group.files)
+        };
+        events.append(&mut source_events);
     }
     dedupe_codex_events(&mut events);
     Ok(events)
@@ -122,6 +143,8 @@ mod tests {
 
     use ccusage_test_support::fs_fixture;
     use serde_json::json;
+
+    use crate::adapter::codex::paths::CodexUsageSource;
 
     fn codex_event(session_id: &str) -> CodexTokenUsageEvent {
         CodexTokenUsageEvent {
@@ -288,6 +311,118 @@ mod tests {
         assert_eq!(events[2].output_tokens, 4);
         assert_eq!(events[2].reasoning_output_tokens, 1);
         assert_eq!(events[2].total_tokens, 14);
+    }
+
+    #[test]
+    fn loads_active_copy_when_archived_file_has_same_relative_path() {
+        let active_usage = [
+            json!({
+                "timestamp": "2026-05-12T08:00:00.000Z",
+                "type": "turn_context",
+                "payload": {
+                    "model": "gpt-5.2",
+                },
+            })
+            .to_string(),
+            json!({
+                "timestamp": "2026-05-12T08:01:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 111,
+                            "cached_input_tokens": 10,
+                            "output_tokens": 20,
+                            "reasoning_output_tokens": 1,
+                            "total_tokens": 131,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let archived_usage = [
+            json!({
+                "timestamp": "2026-05-12T09:00:00.000Z",
+                "type": "turn_context",
+                "payload": {
+                    "model": "gpt-5.2",
+                },
+            })
+            .to_string(),
+            json!({
+                "timestamp": "2026-05-12T09:01:00.000Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 999,
+                            "cached_input_tokens": 90,
+                            "output_tokens": 80,
+                            "reasoning_output_tokens": 7,
+                            "total_tokens": 1_079,
+                        },
+                    },
+                },
+            })
+            .to_string(),
+        ]
+        .join("\n");
+        let fixture = fs_fixture!({
+            "codex/sessions/duplicate.jsonl": active_usage,
+            "codex/archived_sessions/duplicate.jsonl": archived_usage,
+            "codex/archived_sessions/archived-only.jsonl": [
+                json!({
+                    "timestamp": "2026-05-13T08:00:00.000Z",
+                    "type": "turn_context",
+                    "payload": {
+                        "model": "gpt-5.2",
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-05-13T08:01:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": {
+                                "input_tokens": 222,
+                                "cached_input_tokens": 20,
+                                "output_tokens": 30,
+                                "reasoning_output_tokens": 2,
+                                "total_tokens": 252,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        for single_thread in [true, false] {
+            let sources = vec![
+                CodexUsageSource::new_for_test(
+                    fixture.path("codex/sessions"),
+                    fixture.path("codex"),
+                ),
+                CodexUsageSource::new_for_test(
+                    fixture.path("codex/archived_sessions"),
+                    fixture.path("codex"),
+                ),
+            ];
+            let events = load_codex_events_from_sources(&sources, single_thread).unwrap();
+
+            assert_eq!(events.len(), 2);
+            assert_eq!(events[0].session_id, "duplicate");
+            assert_eq!(events[0].input_tokens, 111);
+            assert_eq!(events[1].session_id, "archived-only");
+            assert_eq!(events[1].input_tokens, 222);
+        }
     }
 
     #[test]
