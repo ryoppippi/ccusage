@@ -22,13 +22,13 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 1
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
       - name: Run agent
-        uses: pullfrog/pullfrog@f8b4f87eca4fab7e705a3d871e1885baeb0f1117 # v0
+        uses: pullfrog/pullfrog@27557aef1ccff9b9ea531324824daa1f86c066c4 # v0.1.29
         with:
           prompt: ${{ inputs.prompt }}
         env:
