@@ -168,12 +168,12 @@ direnv allow
 
 The dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, generated local agent skills, and project utilities from `flake.nix`. It also installs package dependencies from `pnpm-lock.yaml` when needed.
 
-Run the usual checks from inside the Nix environment:
+Run the usual checks from inside the Nix environment (`just --list` shows every recipe):
 
 ```sh
-pnpm run format
-pnpm typecheck
-pnpm run test
+just fmt
+just typecheck
+just test
 ```
 
 ### Nix Package

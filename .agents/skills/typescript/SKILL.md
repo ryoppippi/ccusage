@@ -59,8 +59,8 @@ Run focused checks during iteration, then the normal root workflow before
 finishing:
 
 ```sh
-pnpm run test:vitest
-pnpm run format
-pnpm typecheck
-pnpm run test
+just test-vitest
+just fmt
+just typecheck
+just test
 ```

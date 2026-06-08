@@ -1,13 +1,15 @@
 # ccusage Commands
 
-Use root commands unless a narrower package command is more appropriate:
+`just` is the single entry point for repo-wide tasks. Run `just --list` to see
+every recipe. Use these unless a narrower package command is more appropriate:
 
 ```sh
-pnpm run test
-pnpm run format
-pnpm typecheck
-pnpm run build
-pnpm run prerelease
+just test
+just fmt
+just typecheck
+just build
+just check
+just release
 ```
 
 Useful main CLI commands:

@@ -27,10 +27,10 @@ tooling.
 
 ## Rust Tests
 
-For repo-wide validation, prefer the package script because it runs Vitest and Rust tests together:
+For repo-wide validation, prefer the `just` recipe because it runs Vitest and Rust tests together:
 
 ```sh
-direnv exec . pnpm run test
+direnv exec . just test
 ```
 
 Put Rust unit tests near the module they exercise with `#[cfg(test)] mod tests`.

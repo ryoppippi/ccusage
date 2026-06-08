@@ -16,7 +16,7 @@ Use this skill when creating or updating repo-local skills under `.agents/skills
 5. Update the root `AGENTS.md` Skill Routing list when adding a repo-local skill that agents should discover before work.
 6. Keep skill and reference files below the line budgets in this guide.
 7. Let the Nix dev shell refresh generated local agent skill targets through its shell hook.
-8. Run `pnpm run format` after edits and use the normal repo validation level for the change.
+8. Run `just fmt` after edits and use the normal repo validation level for the change.
 
 ## Local Skill Management
 
