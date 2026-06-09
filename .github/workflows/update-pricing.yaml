@@ -41,7 +41,7 @@ jobs:
             echo "Pricing snapshot is already up to date."
             exit 0
           fi
-          nix flake check
+          nix develop --command just check
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -64,7 +64,7 @@ jobs:
             'Updates the locked LiteLLM pricing input used by Nix builds.' \
             '' \
             'Validation:' \
-            '- nix flake check')"
+            '- just check')"
 
           if gh pr view "$branch" >/dev/null 2>&1; then
             printf '%s\n' "$body" | gh pr edit "$branch" --title "chore(pricing): update LiteLLM snapshot" --body-file -

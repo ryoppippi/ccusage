@@ -89,28 +89,31 @@ For development or contributing to ccusage:
 git clone https://github.com/ryoppippi/ccusage.git
 cd ccusage
 
-# Install dependencies
-pnpm install
-
-# Run directly from source
-pnpm --filter ccusage start daily
-pnpm --filter ccusage start monthly --json
+# Allow direnv to load the Nix dev shell
+direnv allow
 ```
 
-### Development Scripts
+The Nix dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, and project utilities. Run project tasks with `just`:
 
 ```bash
+# Format the tree
+just fmt
+
 # Run tests
 just test
 
-# Type checking
-just typecheck
+# Run static checks
+just check
 
 # Build distribution
 just build
+```
 
-# Lint and format
-just fmt
+You can also run the package directly from source:
+
+```bash
+pnpm --filter ccusage start daily
+pnpm --filter ccusage start monthly --json
 ```
 
 ## Runtime Requirements

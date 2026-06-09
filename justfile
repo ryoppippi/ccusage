@@ -37,13 +37,26 @@ test-vitest:
 fmt:
     nix fmt
 
-# Run every flake check (clippy, rustfmt, oxlint, schema drift, gitleaks, build)
-check:
+# Check formatting with treefmt and fail if changes are needed
+fmt-check:
+    treefmt --fail-on-change
+
+# Lint TypeScript and JavaScript sources
+lint:
+    oxlint .
+
+# Run lint, format checks, typechecks, and every flake check (clippy, rustfmt, schema drift, gitleaks, build)
+check: lint fmt-check typecheck
     nix flake check
 
 # Regenerate apps/ccusage/config-schema.json from the Rust source
 schema:
     nix run .#generate-schema
+
+# Update the locked LiteLLM pricing snapshot and validate the result
+update-litellm-pricing:
+    nix flake update litellm
+    just check
 
 # Bump every package version (Rust included via bump.config.ts), then commit, tag, push
 release: ccusage::typecheck ccusage::build
