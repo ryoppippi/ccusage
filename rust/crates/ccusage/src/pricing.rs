@@ -1469,8 +1469,6 @@ mod tests {
 
     #[test]
     fn embedded_models_dev_snapshot_is_parseable() {
-        // Guards the build-time wiring: the snapshot embedded via build.rs must
-        // always parse, whether it is the populated catalog or an empty `{}`.
         let mut map = PricingMap::default();
         assert!(map
             .load_models_dev_json_missing(BUILD_TIME_MODELS_DEV_JSON)
@@ -1504,14 +1502,9 @@ mod tests {
     #[test]
     fn offline_prices_new_anthropic_model_from_embedded_models_dev() {
         use ccusage_cli::PricingOverride;
-        // claude-fable-5 shipped on models.dev before LiteLLM published it, which
-        // is exactly the gap the embedded snapshot fills for offline runs.
-        if embedded_models_dev_pricing()
+        assert!(embedded_models_dev_pricing()
             .find_entry("claude-fable-5")
-            .is_none()
-        {
-            return;
-        }
+            .is_some());
         let offline = PricingMap::load_with_overrides(
             true,
             false,
