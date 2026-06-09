@@ -1051,7 +1051,8 @@ fn embedded_models_dev_pricing() -> &'static PricingMap {
     static EMBEDDED_MODELS_DEV_PRICING: OnceLock<PricingMap> = OnceLock::new();
     EMBEDDED_MODELS_DEV_PRICING.get_or_init(|| {
         let mut map = PricingMap::default();
-        map.load_models_dev_json_missing(BUILD_TIME_MODELS_DEV_JSON);
+        map.load_models_dev_json_missing(BUILD_TIME_MODELS_DEV_JSON)
+            .expect("embedded models-dev-pricing.json must parse");
         map
     })
 }
@@ -1502,9 +1503,12 @@ mod tests {
     #[test]
     fn offline_prices_new_anthropic_model_from_embedded_models_dev() {
         use ccusage_cli::PricingOverride;
-        assert!(embedded_models_dev_pricing()
-            .find_entry("claude-fable-5")
-            .is_some());
+        assert!(
+            embedded_models_dev_pricing()
+                .find_entry("claude-fable-5")
+                .is_some(),
+            "embedded models.dev snapshot should include claude-fable-5"
+        );
         let offline = PricingMap::load_with_overrides(
             true,
             false,
