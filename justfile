@@ -37,16 +37,8 @@ test-vitest:
 fmt:
     nix fmt
 
-# Check formatting with treefmt and fail if changes are needed
-fmt-check:
-    treefmt --fail-on-change
-
-# Lint TypeScript and JavaScript sources
-lint:
-    oxlint .
-
-# Run lint, format checks, typechecks, and every flake check (clippy, rustfmt, schema drift, gitleaks, build)
-check: lint fmt-check typecheck
+# Run package typechecks and every flake check (treefmt, oxlint, clippy, schema drift, gitleaks, build)
+check: typecheck
     nix flake check
 
 # Regenerate apps/ccusage/config-schema.json from the Rust source
