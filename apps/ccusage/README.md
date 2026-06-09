@@ -1,3 +1,80 @@
+<p align="center">
+  <a href="https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=ccusage">
+    <img src="docs/atlas-cloud-logo.png" alt="Atlas Cloud" width="200">
+  </a>
+</p>
+
+> 🎁 **[Atlas Cloud](https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=ccusage)** is a unified AI inference platform — 59 LLM & media models (DeepSeek-V4, Qwen3, Kimi K2, GPT-5, Gemini 2.5 Pro, Claude, Kling, Seedance…) through one OpenAI-compatible endpoint. Track your Atlas Cloud token usage with ccusage. [Coding Plan](https://www.atlascloud.ai/console/coding-plan)
+
+<details>
+<summary>📋 59 models available on Atlas Cloud</summary>
+
+| Model | Type |
+|-------|------|
+| deepseek-ai/deepseek-v4-pro | LLM |
+| deepseek-ai/deepseek-v4-0520 | LLM |
+| deepseek-ai/deepseek-v4-flash | LLM |
+| deepseek-ai/deepseek-r2 | LLM |
+| deepseek-ai/deepseek-r2-0528 | LLM |
+| deepseek-ai/deepseek-r1-0528 | LLM |
+| deepseek-ai/deepseek-r1 | LLM |
+| deepseek-ai/deepseek-prover-v2 | LLM |
+| moonshot-ai/kimi-k2 | LLM |
+| moonshot-ai/kimi-k2-0711 | LLM |
+| moonshot-ai/kimi-k1.5-long | LLM |
+| qwen/qwen3-235b-a22b | LLM |
+| qwen/qwen3-30b-a3b | LLM |
+| qwen/qwen3-32b | LLM |
+| qwen/qwq-32b | LLM |
+| openai/gpt-5 | LLM |
+| openai/gpt-5-mini | LLM |
+| openai/gpt-4.1 | LLM |
+| openai/gpt-4o | LLM |
+| openai/o3 | LLM |
+| openai/o4-mini | LLM |
+| openai/o3-mini | LLM |
+| anthropic/claude-sonnet-4-5 | LLM |
+| anthropic/claude-opus-4 | LLM |
+| anthropic/claude-sonnet-4 | LLM |
+| anthropic/claude-haiku-4-5 | LLM |
+| google/gemini-2.5-pro | LLM |
+| google/gemini-2.5-flash | LLM |
+| google/gemini-2.5-flash-lite | LLM |
+| google/gemini-2.0-flash | LLM |
+| xai/grok-4 | LLM |
+| xai/grok-3 | LLM |
+| xai/grok-3-mini | LLM |
+| meta-llama/llama-4-scout | LLM |
+| meta-llama/llama-4-maverick | LLM |
+| meta-llama/llama-3.3-70b | LLM |
+| cohere/command-a | LLM |
+| mistral/mistral-large | LLM |
+| minimax/minimax-m1 | LLM |
+| 01ai/yi-lightning | LLM |
+| seedance/seedance-v1-pro | Video |
+| seedance/seedance-v1-pro-fast | Video |
+| seedance/seedance-v1-lite | Video |
+| kling/kling-v2.1-pro | Video |
+| kling/kling-v2.1-standard | Video |
+| kling/kling-v1.6-pro | Video |
+| kling/kling-v1.6-standard | Video |
+| wan2/wan2.1-t2v-turbo | Video |
+| wan2/wan2.1-i2v-turbo | Video |
+| veo/veo3.1-fast | Video |
+| veo/veo3-fast | Video |
+| veo/veo3 | Video |
+| runway/gen4-turbo | Video |
+| stable-diffusion/sd3.5-large | Image |
+| flux/flux1.1-pro-ultra | Image |
+| flux/flux1.1-pro | Image |
+| ideogram/ideogram-v3 | Image |
+| recraft/recraft-v3 | Image |
+| minimax/hailuo-i2v-01-live | Video |
+
+</details>
+
+---
+
 <div align="center">
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.svg" alt="ccusage logo" width="256" height="256">
     <h1>ccusage</h1>
