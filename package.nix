@@ -17,7 +17,8 @@ let
       (craneLib.filterCargoSources path type)
       || lib.hasSuffix "/cli-help.json" path
       || lib.hasSuffix "/cli-commands.json" path
-      || lib.hasSuffix "/fast-multiplier-overrides.json" path;
+      || lib.hasSuffix "/fast-multiplier-overrides.json" path
+      || lib.hasSuffix "/models-dev-pricing.json" path;
   };
   commonArgs = {
     pname = "ccusage";

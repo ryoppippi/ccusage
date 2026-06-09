@@ -150,6 +150,22 @@
         "type": "github"
       }
     },
+    "models-dev": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781034000,
+        "narHash": "sha256-Q/0ugMpEDw+ACZ3V3FbMdzX+57rhrvXfb/Ycn8t5X/0=",
+        "owner": "anomalyco",
+        "repo": "models.dev",
+        "rev": "fb13347f59fac093d60025d987556f57f9a35427",
+        "type": "github"
+      },
+      "original": {
+        "owner": "anomalyco",
+        "repo": "models.dev",
+        "type": "github"
+      }
+    },
     "nix-filter": {
       "locked": {
         "lastModified": 1757882181,
@@ -203,6 +219,7 @@
         "flake-parts": "flake-parts",
         "git-hooks": "git-hooks",
         "litellm": "litellm",
+        "models-dev": "models-dev",
         "nix-filter": "nix-filter",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay",
