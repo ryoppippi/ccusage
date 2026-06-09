@@ -50,6 +50,18 @@ update-litellm-pricing:
     nix flake update litellm
     just check
 
+# Regenerate the committed models.dev pricing snapshot from the pinned input
+gen-models-dev-pricing:
+    cp "$(nix build .#models-dev-pricing --no-link --print-out-paths)" rust/crates/ccusage/src/models-dev-pricing.json
+    chmod u+w rust/crates/ccusage/src/models-dev-pricing.json
+    nix fmt rust/crates/ccusage/src/models-dev-pricing.json
+
+# Update the pinned models.dev input, regenerate its pricing snapshot, and validate
+update-models-dev-pricing:
+    nix flake update models-dev
+    just gen-models-dev-pricing
+    just check
+
 # Bump every package version (Rust included via bump.config.ts), then commit, tag, push
 release: ccusage::typecheck ccusage::build
     pnpm bumpp -r

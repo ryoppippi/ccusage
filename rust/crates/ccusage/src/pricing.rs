@@ -12,6 +12,7 @@ use crate::fast::FxHashMap;
 
 const BUILD_TIME_PRICING_JSON: &str =
     include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
+const BUILD_TIME_MODELS_DEV_JSON: &str = include_str!("models-dev-pricing.json");
 const FAST_MULTIPLIER_OVERRIDES_JSON: &str = include_str!("fast-multiplier-overrides.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
@@ -59,6 +60,7 @@ pub(crate) struct PricingMap {
     entries: FxHashMap<String, Pricing>,
     context_limits: FxHashMap<String, u64>,
     enable_models_dev_fallback: bool,
+    enable_embedded_models_dev_fallback: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -180,6 +182,10 @@ impl PricingMap {
         let fast_multiplier_overrides = FastMultiplierOverrides::load();
         map.load_json_with_overrides(BUILD_TIME_PRICING_JSON, &fast_multiplier_overrides);
         map.put_builtin_pricing(&fast_multiplier_overrides);
+        // Resolve models that LiteLLM and the built-in table miss from the
+        // embedded models.dev snapshot. This works offline, unlike the network
+        // source gated by `enable_models_dev_fallback`.
+        map.enable_embedded_models_dev_fallback = true;
         map
     }
 
@@ -328,11 +334,20 @@ impl PricingMap {
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
-        self.find_entry(model).or_else(|| {
-            self.enable_models_dev_fallback
-                .then(|| models_dev_pricing().and_then(|pricing| pricing.find_entry(model)))
-                .flatten()
-        })
+        self.find_entry(model)
+            .or_else(|| {
+                self.enable_models_dev_fallback
+                    .then(|| models_dev_pricing().and_then(|pricing| pricing.find_entry(model)))
+                    .flatten()
+            })
+            // The embedded models.dev snapshot is a separate map, so it only
+            // resolves models the primary table misses and never perturbs its
+            // fuzzy alias matching. It works offline, unlike the network source.
+            .or_else(|| {
+                self.enable_embedded_models_dev_fallback
+                    .then(|| embedded_models_dev_pricing().find_entry(model))
+                    .flatten()
+            })
     }
 
     fn find_entry(&self, model: &str) -> Option<Pricing> {
@@ -351,13 +366,19 @@ impl PricingMap {
     }
 
     pub(crate) fn context_limit(&self, model: &str) -> Option<u64> {
-        self.context_limit_entry(model).or_else(|| {
-            self.enable_models_dev_fallback
-                .then(|| {
-                    models_dev_pricing().and_then(|pricing| pricing.context_limit_entry(model))
-                })
-                .flatten()
-        })
+        self.context_limit_entry(model)
+            .or_else(|| {
+                self.enable_models_dev_fallback
+                    .then(|| {
+                        models_dev_pricing().and_then(|pricing| pricing.context_limit_entry(model))
+                    })
+                    .flatten()
+            })
+            .or_else(|| {
+                self.enable_embedded_models_dev_fallback
+                    .then(|| embedded_models_dev_pricing().context_limit_entry(model))
+                    .flatten()
+            })
     }
 
     fn context_limit_entry(&self, model: &str) -> Option<u64> {
@@ -1021,6 +1042,21 @@ fn models_dev_pricing() -> Option<&'static PricingMap> {
     MODELS_DEV_PRICING.get_or_try_load(fetch_models_dev_json)
 }
 
+/// Pricing built from the models.dev snapshot embedded at build time. Unlike the
+/// network source this is always available, so it lets offline runs price models
+/// that LiteLLM and the built-in table do not cover (for example newly released
+/// Anthropic models). It is kept separate from the primary table so it never
+/// participates in that table's fuzzy alias matching.
+fn embedded_models_dev_pricing() -> &'static PricingMap {
+    static EMBEDDED_MODELS_DEV_PRICING: OnceLock<PricingMap> = OnceLock::new();
+    EMBEDDED_MODELS_DEV_PRICING.get_or_init(|| {
+        let mut map = PricingMap::default();
+        map.load_models_dev_json_missing(BUILD_TIME_MODELS_DEV_JSON)
+            .expect("embedded models-dev-pricing.json must parse");
+        map
+    })
+}
+
 fn load_models_dev_pricing<F>(fetch_json: F) -> Option<PricingMap>
 where
     F: FnOnce() -> std::io::Result<String>,
@@ -1079,7 +1115,10 @@ fn fetch_json_url(url: &str) -> std::io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Pricing, PricingMap, BUILD_TIME_PRICING_JSON};
+    use super::{
+        embedded_models_dev_pricing, Pricing, PricingMap, BUILD_TIME_MODELS_DEV_JSON,
+        BUILD_TIME_PRICING_JSON,
+    };
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
@@ -1427,6 +1466,55 @@ mod tests {
         assert_eq!(pricing.context_limit("gpt-fallback"), Some(456));
         assert!((alias.input - 4e-6).abs() < f64::EPSILON);
         assert_eq!(pricing.context_limits.get("gpt-alias"), Some(&654));
+    }
+
+    #[test]
+    fn embedded_models_dev_snapshot_is_parseable() {
+        let mut map = PricingMap::default();
+        assert!(map
+            .load_models_dev_json_missing(BUILD_TIME_MODELS_DEV_JSON)
+            .is_some());
+    }
+
+    #[test]
+    fn offline_resolves_models_only_in_embedded_models_dev() {
+        use ccusage_cli::PricingOverride;
+        let offline = PricingMap::load_with_overrides(
+            true,
+            false,
+            std::iter::empty::<(&String, &PricingOverride)>(),
+        );
+        // Pick an embedded model the primary table (LiteLLM + built-ins) cannot
+        // resolve on its own. `find_entry` never consults the fallback.
+        let Some(model) = embedded_models_dev_pricing()
+            .entries
+            .keys()
+            .find(|model| offline.find_entry(model).is_none())
+        else {
+            return;
+        };
+        // The primary table alone misses it, but the offline embedded fallback
+        // resolves it; a bare map without the fallback flag must not.
+        assert!(offline.find_entry(model).is_none());
+        assert!(offline.find(model).is_some());
+        assert!(PricingMap::default().find(model).is_none());
+    }
+
+    #[test]
+    fn offline_prices_new_anthropic_model_from_embedded_models_dev() {
+        use ccusage_cli::PricingOverride;
+        assert!(
+            embedded_models_dev_pricing()
+                .find_entry("claude-fable-5")
+                .is_some(),
+            "embedded models.dev snapshot should include claude-fable-5"
+        );
+        let offline = PricingMap::load_with_overrides(
+            true,
+            false,
+            std::iter::empty::<(&String, &PricingOverride)>(),
+        );
+        assert!(offline.find("claude-fable-5").is_some());
     }
 
     #[test]
