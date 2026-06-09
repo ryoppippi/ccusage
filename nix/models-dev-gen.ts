@@ -76,4 +76,9 @@ const sortObject = (value: unknown): unknown => {
 	return value;
 };
 
-await Bun.write(process.env.OUTFILE!, `${JSON.stringify(sortObject(out), null, 2)}\n`);
+const outfile = process.env.OUTFILE;
+if (outfile == null || outfile.length === 0) {
+	throw new Error('OUTFILE environment variable is required');
+}
+
+await Bun.write(outfile, `${JSON.stringify(sortObject(out), null, 2)}\n`);
