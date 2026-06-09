@@ -155,7 +155,7 @@ Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 <details>
 <summary>Contributor setup</summary>
 
-Contributor setup requires the Nix flake development environment with [nix-direnv](https://github.com/nix-community/nix-direnv). Install [Nix](https://nixos.org/) with the `nix-command` and `flakes` experimental features enabled, then let nix-direnv load the dev shell automatically when you enter the directory:
+Contributor setup uses the Nix flake development environment with [nix-direnv](https://github.com/nix-community/nix-direnv) for pinned tools, and `just` for everyday development tasks. Install [Nix](https://nixos.org/) with the `nix-command` and `flakes` experimental features enabled, then let nix-direnv load the dev shell automatically when you enter the directory:
 
 ```sh
 # Clone the repository
@@ -168,12 +168,12 @@ direnv allow
 
 The dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, generated local agent skills, and project utilities from `flake.nix`. It also installs package dependencies from `pnpm-lock.yaml` when needed.
 
-Run the usual checks from inside the Nix environment (`just --list` shows every recipe):
+Run project tasks with `just` from inside the Nix environment (`just --list` shows every recipe):
 
 ```sh
 just fmt
-just typecheck
 just test
+just check
 ```
 
 ### Nix Package
@@ -191,11 +191,10 @@ Nix builds embed the LiteLLM pricing file from the locked `litellm` flake input,
 Non-Nix Cargo builds read the same locked LiteLLM revision from `flake.lock` and fetch the pricing file from that revision at build time.
 
 ```bash
-nix flake update litellm
-nix flake check
+just update-litellm-pricing
 ```
 
-The scheduled `update pricing` workflow runs the same commands and opens a PR when the locked input changes.
+The scheduled `update pricing` workflow runs the same update and validation, then opens a PR when the pricing snapshot changes.
 
 </details>
 
