@@ -41,7 +41,15 @@ in
             ];
             buildInputs = [ ];
           };
-          staticCargoArtifacts = staticCraneLib.buildDepsOnly staticCommonArgs;
+          # Share the same deps-only cache key, then add static target settings.
+          staticDepsOnlyArgs = config.packages.ccusage.passthru.depsOnlyArgs // {
+            cargoExtraArgs = "-p ccusage --bin ccusage --target ${linuxStaticTarget}";
+            nativeBuildInputs = with staticPkgs; [
+              pkg-config
+            ];
+            buildInputs = [ ];
+          };
+          staticCargoArtifacts = staticCraneLib.buildDepsOnly staticDepsOnlyArgs;
         in
         staticCraneLib.buildPackage (
           staticCommonArgs

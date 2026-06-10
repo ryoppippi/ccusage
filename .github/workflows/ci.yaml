@@ -28,8 +28,10 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
-      - run: nix flake check --print-build-logs
-      - run: nix develop --command just typecheck
+        with:
+          cache-profile: dev
+      - run: nix develop ./dev#ci --command just flake-check
+      - run: nix develop ./dev#ci --command just typecheck
 
   test:
     needs: changes
@@ -47,21 +49,24 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
+        with:
+          cache-profile: dev
+      - run: nix develop ./dev#ci --command just install
       - name: Create default Claude directories for tests
         run: |
           mkdir -p "$HOME/.claude/projects"
           mkdir -p "$HOME/.config/claude/projects"
       - name: Run test suite
         if: github.event_name != 'pull_request' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
-        run: nix develop --command just test
+        run: nix develop ./dev#ci --command just test
       - name: Run Vitest tests
         if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-        run: nix develop --command just test-vitest
+        run: nix develop ./dev#ci --command just test-vitest
       - name: Generate Rust coverage report
         if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           mkdir -p coverage
-          env -u CFLAGS -u CXXFLAGS nix develop --command cargo llvm-cov \
+          env -u CFLAGS -u CXXFLAGS nix develop ./dev#ci --command cargo llvm-cov \
             --manifest-path rust/Cargo.toml \
             --workspace \
             --cobertura \
@@ -98,11 +103,11 @@ jobs:
           - os: macos-latest
             platform: darwin
             arch: arm64
-            binary: rust/target/release/ccusage
+            binary: result/bin/ccusage
           - os: macos-15-intel
             platform: darwin
             arch: x64
-            binary: rust/target/release/ccusage
+            binary: result/bin/ccusage
           - os: windows-11-arm
             platform: win32
             arch: arm64
@@ -115,9 +120,9 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
-        if: matrix.platform == 'linux'
+        if: matrix.platform != 'win32'
       - name: Cache Cargo build
-        if: matrix.platform != 'linux'
+        if: matrix.platform == 'win32'
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
@@ -135,6 +140,9 @@ jobs:
           else
             nix build .#ccusage-static
           fi
+      - name: Build macOS binary
+        if: matrix.platform == 'darwin'
+        run: nix build .#ccusage
       - name: Verify Linux binary is static
         if: matrix.platform == 'linux'
         shell: bash
@@ -148,7 +156,7 @@ jobs:
             grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
           fi
       - name: Build Cargo native binary
-        if: matrix.platform != 'linux'
+        if: matrix.platform == 'win32'
         run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage
       - run: node apps/ccusage/scripts/stage-native-package.mjs --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" --binary "${{ matrix.binary }}"
       - name: Archive native package binary
@@ -185,8 +193,9 @@ jobs:
           for archive in "$RUNNER_TEMP"/native-packages/*.tar; do
             tar -xf "$archive"
           done
+      - run: nix develop ./dev#ci --command just install
       - id: publish
-        run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-*'
+        run: nix develop ./dev#ci --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-*'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
@@ -252,6 +261,8 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
+        with:
+          cache-profile: dev
 
       - name: Resolve PR preview package URL
         env:
@@ -264,14 +275,15 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
-            --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
-            --codex-output-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
-            --size-mib 1024
+          nix develop ./dev#ci --command just install
+          nix develop ./dev#ci --command just generate-large-fixture \
+            "$RUNNER_TEMP/ccusage-large-fixture" \
+            "$RUNNER_TEMP/ccusage-large-codex-fixture" \
+            1024
 
       - name: Compare fixture performance
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          nix develop ./dev#ci --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -298,7 +310,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: nix develop ./dev#ci --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   ccusage-rust-perf-comment:
     name: ccusage rust perf comment
@@ -322,6 +334,8 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
+        with:
+          cache-profile: dev
 
       - name: Resolve PR preview package URL
         env:
@@ -334,14 +348,15 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
-            --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
-            --codex-output-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
-            --size-mib 1024
+          nix develop ./dev#ci --command just install
+          nix develop ./dev#ci --command just generate-large-fixture \
+            "$RUNNER_TEMP/ccusage-large-fixture" \
+            "$RUNNER_TEMP/ccusage-large-codex-fixture" \
+            1024
 
       - name: Compare Rust performance
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          nix develop ./dev#ci --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -369,7 +384,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: nix develop ./dev#ci --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   action-timeline:
     needs:

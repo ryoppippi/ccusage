@@ -18,6 +18,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
+        with:
+          cache-profile: dev
       - name: Capture current LiteLLM pricing JSON
         run: |
           rev="$(jq -r '.nodes.litellm.locked.rev' flake.lock)"
@@ -44,7 +46,8 @@ jobs:
             echo "Pricing snapshot is already up to date."
             exit 0
           fi
-          nix develop --command just check
+          nix develop ./dev#ci --command just install
+          nix develop ./dev#ci --command just check
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -88,12 +91,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
+        with:
+          cache-profile: dev
       - name: Update models.dev input
         run: |
           nix flake update models-dev
       - name: Regenerate committed models.dev pricing snapshot
         run: |
-          nix develop --command just gen-models-dev-pricing
+          nix develop ./dev#ci --command just gen-models-dev-pricing
       - name: Skip lock-only models.dev updates
         run: |
           # Only the compacted snapshot affects the build; if a models.dev bump
@@ -108,7 +113,8 @@ jobs:
             echo "Pricing snapshot is already up to date."
             exit 0
           fi
-          nix develop --command just check
+          nix develop ./dev#ci --command just install
+          nix develop ./dev#ci --command just check
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}

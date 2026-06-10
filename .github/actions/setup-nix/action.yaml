@@ -1,53 +1,59 @@
 name: Setup Nix
 description: Install Nix and restore the Nix store from the GitHub Actions cache
+inputs:
+  cache-profile:
+    description: Which Nix cache key scope to use
+    default: package
+  warm-dev-shell:
+    description: Whether to instantiate the CI dev shell during setup
+    default: 'false'
 runs:
   using: composite
   steps:
     - name: Install Nix
-      uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+      uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
       with:
         github_access_token: ${{ github.token }}
-        extra_nix_config: |
+        nix_conf: |
           access-tokens = github.com=${{ github.token }}
 
-    - name: Cache Nix store
+    - name: Cache Nix store for package builds
+      if: inputs.cache-profile == 'package'
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
-        # Hash every input that changes the dev-shell closure, not just
-        # flake.lock. The previous key only hashed flake.lock, so any
-        # Cargo.lock / toolchain change rebuilt `ccusage-deps` (~80s) on every
-        # run while the stale cache stayed frozen and was never re-saved.
-        #
-        # `package.json` is the root manifest only: its `version` is read by
-        # package.nix and baked into the crane derivation name
-        # (`ccusage-deps-<version>`), so a version bump must rotate the key.
-        #
-        # pnpm-lock.yaml and the workspace package.json files are intentionally
-        # NOT hashed: no Nix derivation consumes JS dependencies. `pnpm install`
-        # runs in the dev-shell shellHook and writes node_modules in the working
-        # tree, outside the Nix store, so JS deps never change this cache.
+        # Package jobs should not rotate when only development tooling changes.
         primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        # On a key miss, warm-start from the newest cache for this os/arch so
-        # only the changed derivations rebuild before the fresh key is saved.
         restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
-        # Bound a single cache so the repo stays under the 10 GB limit. This
-        # action only runs on Linux (arm64 + x64), so at most two Nix caches
-        # exist. 3.5 GB each leaves headroom for the small per-platform Cargo
-        # caches (~1 GB total) used by the macOS/Windows build jobs. The
-        # dev-shell closure (~2.5 GB) is a gc root, so it survives this trim.
         gc-max-store-size-linux: 3500000000
-        # Purge superseded caches for this os/arch on every run. Without this
-        # the more frequently rotating key would accumulate stale caches and
-        # push the repo past the 10 GB limit, evicting the fresh cache via LRU.
-        # 2 days (not 7) so that several key rotations in one week (e.g.
-        # repeated Cargo.lock bumps) cannot pile up multiple ~2.5 GB caches.
-        # The active cache is always the current primary-key, which
-        # purge-primary-key keeps regardless of age.
         purge: true
         purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
         purge-created: 172800
         purge-primary-key: never
 
-    - name: Load Nix development environment
+    - name: Cache Nix store for development jobs
+      if: inputs.cache-profile == 'dev'
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        # Development jobs include the separate dev flake and its tooling lock.
+        primary-key: nix-dev-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'dev/flake.lock', 'dev/flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        restore-prefixes-first-match: nix-dev-${{ runner.os }}-${{ runner.arch }}-
+        gc-max-store-size-linux: 3500000000
+        purge: true
+        purge-prefixes: nix-dev-${{ runner.os }}-${{ runner.arch }}-
+        purge-created: 172800
+        purge-primary-key: never
+
+    - name: Fix single-user Nix store ownership
+      if: runner.os != 'Windows'
       shell: bash
-      run: nix develop --command true
+      run: |
+        for path in /nix/var/log/nix /nix/var/nix; do
+          if [ -e "$path" ]; then
+            sudo chown -R "$USER:$(id -gn)" "$path"
+          fi
+        done
+
+    - name: Load Nix CI development environment
+      if: inputs.warm-dev-shell == 'true'
+      shell: bash
+      run: nix develop ./dev#ci --command true

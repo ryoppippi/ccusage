@@ -23,7 +23,7 @@ in
         ;
       nixFilter = inputs.nix-filter.lib;
       repoSrc = nixFilter {
-        root = inputs.self;
+        inherit root;
         exclude = [
           (nixFilter.matchName "node_modules")
           (nixFilter.matchName "target")
@@ -90,7 +90,7 @@ in
 
             if ! diff -u apps/ccusage/config-schema.json generated.json; then
               echo "ERROR: apps/ccusage/config-schema.json is out of sync with the Rust schema source." >&2
-              echo "Run 'nix run .#generate-schema' (or 'pnpm --filter ccusage run generate:schema') and commit the result." >&2
+              echo "Run 'nix run ./dev#generate-schema' (or 'pnpm --filter ccusage run generate:schema') and commit the result." >&2
               exit 1
             fi
 

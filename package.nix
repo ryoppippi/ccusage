@@ -35,7 +35,12 @@ let
       libiconv
     ];
   };
-  cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+  # Keep the dependency artifact keyed only by inputs that affect Cargo deps.
+  # Pricing snapshots and release versions are embedded by the final package.
+  depsOnlyArgs = builtins.removeAttrs commonArgs [ "CCUSAGE_PRICING_JSON_PATH" ] // {
+    version = "0.0.0";
+  };
+  cargoArtifacts = craneLib.buildDepsOnly depsOnlyArgs;
 in
 craneLib.buildPackage (
   commonArgs
@@ -45,6 +50,7 @@ craneLib.buildPackage (
       inherit
         cargoArtifacts
         commonArgs
+        depsOnlyArgs
         version
         ;
     };
