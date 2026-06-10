@@ -13,14 +13,3 @@ runs:
         purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
         purge-created: 172800
         purge-primary-key: never
-
-    - name: Report restored Nix store
-      shell: bash
-      run: |
-        echo "GitHub Actions cache restored into /nix (see the cache step above for the matched key)"
-        store_paths="$(find /nix/store -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')"
-        if [ "$store_paths" -eq 0 ]; then
-          echo "The Nix store is empty: cache miss, every derivation will be built or substituted"
-        else
-          echo "Restored $store_paths Nix store paths (dev shell closure, crane dependency artifacts, package builds)"
-        fi

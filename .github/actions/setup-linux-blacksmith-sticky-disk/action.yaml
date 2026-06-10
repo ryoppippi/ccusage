@@ -50,39 +50,9 @@ runs:
           fi
         done
 
-    - name: Report restored Nix store
-      if: steps.blacksmith.outputs.enabled == 'true'
-      shell: bash
-      env:
-        STICKY_DISK_KEY: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}
-      run: |
-        echo "Sticky disk '$STICKY_DISK_KEY' is mounted at /nix (persistent disk, no save step)"
-        df -h /nix | tail -n 1 | awk '{ printf "Disk usage: %s used of %s (%s)\n", $3, $2, $5 }'
-        store_paths="$(find /nix/store -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')"
-        if [ "$store_paths" -eq 0 ]; then
-          echo "The Nix store is empty: cold start, every derivation will be built or substituted"
-        else
-          echo "Restored $store_paths Nix store paths (dev shell closure, crane dependency artifacts, package builds)"
-        fi
-
     - name: Mount root node_modules sticky disk
       if: steps.blacksmith.outputs.enabled == 'true'
       uses: useblacksmith/stickydisk@d58829ad6f9be8822ec5efe74256c82cd62915ab # v1
       with:
         key: ${{ github.repository }}-node-modules-pnpm-${{ steps.pnpm.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
         path: ./node_modules
-
-    - name: Report restored node_modules
-      if: steps.blacksmith.outputs.enabled == 'true'
-      shell: bash
-      env:
-        STICKY_DISK_KEY: ${{ github.repository }}-node-modules-pnpm-${{ steps.pnpm.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
-      run: |
-        echo "Sticky disk '$STICKY_DISK_KEY' is mounted at ./node_modules (persistent disk, no save step)"
-        df -h ./node_modules | tail -n 1 | awk '{ printf "Disk usage: %s used of %s (%s)\n", $3, $2, $5 }'
-        entries="$(find node_modules -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')"
-        if [ "$entries" -eq 0 ]; then
-          echo "node_modules is empty: cold start, 'pnpm install' will populate it from scratch"
-        else
-          echo "Restored $entries top-level node_modules entries; 'pnpm install --frozen-lockfile' only applies the lockfile diff"
-        fi
