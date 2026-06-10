@@ -47,7 +47,7 @@ runs:
       if: runner.os != 'Windows'
       shell: bash
       run: |
-        for path in /nix/store /nix/var/log/nix /nix/var/nix; do
+        for path in /nix/var/log/nix /nix/var/nix; do
           if [ -e "$path" ]; then
             sudo chown -R "$USER:$(id -gn)" "$path"
           fi
