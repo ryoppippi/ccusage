@@ -1,4 +1,7 @@
 { inputs, lib, ... }:
+let
+  root = ./..;
+in
 {
   perSystem =
     { system, ... }:
@@ -6,7 +9,7 @@
       pkgs = import inputs.nixpkgs { inherit system; };
       agentLib = inputs.agent-skills.lib.agent-skills;
       localSkills = inputs.nix-filter {
-        root = inputs.self;
+        inherit root;
         include = [ ".agents/skills" ];
       };
       sources = {
