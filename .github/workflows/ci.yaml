@@ -207,6 +207,8 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: lts/*
+      - uses: ./.github/actions/setup-nix
+        if: runner.os == 'macOS'
       - name: Prepare preview package E2E
         env:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
@@ -224,9 +226,9 @@ jobs:
         if: runner.os != 'Windows'
         shell: pwsh
         run: |
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" --version
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PNPM_DLX_URL" --version
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline
 
   ccusage-perf-comment:
     name: ccusage perf comment
