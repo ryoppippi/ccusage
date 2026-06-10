@@ -11,7 +11,10 @@
  * via `just gen-models-dev-pricing` (see `nix/models-dev-pricing.nix`).
  */
 import { generateCatalog } from './packages/core/src/generate.ts';
-import { selectModelsDevPricingKey } from './models-dev-compact.ts';
+import {
+	formatDuplicateModelsDevPricingKeyWarning,
+	selectModelsDevPricingKey,
+} from './models-dev-compact.ts';
 
 /** Model ids/keys we keep; ccusage is Claude-first, so we embed Anthropic models. */
 const KEEP = /claude|anthropic/i;
@@ -48,6 +51,12 @@ for (const provider of Object.values(providers)) {
 		}
 		const pricingKey = selectModelsDevPricingKey(modelId, model.id);
 		if (out[pricingKey] != null) {
+			console.warn(
+				formatDuplicateModelsDevPricingKeyWarning({
+					pricingKey,
+					sourceModelId: modelId,
+				}),
+			);
 			continue;
 		}
 		const entry: EmbeddedModel = {
