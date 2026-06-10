@@ -109,7 +109,7 @@ jobs:
           - os: macos-15-intel
             platform: darwin
             arch: x64
-            binary: rust/target/release/ccusage
+            binary: result/bin/ccusage
           - os: windows-11-arm
             platform: win32
             arch: arm64
@@ -122,9 +122,9 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
-        if: matrix.platform == 'linux' || (matrix.platform == 'darwin' && matrix.arch == 'arm64')
+        if: matrix.platform != 'win32'
       - name: Cache Cargo build
-        if: matrix.platform != 'linux' && !(matrix.platform == 'darwin' && matrix.arch == 'arm64')
+        if: matrix.platform == 'win32'
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
@@ -142,8 +142,8 @@ jobs:
           else
             nix build .#ccusage-static
           fi
-      - name: Build macOS arm64 binary
-        if: matrix.platform == 'darwin' && matrix.arch == 'arm64'
+      - name: Build macOS binary
+        if: matrix.platform == 'darwin'
         run: nix build .#ccusage
       - name: Verify Linux binary is static
         if: matrix.platform == 'linux'
@@ -158,7 +158,7 @@ jobs:
             grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
           fi
       - name: Build Cargo native binary
-        if: matrix.platform != 'linux' && !(matrix.platform == 'darwin' && matrix.arch == 'arm64')
+        if: matrix.platform == 'win32'
         run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage
       - run: node apps/ccusage/scripts/stage-native-package.mjs --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" --binary "${{ matrix.binary }}"
       - name: Archive native package binary
