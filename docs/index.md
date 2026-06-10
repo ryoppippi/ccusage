@@ -14,7 +14,7 @@ hero:
       link: /guide/
     - theme: alt
       text: View on GitHub
-      link: https://github.com/ryoppippi/ccusage
+      link: https://github.com/ccusage/ccusage
 
 features:
   - icon: 📊

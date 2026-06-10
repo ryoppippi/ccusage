@@ -56,7 +56,7 @@ craneLib.buildPackage (
     };
     meta = {
       description = "Analyze coding agent CLI token usage and costs from local data";
-      homepage = "https://github.com/ryoppippi/ccusage";
+      homepage = "https://github.com/ccusage/ccusage";
       license = lib.licenses.mit;
       mainProgram = "ccusage";
     };

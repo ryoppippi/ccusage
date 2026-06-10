@@ -358,7 +358,7 @@ If configuration issues persist:
 1. Run with debug mode: `ccusage daily --debug`
 2. Check verbose logs: `LOG_LEVEL=5 ccusage daily`
 3. Validate JSON config: `jq . < ccusage.json`
-4. Report issues on [GitHub](https://github.com/ryoppippi/ccusage/issues)
+4. Report issues on [GitHub](https://github.com/ccusage/ccusage/issues)
 
 ## Next Steps
 

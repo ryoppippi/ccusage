@@ -29,7 +29,7 @@ npx ccusage@latest
 ```
 
 ```bash [pkg.pr.new preview]
-bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
+bunx -p https://pkg.pr.new/ccusage/ccusage@<pr-number> ccusage --offline
 ```
 
 :::
@@ -86,7 +86,7 @@ For development or contributing to ccusage:
 
 ```bash
 # Clone the repository
-git clone https://github.com/ryoppippi/ccusage.git
+git clone https://github.com/ccusage/ccusage.git
 cd ccusage
 
 # Allow direnv to load the Nix dev shell

@@ -57,5 +57,5 @@ Ensure the data directory exists at `~/.local/share/kilo/` and contains `kilo.db
 :::
 
 ::: details Costs showing as $0.00
-If Kilo did not record a cost and the model is not in LiteLLM's database, the cost will be $0.00. [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
+If Kilo did not record a cost and the model is not in LiteLLM's database, the cost will be $0.00. [Open an issue](https://github.com/ccusage/ccusage/issues/new) to request alias support.
 :::
