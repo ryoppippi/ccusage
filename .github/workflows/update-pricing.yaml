@@ -44,8 +44,7 @@ jobs:
             echo "Pricing snapshot is already up to date."
             exit 0
           fi
-          nix develop .#ci --command just install
-          nix develop .#ci --command just check
+          nix develop --command just check
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,7 +93,7 @@ jobs:
           nix flake update models-dev
       - name: Regenerate committed models.dev pricing snapshot
         run: |
-          nix develop .#ci --command just gen-models-dev-pricing
+          nix develop --command just gen-models-dev-pricing
       - name: Skip lock-only models.dev updates
         run: |
           # Only the compacted snapshot affects the build; if a models.dev bump
@@ -109,8 +108,7 @@ jobs:
             echo "Pricing snapshot is already up to date."
             exit 0
           fi
-          nix develop .#ci --command just install
-          nix develop .#ci --command just check
+          nix develop --command just check
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}

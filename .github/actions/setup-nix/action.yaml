@@ -1,9 +1,5 @@
 name: Setup Nix
 description: Install Nix with platform-specific cache setup
-inputs:
-  warm-dev-shell:
-    description: Whether to instantiate the CI dev shell during setup
-    default: 'false'
 runs:
   using: composite
   steps:
@@ -29,8 +25,3 @@ runs:
             sudo chown -R "$USER:$(id -gn)" "$path"
           fi
         done
-
-    - name: Load Nix CI development environment
-      if: inputs.warm-dev-shell == 'true'
-      shell: bash
-      run: nix develop .#ci --command true
