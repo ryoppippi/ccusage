@@ -35,7 +35,10 @@ let
       libiconv
     ];
   };
-  cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+  depsOnlyArgs = builtins.removeAttrs commonArgs [ "CCUSAGE_PRICING_JSON_PATH" ] // {
+    version = "0.0.0";
+  };
+  cargoArtifacts = craneLib.buildDepsOnly depsOnlyArgs;
 in
 craneLib.buildPackage (
   commonArgs
@@ -45,6 +48,7 @@ craneLib.buildPackage (
       inherit
         cargoArtifacts
         commonArgs
+        depsOnlyArgs
         version
         ;
     };
