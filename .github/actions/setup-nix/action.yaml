@@ -61,28 +61,24 @@ runs:
         key: ${{ github.repository }}-node-modules-pnpm-${{ steps.pnpm.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
         path: ./node_modules
 
-    - name: Prepare macOS Nix cache path
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        sudo mkdir -p /nix
-        sudo chown "$USER:$(id -gn)" /nix
-
-    - name: Cache macOS Nix store
-      if: runner.os == 'macOS'
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-      with:
-        path: /nix
-        key: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'dev/flake.lock') }}
-        restore-keys: |
-          ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}-
-
     - name: Install Nix
       uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
       with:
         github_access_token: ${{ github.token }}
         nix_conf: |
           access-tokens = github.com=${{ github.token }}
+
+    - name: Cache macOS Nix store
+      if: runner.os == 'macOS'
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'dev/flake.lock', 'dev/flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+        gc-max-store-size-linux: 3500000000
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
+        purge-created: 172800
+        purge-primary-key: never
 
     - name: Fix single-user Nix store ownership
       if: runner.os != 'Windows'
