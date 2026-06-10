@@ -41,6 +41,7 @@ in
             ];
             buildInputs = [ ];
           };
+          # Share the same deps-only cache key, then add static target settings.
           staticDepsOnlyArgs = config.packages.ccusage.passthru.depsOnlyArgs // {
             cargoExtraArgs = "-p ccusage --bin ccusage --target ${linuxStaticTarget}";
             nativeBuildInputs = with staticPkgs; [
