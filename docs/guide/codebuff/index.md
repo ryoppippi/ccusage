@@ -82,5 +82,5 @@ Ensure the data directory contains `projects/<project>/chats/<chat-id>/chat-mess
 :::
 
 ::: details Costs showing as $0.00
-If a model is not in LiteLLM's database, the cost will be $0.00. Costs can also be $0.00 in offline mode when pricing data is unavailable. [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
+If a model is not in LiteLLM's database, the cost will be $0.00. Costs can also be $0.00 in offline mode when pricing data is unavailable. [Open an issue](https://github.com/ccusage/ccusage/issues/new) to request alias support.
 :::

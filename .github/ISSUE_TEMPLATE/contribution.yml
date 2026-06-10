@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Before you start:** Read [CONTRIBUTING.md](https://github.com/ryoppippi/ccusage/blob/main/CONTRIBUTING.md).
+        **Before you start:** Read [CONTRIBUTING.md](https://github.com/ccusage/ccusage/blob/main/CONTRIBUTING.md).
 
         PRs from new contributors are auto-closed unless the contributor has already been approved with `lgtm`.
 

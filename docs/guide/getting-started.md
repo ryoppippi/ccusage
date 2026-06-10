@@ -18,7 +18,7 @@ bunx ccusage
 ```
 
 ```bash [Nix]
-nix run github:ryoppippi/ccusage -- daily
+nix run github:ccusage/ccusage -- daily
 ```
 
 ```bash [npx]
@@ -30,7 +30,7 @@ pnpm dlx ccusage
 ```
 
 ```bash [pkg.pr.new preview]
-bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
+bunx -p https://pkg.pr.new/ccusage/ccusage@<pr-number> ccusage --offline
 ```
 
 :::
@@ -218,5 +218,5 @@ export QWEN_DATA_DIR="/path/to/qwen,/archive/qwen"
 ## Getting Help
 
 - Use `ccusage --help` for command options
-- Visit our [GitHub repository](https://github.com/ryoppippi/ccusage) for issues
+- Visit our [GitHub repository](https://github.com/ccusage/ccusage) for issues
 - Use [JSON Output](/guide/json-output) for programmatic usage
