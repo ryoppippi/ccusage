@@ -5,9 +5,10 @@
  * reuse its own `generateCatalog` routine (the same code that backs
  * https://models.dev/api.json) and then compact the result down to the
  * Anthropic-relevant models and the few pricing fields ccusage consumes. The
- * output is committed to the repository and embedded at build time, so every
- * platform ships the identical, pinned data without any build-time network
- * access. Run via `just gen-models-dev-pricing` (see `nix/models-dev-pricing.nix`).
+ * embedded output is a flat map keyed by runtime model id. The output is
+ * committed to the repository and embedded at build time, so every platform
+ * ships the identical, pinned data without any build-time network access. Run
+ * via `just gen-models-dev-pricing` (see `nix/models-dev-pricing.nix`).
  */
 import { generateCatalog } from './packages/core/src/generate.ts';
 
@@ -22,14 +23,17 @@ type Cost = {
 };
 type Model = { id?: string; cost?: Cost; limit?: { context?: number | null } };
 type Provider = { models?: Record<string, Model> };
+type EmbeddedModel = {
+	cost: Cost;
+	limit?: { context: number };
+};
 
 const { providers } = (await generateCatalog('.')) as {
 	providers: Record<string, Provider>;
 };
 
-const out: Record<string, { models: Record<string, unknown> }> = {};
-for (const [providerId, provider] of Object.entries(providers)) {
-	const models: Record<string, unknown> = {};
+const out: Record<string, EmbeddedModel> = {};
+for (const provider of Object.values(providers)) {
 	for (const [modelId, model] of Object.entries(provider.models ?? {})) {
 		// models.dev also exposes the canonical id under `id`; match either so
 		// provider-prefixed aliases (e.g. us.anthropic.*) are kept too.
@@ -41,23 +45,22 @@ for (const [providerId, provider] of Object.entries(providers)) {
 		if (cost.input == null || cost.output == null) {
 			continue;
 		}
-		const entry: Record<string, unknown> = {};
-		if (model.id != null) {
-			entry.id = model.id;
+		const pricingKey = model.id ?? modelId;
+		if (out[pricingKey] != null) {
+			continue;
 		}
-		entry.cost = {
-			input: cost.input,
-			output: cost.output,
-			...(cost.cache_read != null ? { cache_read: cost.cache_read } : {}),
-			...(cost.cache_write != null ? { cache_write: cost.cache_write } : {}),
+		const entry: EmbeddedModel = {
+			cost: {
+				input: cost.input,
+				output: cost.output,
+				...(cost.cache_read != null ? { cache_read: cost.cache_read } : {}),
+				...(cost.cache_write != null ? { cache_write: cost.cache_write } : {}),
+			},
 		};
 		if (model.limit?.context != null) {
 			entry.limit = { context: model.limit.context };
 		}
-		models[modelId] = entry;
-	}
-	if (Object.keys(models).length > 0) {
-		out[providerId] = { models };
+		out[pricingKey] = entry;
 	}
 }
 

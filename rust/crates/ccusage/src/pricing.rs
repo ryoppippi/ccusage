@@ -87,6 +87,13 @@ struct ModelsDevProvider {
     models: FxHashMap<String, ModelsDevModel>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ModelsDevJson {
+    Providers(FxHashMap<String, ModelsDevProvider>),
+    Models(FxHashMap<String, ModelsDevModel>),
+}
+
 struct ModelsDevPricingCache {
     pricing: OnceLock<PricingMap>,
     last_failure: Mutex<Option<Instant>>,
@@ -281,56 +288,64 @@ impl PricingMap {
     }
 
     fn load_models_dev_json_missing(&mut self, json: &str) -> Option<usize> {
-        let Ok(raw) = serde_json::from_str::<FxHashMap<String, ModelsDevProvider>>(json) else {
+        let Ok(raw) = serde_json::from_str::<ModelsDevJson>(json) else {
             return None;
         };
+        Some(match raw {
+            ModelsDevJson::Providers(providers) => providers
+                .into_values()
+                .map(|provider| self.load_models_dev_models(provider.models))
+                .sum(),
+            ModelsDevJson::Models(models) => self.load_models_dev_models(models),
+        })
+    }
+
+    fn load_models_dev_models(&mut self, models: FxHashMap<String, ModelsDevModel>) -> usize {
         let mut loaded_count = 0;
-        for provider in raw.into_values() {
-            for (model_key, model) in provider.models {
-                let model_id = model.id.unwrap_or(model_key);
-                if self.entries.contains_key(&model_id) {
-                    continue;
-                }
-                let Some(cost) = model.cost else {
-                    continue;
-                };
-                let Some(input) = cost.input else {
-                    continue;
-                };
-                let Some(output) = cost.output else {
-                    continue;
-                };
-                let input = input / 1_000_000.0;
-                let output = output / 1_000_000.0;
-                let cache_read_explicit = cost.cache_read.is_some();
-                self.entries.insert(
-                    model_id.clone(),
-                    Pricing {
-                        input,
-                        output,
-                        cache_create: cost
-                            .cache_write
-                            .map(|value| value / 1_000_000.0)
-                            .unwrap_or(input * 1.25),
-                        cache_read: cost
-                            .cache_read
-                            .map(|value| value / 1_000_000.0)
-                            .unwrap_or(input * 0.1),
-                        cache_read_explicit,
-                        input_above_200k: None,
-                        output_above_200k: None,
-                        cache_create_above_200k: None,
-                        cache_read_above_200k: None,
-                        fast_multiplier: 1.0,
-                    },
-                );
-                if let Some(context_limit) = model.limit.and_then(|limit| limit.context) {
-                    self.context_limits.insert(model_id, context_limit);
-                }
-                loaded_count += 1;
+        for (model_key, model) in models {
+            let model_id = model.id.unwrap_or(model_key);
+            if self.entries.contains_key(&model_id) {
+                continue;
             }
+            let Some(cost) = model.cost else {
+                continue;
+            };
+            let Some(input) = cost.input else {
+                continue;
+            };
+            let Some(output) = cost.output else {
+                continue;
+            };
+            let input = input / 1_000_000.0;
+            let output = output / 1_000_000.0;
+            let cache_read_explicit = cost.cache_read.is_some();
+            self.entries.insert(
+                model_id.clone(),
+                Pricing {
+                    input,
+                    output,
+                    cache_create: cost
+                        .cache_write
+                        .map(|value| value / 1_000_000.0)
+                        .unwrap_or(input * 1.25),
+                    cache_read: cost
+                        .cache_read
+                        .map(|value| value / 1_000_000.0)
+                        .unwrap_or(input * 0.1),
+                    cache_read_explicit,
+                    input_above_200k: None,
+                    output_above_200k: None,
+                    cache_create_above_200k: None,
+                    cache_read_above_200k: None,
+                    fast_multiplier: 1.0,
+                },
+            );
+            if let Some(context_limit) = model.limit.and_then(|limit| limit.context) {
+                self.context_limits.insert(model_id, context_limit);
+            }
+            loaded_count += 1;
         }
-        Some(loaded_count)
+        loaded_count
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
@@ -1466,6 +1481,36 @@ mod tests {
         assert_eq!(pricing.context_limit("gpt-fallback"), Some(456));
         assert!((alias.input - 4e-6).abs() < f64::EPSILON);
         assert_eq!(pricing.context_limits.get("gpt-alias"), Some(&654));
+    }
+
+    #[test]
+    fn loads_flat_models_dev_pricing_snapshot() {
+        let mut pricing = PricingMap::default();
+        let models_dev_json = r#"{
+                "claude-fallback": {
+                    "cost": {
+                        "input": 3.0,
+                        "output": 15.0,
+                        "cache_read": 0.3,
+                        "cache_write": 3.75
+                    },
+                    "limit": {
+                        "context": 200000
+                    }
+                }
+            }"#;
+
+        assert_eq!(
+            pricing.load_models_dev_json_missing(models_dev_json),
+            Some(1)
+        );
+
+        let fallback = pricing.find("claude-fallback").unwrap();
+        assert!((fallback.input - 3e-6).abs() < f64::EPSILON);
+        assert!((fallback.output - 15e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_create - 3.75e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_read - 0.3e-6).abs() < f64::EPSILON);
+        assert_eq!(pricing.context_limit("claude-fallback"), Some(200000));
     }
 
     #[test]

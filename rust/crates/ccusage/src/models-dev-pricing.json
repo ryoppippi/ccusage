@@ -1,5195 +1,2394 @@
 {
-	"302ai": {
-		"models": {
-			"claude-3-5-haiku-20241022": {
-				"cost": {
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku-20241022",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-5-haiku-latest": {
-				"cost": {
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku-latest",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5": {
-				"cost": {
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-20250805": {
-				"cost": {
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-20250805-thinking": {
-				"cost": {
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1-20250805-thinking",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-20250514": {
-				"cost": {
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101-thinking": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5-20251101-thinking",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-6-thinking": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6-thinking",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-20250514": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929-thinking": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5-20250929-thinking",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-6-thinking": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6-thinking",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"Gemma-4-31B-Claude-4.6-Opus-Reasoning-Distilled": {
+		"cost": {
+			"cache_read": 0.0306,
+			"input": 0.306,
+			"output": 0.306
+		},
+		"limit": {
+			"context": 262144
 		}
 	},
-	"abacus": {
-		"models": {
-			"claude-3-7-sonnet-20250219": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-7-sonnet-20250219",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-20250805": {
-				"cost": {
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-20250514": {
-				"cost": {
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-20250514": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic--claude-3-haiku": {
+		"cost": {
+			"cache_read": 0.03,
+			"cache_write": 0.3,
+			"input": 0.25,
+			"output": 1.25
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"aihubmix": {
-		"models": {
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-6-think": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6-think",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7-think": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7-think",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-6-think": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6-think",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-3-opus": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"amazon-bedrock": {
-		"models": {
-			"anthropic.claude-haiku-4-5-20251001-v1:0": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic.claude-haiku-4-5-20251001-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic.claude-opus-4-1-20250805-v1:0": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic.claude-opus-4-1-20250805-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic.claude-opus-4-5-20251101-v1:0": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic.claude-opus-4-5-20251101-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic.claude-opus-4-6-v1": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic.claude-opus-4-6-v1",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic.claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic.claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic.claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic.claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic.claude-sonnet-4-5-20250929-v1:0": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic.claude-sonnet-4-5-20250929-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic.claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic.claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"au.anthropic.claude-haiku-4-5-20251001-v1:0": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "au.anthropic.claude-haiku-4-5-20251001-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"au.anthropic.claude-opus-4-6-v1": {
-				"cost": {
-					"cache_read": 1.65,
-					"cache_write": 20.625,
-					"input": 16.5,
-					"output": 82.5
-				},
-				"id": "au.anthropic.claude-opus-4-6-v1",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"au.anthropic.claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "au.anthropic.claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"au.anthropic.claude-sonnet-4-5-20250929-v1:0": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "au.anthropic.claude-sonnet-4-5-20250929-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"au.anthropic.claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.33,
-					"cache_write": 4.125,
-					"input": 3.3,
-					"output": 16.5
-				},
-				"id": "au.anthropic.claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"eu.anthropic.claude-fable-5": {
-				"cost": {
-					"cache_read": 1.1,
-					"cache_write": 13.75,
-					"input": 11,
-					"output": 55
-				},
-				"id": "eu.anthropic.claude-fable-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"eu.anthropic.claude-haiku-4-5-20251001-v1:0": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"eu.anthropic.claude-opus-4-5-20251101-v1:0": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "eu.anthropic.claude-opus-4-5-20251101-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"eu.anthropic.claude-opus-4-6-v1": {
-				"cost": {
-					"cache_read": 0.55,
-					"cache_write": 6.875,
-					"input": 5.5,
-					"output": 27.5
-				},
-				"id": "eu.anthropic.claude-opus-4-6-v1",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"eu.anthropic.claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.55,
-					"cache_write": 6.875,
-					"input": 5.5,
-					"output": 27.5
-				},
-				"id": "eu.anthropic.claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"eu.anthropic.claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.55,
-					"cache_write": 6.875,
-					"input": 5.5,
-					"output": 27.5
-				},
-				"id": "eu.anthropic.claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"eu.anthropic.claude-sonnet-4-5-20250929-v1:0": {
-				"cost": {
-					"cache_read": 0.33,
-					"cache_write": 4.125,
-					"input": 3.3,
-					"output": 16.5
-				},
-				"id": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"eu.anthropic.claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.33,
-					"cache_write": 4.125,
-					"input": 3.3,
-					"output": 16.5
-				},
-				"id": "eu.anthropic.claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"global.anthropic.claude-fable-5": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 12.5,
-					"input": 10,
-					"output": 50
-				},
-				"id": "global.anthropic.claude-fable-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"global.anthropic.claude-haiku-4-5-20251001-v1:0": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"global.anthropic.claude-opus-4-5-20251101-v1:0": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "global.anthropic.claude-opus-4-5-20251101-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"global.anthropic.claude-opus-4-6-v1": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "global.anthropic.claude-opus-4-6-v1",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"global.anthropic.claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "global.anthropic.claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"global.anthropic.claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "global.anthropic.claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"global.anthropic.claude-sonnet-4-5-20250929-v1:0": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"global.anthropic.claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "global.anthropic.claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"jp.anthropic.claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "jp.anthropic.claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"jp.anthropic.claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "jp.anthropic.claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"jp.anthropic.claude-sonnet-4-5-20250929-v1:0": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "jp.anthropic.claude-sonnet-4-5-20250929-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"jp.anthropic.claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "jp.anthropic.claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"us.anthropic.claude-fable-5": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 12.5,
-					"input": 10,
-					"output": 50
-				},
-				"id": "us.anthropic.claude-fable-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"us.anthropic.claude-haiku-4-5-20251001-v1:0": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"us.anthropic.claude-opus-4-1-20250805-v1:0": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "us.anthropic.claude-opus-4-1-20250805-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"us.anthropic.claude-opus-4-5-20251101-v1:0": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "us.anthropic.claude-opus-4-5-20251101-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"us.anthropic.claude-opus-4-6-v1": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "us.anthropic.claude-opus-4-6-v1",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"us.anthropic.claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "us.anthropic.claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"us.anthropic.claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "us.anthropic.claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"us.anthropic.claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "us.anthropic.claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-3-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"anthropic": {
-		"models": {
-			"claude-3-5-haiku-20241022": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku-20241022",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-5-haiku-latest": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku-latest",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-5-sonnet-20240620": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-5-sonnet-20240620",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-5-sonnet-20241022": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-5-sonnet-20241022",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-7-sonnet-20250219": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-7-sonnet-20250219",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-haiku-20240307": {
-				"cost": {
-					"cache_read": 0.03,
-					"cache_write": 0.3,
-					"input": 0.25,
-					"output": 1.25
-				},
-				"id": "claude-3-haiku-20240307",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-opus-20240229": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-3-opus-20240229",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-sonnet-20240229": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 0.3,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-sonnet-20240229",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-fable-5": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 12.5,
-					"input": 10,
-					"output": 50
-				},
-				"id": "claude-fable-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-0": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-20250805": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-20250514": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-0": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-0",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-20250514": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-3.5-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"auriko": {
-		"models": {
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-3.7-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"azure": {
-		"models": {
-			"claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-4-opus": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"azure-cognitive-services": {
-		"models": {
-			"claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic--claude-4-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"cloudflare-ai-gateway": {
-		"models": {
-			"anthropic/claude-3-5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "anthropic/claude-3-5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3-haiku": {
-				"cost": {
-					"cache_read": 0.03,
-					"cache_write": 0.3,
-					"input": 0.25,
-					"output": 1.25
-				},
-				"id": "anthropic/claude-3-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3-opus": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-3-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 0.3,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-3-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3.5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "anthropic/claude-3.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3.5-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-3.5-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-fable-5": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 12.5,
-					"input": 10,
-					"output": 50
-				},
-				"id": "anthropic/claude-fable-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-4.5-haiku": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"cortecs": {
-		"models": {
-			"claude-4-5-sonnet": {
-				"cost": {
-					"input": 3.259,
-					"output": 16.296
-				},
-				"id": "claude-4-5-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-4-6-sonnet": {
-				"cost": {
-					"input": 3.59,
-					"output": 17.92
-				},
-				"id": "claude-4-6-sonnet",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-haiku-4-5": {
-				"cost": {
-					"input": 1.09,
-					"output": 5.43
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus4-5": {
-				"cost": {
-					"input": 5.98,
-					"output": 29.89
-				},
-				"id": "claude-opus4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus4-6": {
-				"cost": {
-					"input": 5.98,
-					"output": 29.89
-				},
-				"id": "claude-opus4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus4-7": {
-				"cost": {
-					"cache_read": 0.56,
-					"cache_write": 6.99,
-					"input": 5.6,
-					"output": 27.99
-				},
-				"id": "claude-opus4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4": {
-				"cost": {
-					"input": 3.307,
-					"output": 16.536
-				},
-				"id": "claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic--claude-4.5-opus": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"databricks": {
-		"models": {
-			"databricks-claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "databricks-claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"databricks-claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "databricks-claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"databricks-claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "databricks-claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"databricks-claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "databricks-claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"databricks-claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "databricks-claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"databricks-claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "databricks-claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"databricks-claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "databricks-claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"databricks-claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "databricks-claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-4.5-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"digitalocean": {
-		"models": {
-			"anthropic-claude-3-opus": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic-claude-3-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-3.5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "anthropic-claude-3.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-3.5-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic-claude-3.5-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-3.7-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic-claude-3.7-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-4.1-opus": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic-claude-4.1-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-4.5-haiku": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic-claude-4.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-4.5-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic-claude-4.5-sonnet",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic-claude-4.6-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic-claude-4.6-sonnet",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic-claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic-claude-haiku-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic-claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic-claude-opus-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic-claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic-claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic-claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic-claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic-claude-opus-4.8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic-claude-opus-4.8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic-claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic-claude-sonnet-4",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-4.6-opus": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"fastrouter": {
-		"models": {
-			"anthropic/claude-opus-4.1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4.1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic--claude-4.6-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"freemodel": {
-		"models": {
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic--claude-4.7-opus": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"frogbot": {
-		"models": {
-			"claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic-claude-3-opus": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"github-copilot": {
-		"models": {
-			"claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4.6",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4.7",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4.8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4.8",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4",
-				"limit": {
-					"context": 216000
-				}
-			},
-			"claude-sonnet-4.5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4.6",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic-claude-3.5-haiku": {
+		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
+			"input": 0.8,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"gmicloud": {
-		"models": {
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 409600
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.45,
-					"input": 4.5,
-					"output": 22.5
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 409600
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.3,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 409600
-				}
-			}
+	"anthropic-claude-3.5-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"google-vertex": {
-		"models": {
-			"claude-3-5-haiku@20241022": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku@20241022",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5@20251001": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5@20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1@20250805": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1@20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5@20251101": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5@20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6@default": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7@default": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8@default": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-8@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4@20250514": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4@20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5@20250929": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5@20250929",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6@default": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4@20250514": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4@20250514",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic-claude-3.7-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"google-vertex-anthropic": {
-		"models": {
-			"claude-3-5-haiku@20241022": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku@20241022",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5@20251001": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5@20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1@20250805": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1@20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5@20251101": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5@20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6@default": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7@default": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8@default": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-8@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4@20250514": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4@20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5@20250929": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5@20250929",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6@default": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6@default",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4@20250514": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4@20250514",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic-claude-4.1-opus": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"helicone": {
-		"models": {
-			"claude-3-haiku-20240307": {
-				"cost": {
-					"cache_read": 0.03,
-					"cache_write": 0.3,
-					"input": 0.25,
-					"output": 1.25
-				},
-				"id": "claude-3-haiku-20240307",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3.5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.7999999999999999,
-					"output": 4
-				},
-				"id": "claude-3.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3.5-sonnet-v2": {
-				"cost": {
-					"cache_read": 0.30000000000000004,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3.5-sonnet-v2",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3.7-sonnet": {
-				"cost": {
-					"cache_read": 0.30000000000000004,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3.7-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-4.5-haiku": {
-				"cost": {
-					"cache_read": 0.09999999999999999,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-4.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-4.5-opus": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-4.5-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-4.5-sonnet": {
-				"cost": {
-					"cache_read": 0.30000000000000004,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-4.5-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"cache_read": 0.09999999999999999,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-20250805": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.30000000000000004,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"cache_read": 0.30000000000000004,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic-claude-4.5-haiku": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"jiekou": {
-		"models": {
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"input": 0.9,
-					"output": 4.5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 20000
-				}
-			},
-			"claude-opus-4-1-20250805": {
-				"cost": {
-					"input": 13.5,
-					"output": 67.5
-				},
-				"id": "claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-20250514": {
-				"cost": {
-					"input": 13.5,
-					"output": 67.5
-				},
-				"id": "claude-opus-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101": {
-				"cost": {
-					"input": 4.5,
-					"output": 22.5
-				},
-				"id": "claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-20250514": {
-				"cost": {
-					"input": 2.7,
-					"output": 13.5
-				},
-				"id": "claude-sonnet-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"input": 2.7,
-					"output": 13.5
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic-claude-4.5-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"kilo": {
-		"models": {
-			"anthropic/claude-3-haiku": {
-				"cost": {
-					"cache_read": 0.03,
-					"cache_write": 0.3,
-					"input": 0.25,
-					"output": 1.25
-				},
-				"id": "anthropic/claude-3-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3.5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "anthropic/claude-3.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4.1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.6-fast": {
-				"cost": {
-					"cache_read": 3,
-					"cache_write": 37.5,
-					"input": 30,
-					"output": 150
-				},
-				"id": "anthropic/claude-opus-4.6-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7-fast": {
-				"cost": {
-					"cache_read": 3,
-					"cache_write": 37.5,
-					"input": 30,
-					"output": 150
-				},
-				"id": "anthropic/claude-opus-4.7-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4.5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"stealth/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.4,
-					"cache_write": 5,
-					"input": 4,
-					"output": 20
-				},
-				"id": "stealth/claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"stealth/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.4,
-					"cache_write": 5,
-					"input": 4,
-					"output": 20
-				},
-				"id": "stealth/claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"stealth/claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.24,
-					"cache_write": 3,
-					"input": 2.4,
-					"output": 12
-				},
-				"id": "stealth/claude-sonnet-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"~anthropic/claude-haiku-latest": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "~anthropic/claude-haiku-latest",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"~anthropic/claude-opus-latest": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "~anthropic/claude-opus-latest",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"~anthropic/claude-sonnet-latest": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "~anthropic/claude-sonnet-latest",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic-claude-4.6-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"llmgateway": {
-		"models": {
-			"claude-3-5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-5-sonnet-20241022": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-5-sonnet-20241022",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-7-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-7-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-7-sonnet-20250219": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-3-7-sonnet-20250219",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-3-opus": {
-				"cost": {
-					"cache_read": 1.5,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-3-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-20250805": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-20250514": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-20250514": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic-claude-haiku-4.5": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"merge-gateway": {
-		"models": {
-			"anthropic/claude-haiku-4-5-20251001": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-1-20250805": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-20250514": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-5-20251101": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4-20250514": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4-5-20250929": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic-claude-opus-4": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"nano-gpt": {
-		"models": {
-			"Gemma-4-31B-Claude-4.6-Opus-Reasoning-Distilled": {
-				"cost": {
-					"cache_read": 0.0306,
-					"input": 0.306,
-					"output": 0.306
-				},
-				"id": "Gemma-4-31B-Claude-4.6-Opus-Reasoning-Distilled",
-				"limit": {
-					"context": 262144
-				}
-			},
-			"anthropic/claude-haiku-latest": {
-				"cost": {
-					"cache_read": 0.1,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-latest",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.6:thinking": {
-				"cost": {
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.6:thinking",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.6:thinking:low": {
-				"cost": {
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.6:thinking:low",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.6:thinking:max": {
-				"cost": {
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.6:thinking:max",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.6:thinking:medium": {
-				"cost": {
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.6:thinking:medium",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.4998,
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7:thinking": {
-				"cost": {
-					"cache_read": 0.4998,
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.7:thinking",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.8": {
-				"cost": {
-					"cache_read": 0.4998,
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.8:thinking": {
-				"cost": {
-					"cache_read": 0.4998,
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-4.8:thinking",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-latest": {
-				"cost": {
-					"cache_read": 0.4998,
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "anthropic/claude-opus-latest",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.993999999999998
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4.6:thinking": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.993999999999998
-				},
-				"id": "anthropic/claude-sonnet-4.6:thinking",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-latest": {
-				"cost": {
-					"cache_read": 0.2992,
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "anthropic/claude-sonnet-latest",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-3-5-haiku-20241022": {
-				"cost": {
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku-20241022",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-haiku-4-5-20251001-thinking": {
-				"cost": {
-					"cache_read": 0.1,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5-20251001-thinking",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-20250805": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-1-20250805",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-thinking": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-1-thinking",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-thinking:1024": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-1-thinking:1024",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-thinking:32000": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-1-thinking:32000",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-thinking:32768": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-1-thinking:32768",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1-thinking:8192": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-1-thinking:8192",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-20250514": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101": {
-				"cost": {
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101:thinking": {
-				"cost": {
-					"input": 4.998,
-					"output": 25.007
-				},
-				"id": "claude-opus-4-5-20251101:thinking",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-thinking": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-thinking",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-thinking:1024": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-thinking:1024",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-thinking:32000": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-thinking:32000",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-thinking:32768": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-thinking:32768",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-thinking:8192": {
-				"cost": {
-					"input": 14.994,
-					"output": 75.004
-				},
-				"id": "claude-opus-4-thinking:8192",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-20250514": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-20250514",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-5-20250929-thinking": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-5-20250929-thinking",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-thinking": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-thinking",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-thinking:1024": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-thinking:1024",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-thinking:32768": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-thinking:32768",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-thinking:64000": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-thinking:64000",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-thinking:8192": {
-				"cost": {
-					"input": 2.992,
-					"output": 14.994
-				},
-				"id": "claude-sonnet-4-thinking:8192",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"deepclaude": {
-				"cost": {
-					"input": 3,
-					"output": 15
-				},
-				"id": "deepclaude",
-				"limit": {
-					"context": 128000
-				}
-			}
+	"anthropic-claude-opus-4.5": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"nearai": {
-		"models": {
-			"anthropic/claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-6",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15.5
-				},
-				"id": "anthropic/claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic-claude-opus-4.6": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"opencode": {
-		"models": {
-			"claude-3-5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "claude-3-5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-fable-5": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 12.5,
-					"input": 10,
-					"output": 50
-				},
-				"id": "claude-fable-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic-claude-opus-4.7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"openrouter": {
-		"models": {
-			"anthropic/claude-3-haiku": {
-				"cost": {
-					"cache_read": 0.03,
-					"cache_write": 0.3,
-					"input": 0.25,
-					"output": 1.25
-				},
-				"id": "anthropic/claude-3-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3.5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "anthropic/claude-3.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4.1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.6-fast": {
-				"cost": {
-					"cache_read": 3,
-					"cache_write": 37.5,
-					"input": 30,
-					"output": 150
-				},
-				"id": "anthropic/claude-opus-4.6-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7-fast": {
-				"cost": {
-					"cache_read": 3,
-					"cache_write": 37.5,
-					"input": 30,
-					"output": 150
-				},
-				"id": "anthropic/claude-opus-4.7-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.8-fast": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 12.5,
-					"input": 10,
-					"output": 50
-				},
-				"id": "anthropic/claude-opus-4.8-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4.5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"~anthropic/claude-haiku-latest": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "~anthropic/claude-haiku-latest",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"~anthropic/claude-opus-latest": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "~anthropic/claude-opus-latest",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"~anthropic/claude-sonnet-latest": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "~anthropic/claude-sonnet-latest",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic-claude-opus-4.8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"orcarouter": {
-		"models": {
-			"anthropic/claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4.1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4.5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic-claude-sonnet-4": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"perplexity-agent": {
-		"models": {
-			"anthropic/claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-6",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.5,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-6",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic.claude-haiku-4-5-20251001-v1:0": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"poe": {
-		"models": {
-			"anthropic/claude-haiku-3": {
-				"cost": {
-					"cache_read": 0.021,
-					"cache_write": 0.26,
-					"input": 0.21,
-					"output": 1.1
-				},
-				"id": "anthropic/claude-haiku-3",
-				"limit": {
-					"context": 189096
-				}
-			},
-			"anthropic/claude-haiku-3.5": {
-				"cost": {
-					"cache_read": 0.068,
-					"cache_write": 0.85,
-					"input": 0.68,
-					"output": 3.4
-				},
-				"id": "anthropic/claude-haiku-3.5",
-				"limit": {
-					"context": 189096
-				}
-			},
-			"anthropic/claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 0.085,
-					"cache_write": 1.1,
-					"input": 0.85,
-					"output": 4.3
-				},
-				"id": "anthropic/claude-haiku-4.5",
-				"limit": {
-					"context": 192000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.3,
-					"cache_write": 16,
-					"input": 13,
-					"output": 64
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 192512
-				}
-			},
-			"anthropic/claude-opus-4.1": {
-				"cost": {
-					"cache_read": 1.3,
-					"cache_write": 16,
-					"input": 13,
-					"output": 64
-				},
-				"id": "anthropic/claude-opus-4.1",
-				"limit": {
-					"context": 196608
-				}
-			},
-			"anthropic/claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.43,
-					"cache_write": 5.3,
-					"input": 4.3,
-					"output": 21
-				},
-				"id": "anthropic/claude-opus-4.5",
-				"limit": {
-					"context": 196608
-				}
-			},
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.43,
-					"cache_write": 5.3,
-					"input": 4.3,
-					"output": 21
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 983040
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.43,
-					"cache_write": 5.4,
-					"input": 4.3,
-					"output": 21
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 1048576
-				}
-			},
-			"anthropic/claude-opus-4.8": {
-				"cost": {
-					"input": 4.2929,
-					"output": 21.4646
-				},
-				"id": "anthropic/claude-opus-4.8",
-				"limit": {
-					"context": 1048576
-				}
-			},
-			"anthropic/claude-sonnet-3.5": {
-				"cost": {
-					"cache_read": 0.26,
-					"cache_write": 3.2,
-					"input": 2.6,
-					"output": 13
-				},
-				"id": "anthropic/claude-sonnet-3.5",
-				"limit": {
-					"context": 189096
-				}
-			},
-			"anthropic/claude-sonnet-3.5-june": {
-				"cost": {
-					"cache_read": 0.26,
-					"cache_write": 3.2,
-					"input": 2.6,
-					"output": 13
-				},
-				"id": "anthropic/claude-sonnet-3.5-june",
-				"limit": {
-					"context": 189096
-				}
-			},
-			"anthropic/claude-sonnet-3.7": {
-				"cost": {
-					"cache_read": 0.26,
-					"cache_write": 3.2,
-					"input": 2.6,
-					"output": 13
-				},
-				"id": "anthropic/claude-sonnet-3.7",
-				"limit": {
-					"context": 196608
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.26,
-					"cache_write": 3.2,
-					"input": 2.6,
-					"output": 13
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 983040
-				}
-			},
-			"anthropic/claude-sonnet-4.5": {
-				"cost": {
-					"cache_read": 0.26,
-					"cache_write": 3.2,
-					"input": 2.6,
-					"output": 13
-				},
-				"id": "anthropic/claude-sonnet-4.5",
-				"limit": {
-					"context": 983040
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.26,
-					"cache_write": 3.2,
-					"input": 2.6,
-					"output": 13
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 983040
-				}
-			}
+	"anthropic.claude-opus-4-1-20250805-v1:0": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"qihang-ai": {
-		"models": {
-			"claude-haiku-4-5-20251001": {
-				"cost": {
-					"input": 0.14,
-					"output": 0.71
-				},
-				"id": "claude-haiku-4-5-20251001",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-opus-4-5-20251101": {
-				"cost": {
-					"input": 0.71,
-					"output": 3.57
-				},
-				"id": "claude-opus-4-5-20251101",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"claude-sonnet-4-5-20250929": {
-				"cost": {
-					"input": 0.43,
-					"output": 2.14
-				},
-				"id": "claude-sonnet-4-5-20250929",
-				"limit": {
-					"context": 200000
-				}
-			}
+	"anthropic.claude-opus-4-5-20251101-v1:0": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"requesty": {
-		"models": {
-			"anthropic/claude-3-7-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-3-7-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-haiku-4-5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4-1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic.claude-opus-4-6-v1": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"sap-ai-core": {
-		"models": {
-			"anthropic--claude-3-haiku": {
-				"cost": {
-					"cache_read": 0.03,
-					"cache_write": 0.3,
-					"input": 0.25,
-					"output": 1.25
-				},
-				"id": "anthropic--claude-3-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-3-opus": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic--claude-3-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-3-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic--claude-3-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-3.5-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic--claude-3.5-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-3.7-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic--claude-3.7-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-4-opus": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic--claude-4-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-4-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic--claude-4-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-4.5-haiku": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic--claude-4.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-4.5-opus": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic--claude-4.5-opus",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-4.5-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic--claude-4.5-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic--claude-4.6-opus": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic--claude-4.6-opus",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic--claude-4.6-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic--claude-4.6-sonnet",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic--claude-4.7-opus": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic--claude-4.7-opus",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic.claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"venice": {
-		"models": {
-			"claude-opus-4-5": {
-				"cost": {
-					"cache_read": 0.6,
-					"cache_write": 7.5,
-					"input": 6,
-					"output": 30
-				},
-				"id": "claude-opus-4-5",
-				"limit": {
-					"context": 198000
-				}
-			},
-			"claude-opus-4-6": {
-				"cost": {
-					"cache_read": 0.6,
-					"cache_write": 7.5,
-					"input": 6,
-					"output": 30
-				},
-				"id": "claude-opus-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-6-fast": {
-				"cost": {
-					"cache_read": 3.6,
-					"cache_write": 45,
-					"input": 36,
-					"output": 180
-				},
-				"id": "claude-opus-4-6-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7": {
-				"cost": {
-					"cache_read": 0.6,
-					"cache_write": 7.5,
-					"input": 6,
-					"output": 30
-				},
-				"id": "claude-opus-4-7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-7-fast": {
-				"cost": {
-					"cache_read": 3.6,
-					"cache_write": 45,
-					"input": 36,
-					"output": 180
-				},
-				"id": "claude-opus-4-7-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8": {
-				"cost": {
-					"cache_read": 0.6,
-					"cache_write": 7.5,
-					"input": 6,
-					"output": 30
-				},
-				"id": "claude-opus-4-8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-opus-4-8-fast": {
-				"cost": {
-					"cache_read": 1.2,
-					"cache_write": 15,
-					"input": 12,
-					"output": 60
-				},
-				"id": "claude-opus-4-8-fast",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"claude-sonnet-4-5": {
-				"cost": {
-					"cache_read": 0.375,
-					"cache_write": 4.69,
-					"input": 3.75,
-					"output": 18.75
-				},
-				"id": "claude-sonnet-4-5",
-				"limit": {
-					"context": 198000
-				}
-			},
-			"claude-sonnet-4-6": {
-				"cost": {
-					"cache_read": 0.36,
-					"cache_write": 4.5,
-					"input": 3.6,
-					"output": 18
-				},
-				"id": "claude-sonnet-4-6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic.claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
 		}
 	},
-	"vercel": {
-		"models": {
-			"anthropic/claude-3-haiku": {
-				"cost": {
-					"cache_read": 0.03,
-					"cache_write": 0.3,
-					"input": 0.25,
-					"output": 1.25
-				},
-				"id": "anthropic/claude-3-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3.5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "anthropic/claude-3.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-fable-5": {
-				"cost": {
-					"cache_read": 1,
-					"cache_write": 12.5,
-					"input": 10,
-					"output": 50
-				},
-				"id": "anthropic/claude-fable-5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4.1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4.5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic.claude-sonnet-4-5-20250929-v1:0": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
 		}
 	},
-	"zenmux": {
-		"models": {
-			"anthropic/claude-3.5-haiku": {
-				"cost": {
-					"cache_read": 0.08,
-					"cache_write": 1,
-					"input": 0.8,
-					"output": 4
-				},
-				"id": "anthropic/claude-3.5-haiku",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-3.7-sonnet": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-3.7-sonnet",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-haiku-4.5": {
-				"cost": {
-					"cache_read": 0.1,
-					"cache_write": 1.25,
-					"input": 1,
-					"output": 5
-				},
-				"id": "anthropic/claude-haiku-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.1": {
-				"cost": {
-					"cache_read": 1.5,
-					"cache_write": 18.75,
-					"input": 15,
-					"output": 75
-				},
-				"id": "anthropic/claude-opus-4.1",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.5": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.5",
-				"limit": {
-					"context": 200000
-				}
-			},
-			"anthropic/claude-opus-4.6": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.7": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.7",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-opus-4.8": {
-				"cost": {
-					"cache_read": 0.5,
-					"cache_write": 6.25,
-					"input": 5,
-					"output": 25
-				},
-				"id": "anthropic/claude-opus-4.8",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4.5": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.5",
-				"limit": {
-					"context": 1000000
-				}
-			},
-			"anthropic/claude-sonnet-4.6": {
-				"cost": {
-					"cache_read": 0.3,
-					"cache_write": 3.75,
-					"input": 3,
-					"output": 15
-				},
-				"id": "anthropic/claude-sonnet-4.6",
-				"limit": {
-					"context": 1000000
-				}
-			}
+	"anthropic.claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-3-5-haiku": {
+		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
+			"input": 0.8,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-3-7-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-3-haiku": {
+		"cost": {
+			"cache_read": 0.03,
+			"cache_write": 0.3,
+			"input": 0.25,
+			"output": 1.25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-3-opus": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-3-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 0.3,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-3.5-haiku": {
+		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
+			"input": 0.8,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-3.5-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-3.7-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-fable-5": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 12.5,
+			"input": 10,
+			"output": 50
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-haiku-3": {
+		"cost": {
+			"cache_read": 0.021,
+			"cache_write": 0.26,
+			"input": 0.21,
+			"output": 1.1
+		},
+		"limit": {
+			"context": 189096
+		}
+	},
+	"anthropic/claude-haiku-3.5": {
+		"cost": {
+			"cache_read": 0.068,
+			"cache_write": 0.85,
+			"input": 0.68,
+			"output": 3.4
+		},
+		"limit": {
+			"context": 189096
+		}
+	},
+	"anthropic/claude-haiku-4-5": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-haiku-4-5-20251001": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-haiku-4.5": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-haiku-latest": {
+		"cost": {
+			"cache_read": 0.1,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4-1": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4-1-20250805": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4-20250514": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4-5": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4-5-20251101": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4-6": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.1": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4.5": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-opus-4.6": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.6-fast": {
+		"cost": {
+			"cache_read": 3,
+			"cache_write": 37.5,
+			"input": 30,
+			"output": 150
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.6:thinking": {
+		"cost": {
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.6:thinking:low": {
+		"cost": {
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.6:thinking:max": {
+		"cost": {
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.6:thinking:medium": {
+		"cost": {
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.7-fast": {
+		"cost": {
+			"cache_read": 3,
+			"cache_write": 37.5,
+			"input": 30,
+			"output": 150
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.7:thinking": {
+		"cost": {
+			"cache_read": 0.4998,
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.8-fast": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 12.5,
+			"input": 10,
+			"output": 50
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-4.8:thinking": {
+		"cost": {
+			"cache_read": 0.4998,
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-opus-latest": {
+		"cost": {
+			"cache_read": 0.4998,
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-sonnet-3.5": {
+		"cost": {
+			"cache_read": 0.26,
+			"cache_write": 3.2,
+			"input": 2.6,
+			"output": 13
+		},
+		"limit": {
+			"context": 189096
+		}
+	},
+	"anthropic/claude-sonnet-3.5-june": {
+		"cost": {
+			"cache_read": 0.26,
+			"cache_write": 3.2,
+			"input": 2.6,
+			"output": 13
+		},
+		"limit": {
+			"context": 189096
+		}
+	},
+	"anthropic/claude-sonnet-3.7": {
+		"cost": {
+			"cache_read": 0.26,
+			"cache_write": 3.2,
+			"input": 2.6,
+			"output": 13
+		},
+		"limit": {
+			"context": 196608
+		}
+	},
+	"anthropic/claude-sonnet-4": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-sonnet-4-20250514": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-sonnet-4-5": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15.5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-sonnet-4-5-20250929": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"anthropic/claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-sonnet-4.5": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-sonnet-4.6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-sonnet-4.6:thinking": {
+		"cost": {
+			"input": 2.992,
+			"output": 14.993999999999998
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"anthropic/claude-sonnet-latest": {
+		"cost": {
+			"cache_read": 0.2992,
+			"input": 2.992,
+			"output": 14.994
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"au.anthropic.claude-haiku-4-5-20251001-v1:0": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"au.anthropic.claude-opus-4-6-v1": {
+		"cost": {
+			"cache_read": 1.65,
+			"cache_write": 20.625,
+			"input": 16.5,
+			"output": 82.5
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"au.anthropic.claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"au.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"au.anthropic.claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.33,
+			"cache_write": 4.125,
+			"input": 3.3,
+			"output": 16.5
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-3-5-haiku": {
+		"cost": {
+			"cache_read": 0.08,
+			"input": 0.8,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-5-haiku-20241022": {
+		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
+			"input": 0.8,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-5-haiku-latest": {
+		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
+			"input": 0.8,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-5-haiku@20241022": {
+		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
+			"input": 0.8,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-5-sonnet-20240620": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-5-sonnet-20241022": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-7-sonnet": {
+		"cost": {
+			"cache_read": 0.3,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-7-sonnet-20250219": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-haiku-20240307": {
+		"cost": {
+			"cache_read": 0.03,
+			"cache_write": 0.3,
+			"input": 0.25,
+			"output": 1.25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-opus": {
+		"cost": {
+			"cache_read": 1.5,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-opus-20240229": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3-sonnet-20240229": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 0.3,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3.5-haiku": {
+		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
+			"input": 0.7999999999999999,
+			"output": 4
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3.5-sonnet-v2": {
+		"cost": {
+			"cache_read": 0.30000000000000004,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-3.7-sonnet": {
+		"cost": {
+			"cache_read": 0.30000000000000004,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-4-5-sonnet": {
+		"cost": {
+			"input": 3.259,
+			"output": 16.296
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-4-6-sonnet": {
+		"cost": {
+			"input": 3.59,
+			"output": 17.92
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-4.5-haiku": {
+		"cost": {
+			"cache_read": 0.09999999999999999,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-4.5-opus": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-4.5-sonnet": {
+		"cost": {
+			"cache_read": 0.30000000000000004,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-fable-5": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 12.5,
+			"input": 10,
+			"output": 50
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-haiku-4-5": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-haiku-4-5-20251001": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-haiku-4-5-20251001-thinking": {
+		"cost": {
+			"cache_read": 0.1,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-haiku-4-5@20251001": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-haiku-4.5": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-0": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1-20250805": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1-20250805-thinking": {
+		"cost": {
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1-thinking": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1-thinking:1024": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1-thinking:32000": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1-thinking:32768": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1-thinking:8192": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-1@20250805": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-20250514": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-5": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-5-20251101": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-5-20251101-thinking": {
+		"cost": {
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-5-20251101:thinking": {
+		"cost": {
+			"input": 4.998,
+			"output": 25.007
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-5@20251101": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-6": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-6-fast": {
+		"cost": {
+			"cache_read": 3.6,
+			"cache_write": 45,
+			"input": 36,
+			"output": 180
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-6-think": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-6-thinking": {
+		"cost": {
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-6@default": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-7-fast": {
+		"cost": {
+			"cache_read": 3.6,
+			"cache_write": 45,
+			"input": 36,
+			"output": 180
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-7-think": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-7@default": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-8-fast": {
+		"cost": {
+			"cache_read": 1.2,
+			"cache_write": 15,
+			"input": 12,
+			"output": 60
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-8@default": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus-4-thinking": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-thinking:1024": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-thinking:32000": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-thinking:32768": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4-thinking:8192": {
+		"cost": {
+			"input": 14.994,
+			"output": 75.004
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4.5": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4.6": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4.7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4.8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus-4@20250514": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus4-5": {
+		"cost": {
+			"input": 5.98,
+			"output": 29.89
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-opus4-6": {
+		"cost": {
+			"input": 5.98,
+			"output": 29.89
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-opus4-7": {
+		"cost": {
+			"cache_read": 0.56,
+			"cache_write": 6.99,
+			"input": 5.6,
+			"output": 27.99
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-0": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4-20250514": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4-5": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4-5-20250929": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4-5-20250929-thinking": {
+		"cost": {
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4-5@20250929": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-6-think": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-6-thinking": {
+		"cost": {
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-6@default": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-thinking": {
+		"cost": {
+			"input": 2.992,
+			"output": 14.994
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-thinking:1024": {
+		"cost": {
+			"input": 2.992,
+			"output": 14.994
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-thinking:32768": {
+		"cost": {
+			"input": 2.992,
+			"output": 14.994
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-thinking:64000": {
+		"cost": {
+			"input": 2.992,
+			"output": 14.994
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4-thinking:8192": {
+		"cost": {
+			"input": 2.992,
+			"output": 14.994
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"claude-sonnet-4.5": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4.6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"claude-sonnet-4@20250514": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"databricks-claude-haiku-4-5": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"databricks-claude-opus-4-1": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"databricks-claude-opus-4-5": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"databricks-claude-opus-4-6": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"databricks-claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"databricks-claude-sonnet-4": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"databricks-claude-sonnet-4-5": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"databricks-claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"deepclaude": {
+		"cost": {
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 128000
+		}
+	},
+	"eu.anthropic.claude-fable-5": {
+		"cost": {
+			"cache_read": 1.1,
+			"cache_write": 13.75,
+			"input": 11,
+			"output": 55
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"eu.anthropic.claude-haiku-4-5-20251001-v1:0": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"eu.anthropic.claude-opus-4-5-20251101-v1:0": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"eu.anthropic.claude-opus-4-6-v1": {
+		"cost": {
+			"cache_read": 0.55,
+			"cache_write": 6.875,
+			"input": 5.5,
+			"output": 27.5
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"eu.anthropic.claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.55,
+			"cache_write": 6.875,
+			"input": 5.5,
+			"output": 27.5
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"eu.anthropic.claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.55,
+			"cache_write": 6.875,
+			"input": 5.5,
+			"output": 27.5
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"eu.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+		"cost": {
+			"cache_read": 0.33,
+			"cache_write": 4.125,
+			"input": 3.3,
+			"output": 16.5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"eu.anthropic.claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.33,
+			"cache_write": 4.125,
+			"input": 3.3,
+			"output": 16.5
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"global.anthropic.claude-fable-5": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 12.5,
+			"input": 10,
+			"output": 50
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"global.anthropic.claude-haiku-4-5-20251001-v1:0": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"global.anthropic.claude-opus-4-5-20251101-v1:0": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"global.anthropic.claude-opus-4-6-v1": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"global.anthropic.claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"global.anthropic.claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"global.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"global.anthropic.claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"jp.anthropic.claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"jp.anthropic.claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"jp.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"jp.anthropic.claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"stealth/claude-opus-4.6": {
+		"cost": {
+			"cache_read": 0.4,
+			"cache_write": 5,
+			"input": 4,
+			"output": 20
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"stealth/claude-opus-4.7": {
+		"cost": {
+			"cache_read": 0.4,
+			"cache_write": 5,
+			"input": 4,
+			"output": 20
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"stealth/claude-sonnet-4.6": {
+		"cost": {
+			"cache_read": 0.24,
+			"cache_write": 3,
+			"input": 2.4,
+			"output": 12
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"us.anthropic.claude-fable-5": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 12.5,
+			"input": 10,
+			"output": 50
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"us.anthropic.claude-opus-4-1-20250805-v1:0": {
+		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
+			"input": 15,
+			"output": 75
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"us.anthropic.claude-opus-4-5-20251101-v1:0": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"us.anthropic.claude-opus-4-6-v1": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"us.anthropic.claude-opus-4-7": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"us.anthropic.claude-opus-4-8": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"us.anthropic.claude-sonnet-4-6": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"~anthropic/claude-haiku-latest": {
+		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
+			"input": 1,
+			"output": 5
+		},
+		"limit": {
+			"context": 200000
+		}
+	},
+	"~anthropic/claude-opus-latest": {
+		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"~anthropic/claude-sonnet-latest": {
+		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
+			"input": 3,
+			"output": 15
+		},
+		"limit": {
+			"context": 1000000
 		}
 	}
 }
