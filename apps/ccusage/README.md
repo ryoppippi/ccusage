@@ -18,7 +18,7 @@
 </p>
 
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/screenshot.png">
+    <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/screenshot.png" alt="ccusage terminal report screenshot">
 </div>
 
 > Analyze coding (agent) CLI token usage and costs from local data.
