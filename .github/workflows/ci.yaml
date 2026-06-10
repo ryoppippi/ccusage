@@ -296,7 +296,7 @@ jobs:
             --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --large-warmup 0 \
             --large-runs 1 \
-            --package-runner-timeout-ms 1800000 \
+            --package-runner-timeout-ms 300000 \
             --output "$RUNNER_TEMP/ccusage-perf-comment.md"
 
       - name: Write job summary
@@ -370,7 +370,7 @@ jobs:
             --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --large-warmup 0 \
             --large-runs 1 \
-            --package-runner-timeout-ms 1800000 \
+            --package-runner-timeout-ms 300000 \
             --output "$RUNNER_TEMP/ccusage-rust-perf-comment.md"
 
       - name: Write job summary
