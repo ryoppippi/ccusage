@@ -15,7 +15,7 @@ runs:
       shell: bash
       run: |
         sudo mkdir -p /nix/store
-        sudo chmod -R 777 /nix
+        sudo chmod 755 /nix
 
     - name: Mount Nix store sticky disk
       if: runner.os == 'Linux'
