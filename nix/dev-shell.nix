@@ -27,6 +27,7 @@ in
             cargo-edit
             cargo-insta
             cargo-llvm-cov
+            mold
             pkg-config
             openssl
             config.treefmt.build.wrapper
@@ -62,6 +63,9 @@ in
           ++ config.pre-commit.settings.enabledPackages;
 
         shellHook = ''
+          if [ "$(uname -s)" = "Linux" ]; then
+            export RUSTFLAGS="''${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-fuse-ld=mold"
+          fi
           if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
             echo "📦 Installing dependencies..."
             pnpm install --frozen-lockfile
