@@ -7,6 +7,7 @@ use std::{
 use ccusage_cli::PricingOverride;
 
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::fast::FxHashMap;
 
@@ -87,8 +88,7 @@ struct ModelsDevProvider {
     models: FxHashMap<String, ModelsDevModel>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug)]
 enum ModelsDevJson {
     Providers(FxHashMap<String, ModelsDevProvider>),
     Models(FxHashMap<String, ModelsDevModel>),
@@ -288,9 +288,7 @@ impl PricingMap {
     }
 
     fn load_models_dev_json_missing(&mut self, json: &str) -> Option<usize> {
-        let Ok(raw) = serde_json::from_str::<ModelsDevJson>(json) else {
-            return None;
-        };
+        let raw = parse_models_dev_json(json)?;
         Some(match raw {
             ModelsDevJson::Providers(providers) => providers
                 .into_values()
@@ -972,6 +970,44 @@ impl PricingMap {
     }
 }
 
+fn parse_models_dev_json(json: &str) -> Option<ModelsDevJson> {
+    let value = serde_json::from_str::<Value>(json).ok()?;
+    let Value::Object(entries) = &value else {
+        return None;
+    };
+    if entries.values().any(models_dev_entry_has_models_field) {
+        if !entries.values().all(models_dev_entry_has_models_field) {
+            return None;
+        }
+        return serde_json::from_value::<FxHashMap<String, ModelsDevProvider>>(value)
+            .ok()
+            .map(ModelsDevJson::Providers);
+    }
+    if !entries.values().all(models_dev_entry_has_required_cost) {
+        return None;
+    }
+    serde_json::from_value::<FxHashMap<String, ModelsDevModel>>(value)
+        .ok()
+        .map(ModelsDevJson::Models)
+}
+
+fn models_dev_entry_has_models_field(value: &Value) -> bool {
+    value
+        .as_object()
+        .is_some_and(|entry| entry.get("models").is_some_and(Value::is_object))
+}
+
+fn models_dev_entry_has_required_cost(value: &Value) -> bool {
+    value
+        .as_object()
+        .and_then(|entry| entry.get("cost"))
+        .and_then(Value::as_object)
+        .is_some_and(|cost| {
+            cost.get("input").is_some_and(Value::is_number)
+                && cost.get("output").is_some_and(Value::is_number)
+        })
+}
+
 /// Matches pricing keys across provider/model aliases while preserving version boundaries.
 fn pricing_key_matches(candidate: &str, model: &str, normalized_model: &str) -> bool {
     if contains_pricing_key(model, candidate) || contains_pricing_key(candidate, model) {
@@ -1134,6 +1170,7 @@ mod tests {
         embedded_models_dev_pricing, Pricing, PricingMap, BUILD_TIME_MODELS_DEV_JSON,
         BUILD_TIME_PRICING_JSON,
     };
+    use ccusage_test_support::fs_fixture;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
@@ -1481,6 +1518,32 @@ mod tests {
         assert_eq!(pricing.context_limit("gpt-fallback"), Some(456));
         assert!((alias.input - 4e-6).abs() < f64::EPSILON);
         assert_eq!(pricing.context_limits.get("gpt-alias"), Some(&654));
+    }
+
+    #[test]
+    fn rejects_malformed_models_dev_provider_payload() {
+        let fixture = fs_fixture!({
+            "models-dev.json": r#"{
+                "openai": {
+                    "models": {
+                        "gpt-fallback": {
+                            "cost": {
+                                "input": 2.0,
+                                "output": 8.0
+                            }
+                        }
+                    }
+                },
+                "broken-provider": {
+                    "name": "Broken Provider"
+                }
+            }"#,
+        });
+        let json = std::fs::read_to_string(fixture.path("models-dev.json")).unwrap();
+        let mut pricing = PricingMap::default();
+
+        assert_eq!(pricing.load_models_dev_json_missing(&json), None);
+        assert_eq!(pricing.len(), 0);
     }
 
     #[test]
