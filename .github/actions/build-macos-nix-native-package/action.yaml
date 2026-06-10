@@ -14,7 +14,7 @@ runs:
 
     - name: Build macOS binary
       shell: bash
-      run: nix build .#ccusage
+      run: nix build .#ccusage --print-build-logs
 
     - name: Stage native package
       shell: bash
