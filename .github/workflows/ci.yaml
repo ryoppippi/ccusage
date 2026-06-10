@@ -20,7 +20,7 @@ jobs:
       - id: detect
         uses: ./.github/actions/detect-code-changes
 
-  lint-check:
+  check:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
     runs-on: blacksmith-32vcpu-ubuntu-2404-arm
@@ -47,6 +47,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
+      # Realize the dev shell (and run its pnpm install hook) up front so the
+      # setup time lands in this dedicated step instead of bleeding into the
+      # first timed step below and adding noise to action-timeline.
+      - name: Warm Nix dev shell
+        run: nix develop --command true
       - name: Create default Claude directories for tests
         run: |
           mkdir -p "$HOME/.claude/projects"
@@ -143,6 +148,12 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
+      # Packing only repackages the native binaries restored from the build
+      # matrix below (no Rust build happens here), so the full `nix develop` dev
+      # shell is unnecessary. Provision just pnpm; bun is fetched via the
+      # engines.runtime entry during `pnpm install` for the prepack scripts.
+      - run: nix profile install --inputs-from . nixpkgs#pnpm
+      - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: ccusage-native-*
@@ -154,7 +165,7 @@ jobs:
             tar -xf "$archive"
           done
       - id: publish
-        run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-win32-x64'
+        run: pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-win32-x64'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
@@ -220,6 +231,13 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
+      # This job only benchmarks the prebuilt ccusage binary bundled in the
+      # installed pkg.pr.new package (no Rust build happens here), so the full
+      # `nix develop` dev shell is unnecessary. Install just the tools the perf
+      # scripts invoke, pinned to the flake's nixpkgs via `--inputs-from .`.
+      - name: Install perf tooling
+        run: nix profile install --inputs-from . nixpkgs#pnpm nixpkgs#bun nixpkgs#hyperfine nixpkgs#just
+      - run: pnpm install --frozen-lockfile
 
       - name: Resolve PR preview package URL
         env:
@@ -233,14 +251,14 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop --command just generate-large-fixture \
+          just generate-large-fixture \
             "$RUNNER_TEMP/ccusage-large-fixture" \
             "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             1024
 
       - name: Compare fixture performance
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -267,7 +285,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   ccusage-rust-perf-comment:
     name: ccusage rust perf comment
@@ -291,6 +309,13 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
+      # This job only benchmarks the prebuilt ccusage binary bundled in the
+      # installed pkg.pr.new package (no Rust build happens here), so the full
+      # `nix develop` dev shell is unnecessary. Install just the tools the perf
+      # scripts invoke, pinned to the flake's nixpkgs via `--inputs-from .`.
+      - name: Install perf tooling
+        run: nix profile install --inputs-from . nixpkgs#pnpm nixpkgs#bun nixpkgs#hyperfine nixpkgs#just
+      - run: pnpm install --frozen-lockfile
 
       - name: Resolve PR preview package URL
         env:
@@ -304,14 +329,14 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop --command just generate-large-fixture \
+          just generate-large-fixture \
             "$RUNNER_TEMP/ccusage-large-fixture" \
             "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             1024
 
       - name: Compare Rust performance
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -339,12 +364,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   action-timeline:
     needs:
       - changes
-      - lint-check
+      - check
       - test
       - build-native-packages
       - npm-publish-dry-run-and-upload-pkg-pr-now
