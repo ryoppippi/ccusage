@@ -45,6 +45,17 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
         if: matrix.platform != 'win32'
+      - name: Cache Cargo build
+        if: matrix.platform == 'win32'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ runner.arch }}-
       - name: Build Linux static binary
         if: matrix.platform == 'linux'
         run: nix build .#ccusage-static
