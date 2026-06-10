@@ -22,12 +22,8 @@ default:
 # Build every workspace package
 build: ccusage::build docs::build
 
-# Install workspace dependencies exactly as CI and the dev shell expect them
-install:
-    pnpm install --frozen-lockfile
-
-# Install dependencies, then type-check every workspace package
-typecheck: install ccusage::typecheck docs::typecheck
+# Type-check every workspace package
+typecheck: ccusage::typecheck docs::typecheck
 
 # Run the full test suite (Rust workspace + Vitest) in parallel
 [parallel]
@@ -43,19 +39,15 @@ generate-large-fixture output_dir codex_output_dir size_mib="1024":
 
 # Format the whole tree (Nix, Rust, JS/TS, workflows, typos) via treefmt
 fmt:
-    nix develop ./dev#ci --command treefmt
-
-# Run root package checks and development tooling checks
-flake-check:
-    nix flake check
-    nix flake check ./dev
+    nix fmt
 
 # Run package typechecks and every flake check (treefmt, oxlint, clippy, schema drift, gitleaks, build)
-check: typecheck flake-check
+check: typecheck
+    nix flake check
 
 # Regenerate apps/ccusage/config-schema.json from the Rust source
 schema:
-    nix run ./dev#generate-schema
+    nix run .#generate-schema
 
 # Update the locked LiteLLM pricing snapshot and validate the result
 update-litellm-pricing:
@@ -66,7 +58,7 @@ update-litellm-pricing:
 gen-models-dev-pricing:
     cp "$(nix build .#models-dev-pricing --no-link --print-out-paths)" rust/crates/ccusage/src/models-dev-pricing.json
     chmod u+w rust/crates/ccusage/src/models-dev-pricing.json
-    nix develop ./dev#ci --command treefmt rust/crates/ccusage/src/models-dev-pricing.json
+    nix fmt rust/crates/ccusage/src/models-dev-pricing.json
 
 # Update the pinned models.dev input, regenerate its pricing snapshot, and validate
 update-models-dev-pricing:

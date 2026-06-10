@@ -1,5 +1,5 @@
 name: Setup Linux Blacksmith sticky disk
-description: Mount Blacksmith sticky disks for Linux Nix and root node_modules caches
+description: Mount the Blacksmith sticky disk for the Linux Nix store
 runs:
   using: composite
   steps:
@@ -13,17 +13,6 @@ runs:
           echo "enabled=false" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Resolve pnpm version
-      id: pnpm
-      if: steps.blacksmith.outputs.enabled == 'true'
-      shell: bash
-      run: |
-        package_manager="$(node -p "require('./package.json').packageManager ?? ''")"
-        case "$package_manager" in
-          pnpm@*) echo "version=${package_manager#pnpm@}" >> "$GITHUB_OUTPUT" ;;
-          *) echo "version=unknown" >> "$GITHUB_OUTPUT" ;;
-        esac
-
     - name: Prepare Nix store mount point
       if: steps.blacksmith.outputs.enabled == 'true'
       shell: bash
@@ -33,7 +22,7 @@ runs:
 
     - name: Mount Nix store sticky disk
       if: steps.blacksmith.outputs.enabled == 'true'
-      uses: useblacksmith/stickydisk@d58829ad6f9be8822ec5efe74256c82cd62915ab # v1
+      uses: useblacksmith/stickydisk@2b7a836cbb2b48f4780ae76a7b6fd79d545fb54a # v1.3.0
       with:
         key: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}
         path: /nix
@@ -49,10 +38,3 @@ runs:
             sudo chown -R "$USER:$(id -gn)" "$path"
           fi
         done
-
-    - name: Mount root node_modules sticky disk
-      if: steps.blacksmith.outputs.enabled == 'true'
-      uses: useblacksmith/stickydisk@d58829ad6f9be8822ec5efe74256c82cd62915ab # v1
-      with:
-        key: ${{ github.repository }}-node-modules-pnpm-${{ steps.pnpm.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
-        path: ./node_modules
