@@ -104,7 +104,6 @@ jobs:
             platform: darwin
             arch: arm64
             binary: result/bin/ccusage
-            use-nix: 'true'
           - name: build-windows-x64
             os: blacksmith-32vcpu-windows-2025
             platform: win32
@@ -119,12 +118,11 @@ jobs:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
           nix-github-token: ${{ github.event_name != 'pull_request' }}
-      - uses: ./.github/actions/build-macos-native-package
+      - uses: ./.github/actions/build-macos-nix-native-package
         if: matrix.platform == 'darwin'
         with:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
-          use-nix: ${{ matrix.use-nix }}
       - uses: ./.github/actions/build-windows-native-package
         if: matrix.platform == 'win32'
         with:

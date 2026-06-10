@@ -1,0 +1,31 @@
+name: Build macOS Nix native package
+description: Build, stage, archive, and upload a macOS ccusage native package with Nix
+inputs:
+  arch:
+    description: Native package architecture
+    required: true
+  binary:
+    description: Path to the built ccusage binary
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-nix
+
+    - name: Build macOS binary
+      shell: bash
+      run: nix build .#ccusage
+
+    - name: Stage native package
+      shell: bash
+      run: node apps/ccusage/scripts/stage-native-package.mjs --platform darwin --arch "${{ inputs.arch }}" --binary "${{ inputs.binary }}"
+
+    - name: Archive native package binary
+      shell: bash
+      run: tar -cf "ccusage-native-darwin-${{ inputs.arch }}.tar" "packages/ccusage-darwin-${{ inputs.arch }}/bin"
+
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ccusage-native-darwin-${{ inputs.arch }}
+        path: ccusage-native-darwin-${{ inputs.arch }}.tar
+        if-no-files-found: error
