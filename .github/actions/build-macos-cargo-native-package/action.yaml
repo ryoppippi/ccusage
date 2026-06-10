@@ -14,6 +14,19 @@ runs:
       shell: bash
       run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage
 
+    - name: Verify macOS binary links only system dylibs
+      shell: bash
+      env:
+        BINARY: ${{ inputs.binary }}
+      run: |
+        otool -L "$BINARY"
+        violations=$(otool -L "$BINARY" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)' || true)
+        if [ -n "$violations" ]; then
+          echo "Found dylib dependencies that do not exist on end-user machines:" >&2
+          echo "$violations" >&2
+          exit 1
+        fi
+
     - name: Stage native package
       shell: bash
       env:
