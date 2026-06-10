@@ -987,23 +987,24 @@ impl PricingMap {
 fn parse_litellm_pricing(value: Value) -> Option<LiteLlmPricing> {
     if value
         .as_object()
-        .is_some_and(|entry| entry.contains_key("i"))
+        .is_some_and(|entry| entry.contains_key("i") && entry.contains_key("o"))
     {
-        let compact = serde_json::from_value::<CompactLiteLlmPricing>(value).ok()?;
-        return Some(LiteLlmPricing {
-            input_cost_per_token: Some(compact.i),
-            output_cost_per_token: Some(compact.o),
-            cache_creation_input_token_cost: compact.cc,
-            cache_read_input_token_cost: compact.cr,
-            input_cost_per_token_above_200k_tokens: compact.ia,
-            output_cost_per_token_above_200k_tokens: compact.oa,
-            cache_creation_input_token_cost_above_200k_tokens: compact.cca,
-            cache_read_input_token_cost_above_200k_tokens: compact.cra,
-            max_input_tokens: compact.ctx,
-            provider_specific_entry: compact
-                .fast
-                .map(|fast| ProviderSpecificEntry { fast: Some(fast) }),
-        });
+        if let Ok(compact) = serde_json::from_value::<CompactLiteLlmPricing>(value.clone()) {
+            return Some(LiteLlmPricing {
+                input_cost_per_token: Some(compact.i),
+                output_cost_per_token: Some(compact.o),
+                cache_creation_input_token_cost: compact.cc,
+                cache_read_input_token_cost: compact.cr,
+                input_cost_per_token_above_200k_tokens: compact.ia,
+                output_cost_per_token_above_200k_tokens: compact.oa,
+                cache_creation_input_token_cost_above_200k_tokens: compact.cca,
+                cache_read_input_token_cost_above_200k_tokens: compact.cra,
+                max_input_tokens: compact.ctx,
+                provider_specific_entry: compact
+                    .fast
+                    .map(|fast| ProviderSpecificEntry { fast: Some(fast) }),
+            });
+        }
     }
     let pricing = serde_json::from_value::<LiteLlmPricing>(value).ok()?;
     pricing
@@ -1409,6 +1410,25 @@ mod tests {
         assert_eq!(compact.cache_read_above_200k, Some(0.2e-6));
         assert_eq!(compact.fast_multiplier, 1.5);
         assert_eq!(pricing.context_limit("gpt-compact"), Some(123456));
+    }
+
+    #[test]
+    fn falls_back_to_full_litellm_pricing_when_compact_shape_is_incomplete() {
+        let mut pricing = PricingMap::default();
+        let loaded = pricing.load_json(
+            r#"{
+                "gpt-full-with-extra-i": {
+                    "i": "provider metadata",
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010
+                }
+            }"#,
+        );
+
+        assert_eq!(loaded, 1);
+        let full = pricing.find("gpt-full-with-extra-i").unwrap();
+        assert_eq!(full.input, 1e-6);
+        assert_eq!(full.output, 10e-6);
     }
 
     #[test]

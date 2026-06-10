@@ -11,6 +11,7 @@
  * via `just gen-models-dev-pricing` (see `nix/models-dev-pricing.nix`).
  */
 import { generateCatalog } from './packages/core/src/generate.ts';
+import { selectModelsDevPricingKey } from './models-dev-compact.ts';
 
 /** Model ids/keys we keep; ccusage is Claude-first, so we embed Anthropic models. */
 const KEEP = /claude|anthropic/i;
@@ -45,7 +46,7 @@ for (const provider of Object.values(providers)) {
 		if (cost.input == null || cost.output == null) {
 			continue;
 		}
-		const pricingKey = model.id ?? modelId;
+		const pricingKey = selectModelsDevPricingKey(modelId, model.id);
 		if (out[pricingKey] != null) {
 			continue;
 		}
