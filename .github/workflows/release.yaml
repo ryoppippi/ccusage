@@ -13,15 +13,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04-arm
+          - os: blacksmith-32vcpu-ubuntu-2404-arm
             platform: linux
             arch: arm64
             binary: result/bin/ccusage
-          - os: ubuntu-24.04
+          - os: blacksmith-32vcpu-ubuntu-2404
             platform: linux
             arch: x64
             binary: result/bin/ccusage
-          - os: macos-latest
+          - os: blacksmith-12vcpu-macos-26
             platform: darwin
             arch: arm64
             binary: result/bin/ccusage
@@ -33,7 +33,7 @@ jobs:
             platform: win32
             arch: arm64
             binary: rust/target/release/ccusage.exe
-          - os: windows-latest
+          - os: blacksmith-32vcpu-windows-2025
             platform: win32
             arch: x64
             binary: rust/target/release/ccusage.exe
@@ -86,23 +86,19 @@ jobs:
           path: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar
           if-no-files-found: error
 
-  npm:
+  npm-pack:
     needs:
       - build-native-packages
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     timeout-minutes: 10
     permissions:
+      actions: read
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup-nix
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          registry-url: 'https://registry.npmjs.org'
-          node-version: lts/*
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: ccusage-native-*
@@ -114,12 +110,49 @@ jobs:
             tar -xf "$archive"
           done
       - run: nix develop ./dev#ci --command just install
-      - run: nix develop ./dev#ci --command pnpm --filter='./apps/ccusage' --filter='./packages/ccusage-*' publish --provenance --no-git-checks --access public
+      - name: Pack npm packages
+        run: |
+          mkdir -p "$RUNNER_TEMP/npm-packages"
+          nix develop ./dev#ci --command pnpm --filter='./apps/ccusage' --filter='./packages/ccusage-*' pack --pack-destination "$RUNNER_TEMP/npm-packages"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-packages
+          path: ${{ runner.temp }}/npm-packages/*.tgz
+          if-no-files-found: error
+
+  npm:
+    needs:
+      - npm-pack
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          registry-url: 'https://registry.npmjs.org'
+          node-version: lts/*
+      - run: corepack enable pnpm
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-packages
+          path: ${{ runner.temp }}/npm-packages
+      - name: Publish npm packages
+        shell: bash
+        run: |
+          while IFS= read -r package; do
+            pnpm publish "$package" --provenance --no-git-checks --access public
+          done < <(find "$RUNNER_TEMP/npm-packages" -name '*.tgz' -type f | sort)
 
   release:
     needs:
       - npm
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     permissions:
       contents: write
     steps:

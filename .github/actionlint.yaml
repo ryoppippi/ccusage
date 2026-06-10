@@ -1,0 +1,9 @@
+self-hosted-runner:
+  labels:
+    - blacksmith-*
+
+paths:
+  .github/workflows/*.{yaml,yml}:
+    ignore:
+      - 'unknown permission scope "code-quality"'
+      - 'shellcheck reported issue in this script: SC2016:info:'

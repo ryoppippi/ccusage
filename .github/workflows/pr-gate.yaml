@@ -7,7 +7,7 @@ on:
 
 jobs:
   check-contributor:
-    runs-on: ubuntu-slim
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     permissions:
       contents: read
       issues: write

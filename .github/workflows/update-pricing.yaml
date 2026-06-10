@@ -9,7 +9,7 @@ permissions: {}
 
 jobs:
   update-pricing:
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     permissions:
       contents: write
       pull-requests: write
@@ -82,7 +82,7 @@ jobs:
   update-models-dev-pricing:
     needs: update-pricing
     if: ${{ always() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     permissions:
       contents: write
       pull-requests: write
