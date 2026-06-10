@@ -1,5 +1,5 @@
 name: Setup Nix
-description: Install Nix and optionally mount a Blacksmith sticky disk for the Nix store
+description: Install Nix with platform-specific cache setup
 inputs:
   warm-dev-shell:
     description: Whether to instantiate the CI dev shell during setup
@@ -7,59 +7,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Detect Blacksmith sticky disk support
-      id: blacksmith
-      shell: bash
-      run: |
-        if [ -n "${BLACKSMITH_STICKYDISK_TOKEN:-}" ]; then
-          echo "enabled=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "enabled=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Resolve pnpm version
-      id: pnpm
-      if: steps.blacksmith.outputs.enabled == 'true'
-      shell: bash
-      run: |
-        package_manager="$(node -p "require('./package.json').packageManager ?? ''")"
-        case "$package_manager" in
-          pnpm@*) echo "version=${package_manager#pnpm@}" >> "$GITHUB_OUTPUT" ;;
-          *) echo "version=unknown" >> "$GITHUB_OUTPUT" ;;
-        esac
-
-    - name: Prepare Nix store mount point
-      if: runner.os == 'Linux' && steps.blacksmith.outputs.enabled == 'true'
-      shell: bash
-      run: |
-        sudo mkdir -p /nix/store
-        sudo chmod 755 /nix
-
-    - name: Mount Nix store sticky disk
-      if: runner.os == 'Linux' && steps.blacksmith.outputs.enabled == 'true'
-      uses: useblacksmith/stickydisk@d58829ad6f9be8822ec5efe74256c82cd62915ab # v1
-      with:
-        key: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}
-        path: /nix
-
-    - name: Prepare mounted Nix store ownership
-      if: runner.os == 'Linux' && steps.blacksmith.outputs.enabled == 'true'
-      shell: bash
-      run: |
-        sudo mkdir -p /nix/store
-        sudo chown "$USER:$(id -gn)" /nix /nix/store
-        for path in /nix/var/log/nix /nix/var/nix; do
-          if [ -e "$path" ]; then
-            sudo chown -R "$USER:$(id -gn)" "$path"
-          fi
-        done
-
-    - name: Mount root node_modules sticky disk
-      if: runner.os == 'Linux' && steps.blacksmith.outputs.enabled == 'true'
-      uses: useblacksmith/stickydisk@d58829ad6f9be8822ec5efe74256c82cd62915ab # v1
-      with:
-        key: ${{ github.repository }}-node-modules-pnpm-${{ steps.pnpm.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
-        path: ./node_modules
+    - uses: ./.github/actions/setup-linux-blacksmith-sticky-disk
+      if: runner.os == 'Linux'
 
     - name: Install Nix
       uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
@@ -68,17 +17,8 @@ runs:
         nix_conf: |
           access-tokens = github.com=${{ github.token }}
 
-    - name: Cache macOS Nix store
+    - uses: ./.github/actions/setup-macos-nix-cache
       if: runner.os == 'macOS'
-      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
-      with:
-        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'dev/flake.lock', 'dev/flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
-        gc-max-store-size-macos: 3500000000
-        purge: true
-        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
-        purge-created: 172800
-        purge-primary-key: never
 
     - name: Fix single-user Nix store ownership
       if: runner.os != 'Windows'

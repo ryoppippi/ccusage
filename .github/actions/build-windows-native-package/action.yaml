@@ -1,0 +1,33 @@
+name: Build Windows native package
+description: Build, stage, archive, and upload a Windows ccusage native package
+inputs:
+  arch:
+    description: Native package architecture
+    required: true
+  binary:
+    description: Path to the built ccusage binary
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-native-build-cache
+      with:
+        platform: win32
+
+    - name: Build Cargo native binary
+      shell: bash
+      run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage
+
+    - name: Stage native package
+      shell: bash
+      run: node apps/ccusage/scripts/stage-native-package.mjs --platform win32 --arch "${{ inputs.arch }}" --binary "${{ inputs.binary }}"
+
+    - name: Archive native package binary
+      shell: bash
+      run: tar -cf "ccusage-native-win32-${{ inputs.arch }}.tar" "packages/ccusage-win32-${{ inputs.arch }}/bin"
+
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ccusage-native-win32-${{ inputs.arch }}
+        path: ccusage-native-win32-${{ inputs.arch }}.tar
+        if-no-files-found: error

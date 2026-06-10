@@ -1,0 +1,51 @@
+name: Build Linux native package
+description: Build, stage, archive, and upload a Linux ccusage native package
+inputs:
+  arch:
+    description: Native package architecture
+    required: true
+  binary:
+    description: Path to the built ccusage binary
+    required: true
+  nix-github-token:
+    description: Whether Nix builds may use the GitHub token from Nix config
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-nix
+
+    - name: Build Linux static binary
+      shell: bash
+      run: |
+        if [ "${{ inputs.nix-github-token }}" = "false" ]; then
+          NIX_CONFIG="access-tokens =" nix build .#ccusage-static
+        else
+          nix build .#ccusage-static
+        fi
+
+    - name: Verify Linux binary is static
+      shell: bash
+      run: |
+        file "${{ inputs.binary }}"
+        if ldd "${{ inputs.binary }}" > "$RUNNER_TEMP/ldd.txt" 2>&1; then
+          cat "$RUNNER_TEMP/ldd.txt"
+          grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
+        else
+          cat "$RUNNER_TEMP/ldd.txt"
+          grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
+        fi
+
+    - name: Stage native package
+      shell: bash
+      run: node apps/ccusage/scripts/stage-native-package.mjs --platform linux --arch "${{ inputs.arch }}" --binary "${{ inputs.binary }}"
+
+    - name: Archive native package binary
+      shell: bash
+      run: tar -cf "ccusage-native-linux-${{ inputs.arch }}.tar" "packages/ccusage-linux-${{ inputs.arch }}/bin"
+
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ccusage-native-linux-${{ inputs.arch }}
+        path: ccusage-native-linux-${{ inputs.arch }}.tar
+        if-no-files-found: error

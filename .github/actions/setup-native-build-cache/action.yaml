@@ -1,0 +1,21 @@
+name: Setup native build cache
+description: Restore native package build caches for the current platform
+inputs:
+  platform:
+    description: Native package platform
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Cache Cargo build
+      if: inputs.platform == 'win32'
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          rust/target
+        key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}-
+          cargo-${{ runner.os }}-${{ runner.arch }}-
