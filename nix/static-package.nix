@@ -55,6 +55,15 @@ in
           staticCommonArgs
           // {
             cargoArtifacts = staticCargoArtifacts;
+            # A PT_INTERP header means the binary requests a dynamic loader,
+            # so it would not run on end-user machines without the build-time
+            # loader path. READELF is exported by the cross bintools wrapper.
+            postInstall = ''
+              if "''${READELF:-readelf}" -l $out/bin/ccusage | grep -q INTERP; then
+                echo "error: ccusage-static is not statically linked" >&2
+                exit 1
+              fi
+            '';
             meta = config.packages.ccusage.meta // {
               description = "Static Linux build of ccusage";
             };
