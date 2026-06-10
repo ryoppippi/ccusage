@@ -27,7 +27,6 @@ in
             cargo-edit
             cargo-insta
             cargo-llvm-cov
-            mold
             pkg-config
             openssl
             config.treefmt.build.wrapper
@@ -57,6 +56,9 @@ in
             delta
             dust
           ])
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.mold
+          ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             pkgs.apple-sdk_15
           ]
