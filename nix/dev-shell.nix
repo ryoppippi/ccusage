@@ -62,8 +62,10 @@ in
           ++ config.pre-commit.settings.enabledPackages;
 
         shellHook = ''
-          echo "📦 Installing dependencies..."
-          pnpm install --frozen-lockfile
+          if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
+            echo "📦 Installing dependencies..."
+            pnpm install --frozen-lockfile
+          fi
           ${lib.getExe config.packages.syncAgentSkills}
           ${config.pre-commit.shellHook}
         '';
