@@ -20,12 +20,12 @@ runs:
       with:
         key: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}
         path: /nix
-        commit: on-change
 
     - name: Prepare mounted Nix store ownership
       if: runner.os == 'Linux'
       shell: bash
       run: |
+        sudo mkdir -p /nix/store
         sudo chown "$USER:$(id -gn)" /nix /nix/store
         for path in /nix/var/log/nix /nix/var/nix; do
           if [ -e "$path" ]; then
