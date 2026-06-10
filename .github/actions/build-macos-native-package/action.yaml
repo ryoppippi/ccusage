@@ -7,14 +7,24 @@ inputs:
   binary:
     description: Path to the built ccusage binary
     required: true
+  use-nix:
+    description: Whether to build the macOS binary with Nix
+    default: 'true'
 runs:
   using: composite
   steps:
     - uses: ./.github/actions/setup-nix
+      if: inputs.use-nix == 'true'
 
     - name: Build macOS binary
+      if: inputs.use-nix == 'true'
       shell: bash
       run: nix build .#ccusage
+
+    - name: Build macOS Cargo binary
+      if: inputs.use-nix != 'true'
+      shell: bash
+      run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage
 
     - name: Stage native package
       shell: bash
