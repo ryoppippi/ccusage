@@ -43,19 +43,18 @@ generate-large-fixture output_dir codex_output_dir size_mib="1024":
 
 # Format the whole tree (Nix, Rust, JS/TS, workflows, typos) via treefmt
 fmt:
-    nix develop ./dev#ci --command treefmt
+    nix develop .#ci --command treefmt
 
 # Run root package checks and development tooling checks
 flake-check:
     nix flake check
-    nix flake check ./dev
 
 # Run package typechecks and every flake check (treefmt, oxlint, clippy, schema drift, gitleaks, build)
 check: typecheck flake-check
 
 # Regenerate apps/ccusage/config-schema.json from the Rust source
 schema:
-    nix run ./dev#generate-schema
+    nix run .#generate-schema
 
 # Update the locked LiteLLM pricing snapshot and validate the result
 update-litellm-pricing:
@@ -66,7 +65,7 @@ update-litellm-pricing:
 gen-models-dev-pricing:
     cp "$(nix build .#models-dev-pricing --no-link --print-out-paths)" rust/crates/ccusage/src/models-dev-pricing.json
     chmod u+w rust/crates/ccusage/src/models-dev-pricing.json
-    nix develop ./dev#ci --command treefmt rust/crates/ccusage/src/models-dev-pricing.json
+    nix develop .#ci --command treefmt rust/crates/ccusage/src/models-dev-pricing.json
 
 # Update the pinned models.dev input, regenerate its pricing snapshot, and validate
 update-models-dev-pricing:

@@ -100,8 +100,8 @@ jobs:
           for archive in "$RUNNER_TEMP"/native-packages/*.tar; do
             tar -xf "$archive"
           done
-      - run: nix develop ./dev#ci --command just install
-      - run: nix develop ./dev#ci --command pnpm --filter='./apps/ccusage' --filter='./packages/ccusage-*' publish --provenance --no-git-checks --access public
+      - run: nix develop .#ci --command just install
+      - run: nix develop .#ci --command pnpm --filter='./apps/ccusage' --filter='./packages/ccusage-*' publish --provenance --no-git-checks --access public
 
   release:
     needs:
@@ -115,7 +115,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-      - run: nix develop ./dev#ci --command just install
-      - run: nix develop ./dev#ci --command pnpm changelogithub
+      - run: nix develop .#ci --command just install
+      - run: nix develop .#ci --command pnpm changelogithub
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

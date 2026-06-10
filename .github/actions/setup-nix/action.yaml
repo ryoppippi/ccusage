@@ -33,4 +33,4 @@ runs:
     - name: Load Nix CI development environment
       if: inputs.warm-dev-shell == 'true'
       shell: bash
-      run: nix develop ./dev#ci --command true
+      run: nix develop .#ci --command true

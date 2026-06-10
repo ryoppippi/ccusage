@@ -28,8 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
-      - run: nix develop ./dev#ci --command just flake-check
-      - run: nix develop ./dev#ci --command just typecheck
+      - run: nix develop .#ci --command just flake-check
+      - run: nix develop .#ci --command just typecheck
 
   test:
     needs: changes
@@ -47,22 +47,22 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-      - run: nix develop ./dev#ci --command just install
+      - run: nix develop .#ci --command just install
       - name: Create default Claude directories for tests
         run: |
           mkdir -p "$HOME/.claude/projects"
           mkdir -p "$HOME/.config/claude/projects"
       - name: Run test suite
         if: github.event_name != 'pull_request' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
-        run: nix develop ./dev#ci --command just test
+        run: nix develop .#ci --command just test
       - name: Run Vitest tests
         if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-        run: nix develop ./dev#ci --command just test-vitest
+        run: nix develop .#ci --command just test-vitest
       - name: Generate Rust coverage report
         if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           mkdir -p coverage
-          env -u CFLAGS -u CXXFLAGS nix develop ./dev#ci --command cargo llvm-cov \
+          env -u CFLAGS -u CXXFLAGS nix develop .#ci --command cargo llvm-cov \
             --manifest-path rust/Cargo.toml \
             --workspace \
             --cobertura \
@@ -154,9 +154,9 @@ jobs:
           for archive in "$RUNNER_TEMP"/native-packages/*.tar; do
             tar -xf "$archive"
           done
-      - run: nix develop ./dev#ci --command just install
+      - run: nix develop .#ci --command just install
       - id: publish
-        run: nix develop ./dev#ci --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-win32-x64'
+        run: nix develop .#ci --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-win32-x64'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
@@ -235,15 +235,15 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop ./dev#ci --command just install
-          nix develop ./dev#ci --command just generate-large-fixture \
+          nix develop .#ci --command just install
+          nix develop .#ci --command just generate-large-fixture \
             "$RUNNER_TEMP/ccusage-large-fixture" \
             "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             1024
 
       - name: Compare fixture performance
         run: |
-          nix develop ./dev#ci --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          nix develop .#ci --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -270,7 +270,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop ./dev#ci --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: nix develop .#ci --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   ccusage-rust-perf-comment:
     name: ccusage rust perf comment
@@ -307,15 +307,15 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop ./dev#ci --command just install
-          nix develop ./dev#ci --command just generate-large-fixture \
+          nix develop .#ci --command just install
+          nix develop .#ci --command just generate-large-fixture \
             "$RUNNER_TEMP/ccusage-large-fixture" \
             "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             1024
 
       - name: Compare Rust performance
         run: |
-          nix develop ./dev#ci --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          nix develop .#ci --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -343,7 +343,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop ./dev#ci --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: nix develop .#ci --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   action-timeline:
     needs:
