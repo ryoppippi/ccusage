@@ -16,6 +16,7 @@ Use these skills before working in this repository:
 - `skill-creator` - repo-local skill creation, SKILL.md frontmatter, description trigger quality, and reference layout.
 - `ast-grep` - structural code searches in Rust or TypeScript and AST-based migration verification with the dev-shell `ast-grep` CLI.
 - `bun-api-reference` - local Bun runtime API docs and type references under `node_modules/bun-types`.
+- `rust-binary-size` - Rust release profile, dependency feature, native packaging size, and executable bloat reduction guidance based on min-sized-rust.
 - `tdd` - Red-Green-Refactor workflow for logic changes.
 - `reduce-similarities` - AST-based duplicate Rust code detection with similarity-rs; TypeScript duplication checks use `typescript` and `ast-grep`.
 - `cmux-debug` - terminal UI and responsive table verification in cmux.
