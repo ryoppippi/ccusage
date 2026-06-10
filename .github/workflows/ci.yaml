@@ -20,7 +20,7 @@ jobs:
       - id: detect
         uses: ./.github/actions/detect-code-changes
 
-  lint-check:
+  check:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
     runs-on: blacksmith-32vcpu-ubuntu-2404-arm
@@ -47,6 +47,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
+      # Realize the dev shell (and run its pnpm install hook) up front so the
+      # setup time lands in this dedicated step instead of bleeding into the
+      # first timed step below and adding noise to action-timeline.
+      - name: Warm Nix dev shell
+        run: nix develop --command true
       - name: Create default Claude directories for tests
         run: |
           mkdir -p "$HOME/.claude/projects"
@@ -364,7 +369,7 @@ jobs:
   action-timeline:
     needs:
       - changes
-      - lint-check
+      - check
       - test
       - build-native-packages
       - npm-publish-dry-run-and-upload-pkg-pr-now
