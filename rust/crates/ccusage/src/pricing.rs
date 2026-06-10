@@ -1419,6 +1419,7 @@ mod tests {
             r#"{
                 "gpt-full-with-extra-i": {
                     "i": "provider metadata",
+                    "o": "provider metadata",
                     "input_cost_per_token": 0.000001,
                     "output_cost_per_token": 0.000010
                 }
