@@ -18,8 +18,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - name: Capture current LiteLLM pricing JSON
         run: |
           rev="$(jq -r '.nodes.litellm.locked.rev' flake.lock)"
@@ -91,8 +89,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - name: Update models.dev input
         run: |
           nix flake update models-dev

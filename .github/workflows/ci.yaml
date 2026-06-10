@@ -28,8 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - run: nix develop ./dev#ci --command just flake-check
       - run: nix develop ./dev#ci --command just typecheck
 
@@ -49,8 +47,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - run: nix develop ./dev#ci --command just install
       - name: Create default Claude directories for tests
         run: |
@@ -253,8 +249,6 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
 
       - name: Resolve PR preview package URL
         env:
@@ -326,8 +320,6 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
 
       - name: Resolve PR preview package URL
         env:

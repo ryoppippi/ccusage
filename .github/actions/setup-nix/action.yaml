@@ -1,9 +1,6 @@
 name: Setup Nix
 description: Install Nix and optionally mount a Blacksmith sticky disk for the Nix store
 inputs:
-  cache-profile:
-    description: Which Nix sticky disk key scope to use
-    default: package
   warm-dev-shell:
     description: Whether to instantiate the CI dev shell during setup
     default: 'false'
@@ -21,7 +18,7 @@ runs:
       if: runner.os == 'Linux'
       uses: useblacksmith/stickydisk@d58829ad6f9be8822ec5efe74256c82cd62915ab # v1
       with:
-        key: ${{ github.repository }}-nix-${{ inputs.cache-profile }}-${{ runner.os }}-${{ runner.arch }}
+        key: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}
         path: /nix
         commit: on-change
 
