@@ -48,6 +48,13 @@ craneLib.buildPackage (
     inherit cargoArtifacts;
     postInstall = lib.optionalString stdenv.isDarwin ''
       install_name_tool -change ${libiconv}/lib/libiconv.2.dylib /usr/lib/libiconv.2.dylib $out/bin/ccusage
+      # End-user machines have no /nix/store, so any dylib outside the macOS
+      # system paths would crash the published binary with a missing dynamic
+      # library error. grep prints the offending entries when it matches.
+      if otool -L $out/bin/ccusage | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)'; then
+        echo "error: ccusage links dylibs that do not exist on end-user machines" >&2
+        exit 1
+      fi
     '';
     passthru = {
       inherit
