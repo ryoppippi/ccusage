@@ -220,6 +220,9 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
+      - name: Install perf tooling
+        run: nix profile install --inputs-from . nixpkgs#pnpm nixpkgs#bun nixpkgs#hyperfine nixpkgs#just
+      - run: pnpm install --frozen-lockfile
 
       - name: Resolve PR preview package URL
         env:
@@ -233,14 +236,14 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop --command just generate-large-fixture \
+          just generate-large-fixture \
             "$RUNNER_TEMP/ccusage-large-fixture" \
             "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             1024
 
       - name: Compare fixture performance
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -267,7 +270,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   ccusage-rust-perf-comment:
     name: ccusage rust perf comment
@@ -291,6 +294,9 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
+      - name: Install perf tooling
+        run: nix profile install --inputs-from . nixpkgs#pnpm nixpkgs#bun nixpkgs#hyperfine nixpkgs#just
+      - run: pnpm install --frozen-lockfile
 
       - name: Resolve PR preview package URL
         env:
@@ -304,14 +310,14 @@ jobs:
 
       - name: Generate large ccusage fixture
         run: |
-          nix develop --command just generate-large-fixture \
+          just generate-large-fixture \
             "$RUNNER_TEMP/ccusage-large-fixture" \
             "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             1024
 
       - name: Compare Rust performance
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
@@ -339,7 +345,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
+        run: pnpm exec bun .github/scripts/upsert-pr-comment.ts
 
   action-timeline:
     needs:
