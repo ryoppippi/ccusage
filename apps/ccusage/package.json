@@ -29,7 +29,7 @@
 	},
 	"scripts": {
 		"bench": "node scripts/bench.mjs",
-		"build": "pnpm run generate:schema && tsdown && pnpm run ensure:native-binary",
+		"build": "tsdown && pnpm run ensure:native-binary",
 		"build:rust": "cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage",
 		"ensure:native-binary": "bun scripts/ensure-native-binary.ts",
 		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
