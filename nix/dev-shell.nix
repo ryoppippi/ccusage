@@ -66,7 +66,10 @@ in
 
         shellHook = ''
           if [ "$(uname -s)" = "Linux" ]; then
-            export RUSTFLAGS="''${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-fuse-ld=mold"
+            case " ''${RUSTFLAGS:-} " in
+              *" -C link-arg=-fuse-ld=mold "*) ;;
+              *) export RUSTFLAGS="''${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-fuse-ld=mold" ;;
+            esac
           fi
           if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
             echo "📦 Installing dependencies..."
