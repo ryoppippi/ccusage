@@ -28,7 +28,7 @@ Sidechain entries:
   least one duplicate carries `isSidechain: true`. Distinct sidechain responses
   with their own message IDs are still counted.
 - This behavior fixes the overcounting reported in
-  [#913](https://github.com/ryoppippi/ccusage/issues/913).
+  [#913](https://github.com/ccusage/ccusage/issues/913).
 
 The term `session` has two meanings in this codebase:
 

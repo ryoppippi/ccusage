@@ -1728,7 +1728,7 @@ if (import.meta.vitest != null) {
 
 		it('builds cached bunx package command text with fixture environment variables', () => {
 			const commandText = createCcusageCommandFromBunxPackage(
-				'https://pkg.pr.new/ryoppippi/ccusage@abcdef0',
+				'https://pkg.pr.new/ccusage/ccusage@abcdef0',
 				'/tmp/bun-cache',
 				'/fixtures/claude',
 				'/fixtures/codex',
@@ -1739,7 +1739,7 @@ if (import.meta.vitest != null) {
 			expect(commandText).toContain('CLAUDE_CONFIG_DIR=/fixtures/claude');
 			expect(commandText).toContain('CODEX_HOME=/fixtures/codex');
 			expect(commandText).toContain(
-				' x -p https://pkg.pr.new/ryoppippi/ccusage@abcdef0 ccusage codex --offline --json',
+				' x -p https://pkg.pr.new/ccusage/ccusage@abcdef0 ccusage codex --offline --json',
 			);
 		});
 	});
@@ -1998,7 +1998,7 @@ if (import.meta.vitest != null) {
 				base: {
 					acquisition: 400,
 					cold: 1200,
-					packageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@0123456789abcdef',
+					packageUrl: 'https://pkg.pr.new/ccusage/ccusage/ccusage@0123456789abcdef',
 					warm: {
 						max: 100,
 						median: 90,
@@ -2023,7 +2023,7 @@ if (import.meta.vitest != null) {
 		it('renders cached bunx execution timings separately from package startup timings', () => {
 			const lines = renderBunxFixtureSection(
 				{
-					basePackageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@0123456789abcdef',
+					basePackageUrl: 'https://pkg.pr.new/ccusage/ccusage/ccusage@0123456789abcdef',
 					codexFixtureDir: '/fixtures/codex',
 					codexFixtureStats: {
 						bytes: 512 * 1024 * 1024,
@@ -2035,7 +2035,7 @@ if (import.meta.vitest != null) {
 						bytes: 1024 * 1024 * 1024,
 						files: 400,
 					},
-					headPackageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@abcdef0123456789',
+					headPackageUrl: 'https://pkg.pr.new/ccusage/ccusage/ccusage@abcdef0123456789',
 					memoryRuns: 0,
 					results: [
 						{
