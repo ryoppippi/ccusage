@@ -46,6 +46,9 @@ craneLib.buildPackage (
   commonArgs
   // {
     inherit cargoArtifacts;
+    postInstall = lib.optionalString stdenv.isDarwin ''
+      install_name_tool -change ${libiconv}/lib/libiconv.2.dylib /usr/lib/libiconv.2.dylib $out/bin/ccusage
+    '';
     passthru = {
       inherit
         cargoArtifacts
