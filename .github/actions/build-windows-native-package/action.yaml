@@ -20,11 +20,16 @@ runs:
 
     - name: Stage native package
       shell: bash
-      run: node apps/ccusage/scripts/stage-native-package.mjs --platform win32 --arch "${{ inputs.arch }}" --binary "${{ inputs.binary }}"
+      env:
+        ARCH: ${{ inputs.arch }}
+        BINARY: ${{ inputs.binary }}
+      run: node apps/ccusage/scripts/stage-native-package.mjs --platform win32 --arch "$ARCH" --binary "$BINARY"
 
     - name: Archive native package binary
       shell: bash
-      run: tar -cf "ccusage-native-win32-${{ inputs.arch }}.tar" "packages/ccusage-win32-${{ inputs.arch }}/bin"
+      env:
+        ARCH: ${{ inputs.arch }}
+      run: tar -cf "ccusage-native-win32-$ARCH.tar" "packages/ccusage-win32-$ARCH/bin"
 
     - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
