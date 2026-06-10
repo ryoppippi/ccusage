@@ -23,20 +23,18 @@ jobs:
   lint-check:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - run: nix develop ./dev#ci --command just flake-check
       - run: nix develop ./dev#ci --command just typecheck
 
   test:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     timeout-minutes: 30
     permissions:
       contents: read
@@ -49,8 +47,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - run: nix develop ./dev#ci --command just install
       - name: Create default Claude directories for tests
         run: |
@@ -83,6 +79,7 @@ jobs:
   build-native-packages:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
+    name: ${{ matrix.name }}
     permissions:
       actions: write
       contents: read
@@ -92,81 +89,45 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04-arm
+          - name: build-linux-arm64
+            os: blacksmith-32vcpu-ubuntu-2404-arm
             platform: linux
             arch: arm64
             binary: result/bin/ccusage
-          - os: ubuntu-24.04
+          - name: build-linux-x64
+            os: blacksmith-32vcpu-ubuntu-2404
             platform: linux
             arch: x64
             binary: result/bin/ccusage
-          - os: macos-latest
+          - name: build-mac-arm64
+            os: blacksmith-12vcpu-macos-26
             platform: darwin
             arch: arm64
             binary: result/bin/ccusage
-          - os: macos-15-intel
-            platform: darwin
-            arch: x64
-            binary: result/bin/ccusage
-          - os: windows-11-arm
-            platform: win32
-            arch: arm64
-            binary: rust/target/release/ccusage.exe
-          - os: windows-latest
+          - name: build-windows-x64
+            os: blacksmith-32vcpu-windows-2025
             platform: win32
             arch: x64
             binary: rust/target/release/ccusage.exe
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup-nix
-        if: matrix.platform != 'win32'
-      - name: Cache Cargo build
-        if: matrix.platform == 'win32'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Build Linux static binary
+      - uses: ./.github/actions/build-linux-native-package
         if: matrix.platform == 'linux'
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            NIX_CONFIG="access-tokens =" nix build .#ccusage-static
-          else
-            nix build .#ccusage-static
-          fi
-      - name: Build macOS binary
+        with:
+          arch: ${{ matrix.arch }}
+          binary: ${{ matrix.binary }}
+          nix-github-token: ${{ github.event_name != 'pull_request' }}
+      - uses: ./.github/actions/build-macos-nix-native-package
         if: matrix.platform == 'darwin'
-        run: nix build .#ccusage
-      - name: Verify Linux binary is static
-        if: matrix.platform == 'linux'
-        shell: bash
-        run: |
-          file "${{ matrix.binary }}"
-          if ldd "${{ matrix.binary }}" > "$RUNNER_TEMP/ldd.txt" 2>&1; then
-            cat "$RUNNER_TEMP/ldd.txt"
-            grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
-          else
-            cat "$RUNNER_TEMP/ldd.txt"
-            grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
-          fi
-      - name: Build Cargo native binary
-        if: matrix.platform == 'win32'
-        run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage
-      - run: node apps/ccusage/scripts/stage-native-package.mjs --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" --binary "${{ matrix.binary }}"
-      - name: Archive native package binary
-        shell: bash
-        run: tar -cf "ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar" "packages/ccusage-${{ matrix.platform }}-${{ matrix.arch }}/bin"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar
-          if-no-files-found: error
+          arch: ${{ matrix.arch }}
+          binary: ${{ matrix.binary }}
+      - uses: ./.github/actions/build-windows-native-package
+        if: matrix.platform == 'win32'
+        with:
+          arch: ${{ matrix.arch }}
+          binary: ${{ matrix.binary }}
 
   npm-publish-dry-run-and-upload-pkg-pr-now:
     needs:
@@ -176,7 +137,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     outputs:
       urls: ${{ steps.publish.outputs.urls }}
 
@@ -195,7 +156,7 @@ jobs:
           done
       - run: nix develop ./dev#ci --command just install
       - id: publish
-        run: nix develop ./dev#ci --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-*'
+        run: nix develop ./dev#ci --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-win32-x64'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
@@ -208,10 +169,10 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-slim
-          - macos-latest
-          - windows-11-arm
-          - windows-latest
+          - blacksmith-32vcpu-ubuntu-2404
+          - blacksmith-32vcpu-ubuntu-2404-arm
+          - blacksmith-12vcpu-macos-26
+          - blacksmith-32vcpu-windows-2025
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -235,9 +196,9 @@ jobs:
         if: runner.os != 'Windows'
         shell: pwsh
         run: |
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" --version
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PNPM_DLX_URL" --version
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline
 
   ccusage-perf-comment:
     name: ccusage perf comment
@@ -249,7 +210,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     timeout-minutes: 30
 
     steps:
@@ -261,14 +222,13 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
 
       - name: Resolve PR preview package URL
         env:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
         run: |
           preview_url="$(
+            # shellcheck disable=SC2016
             node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
           )"
           echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
@@ -322,7 +282,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     timeout-minutes: 30
 
     steps:
@@ -334,14 +294,13 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
 
       - name: Resolve PR preview package URL
         env:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
         run: |
           preview_url="$(
+            # shellcheck disable=SC2016
             node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
           )"
           echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"

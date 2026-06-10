@@ -9,7 +9,7 @@ permissions: {}
 
 jobs:
   update-pricing:
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     permissions:
       contents: write
       pull-requests: write
@@ -18,8 +18,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - name: Capture current LiteLLM pricing JSON
         run: |
           rev="$(jq -r '.nodes.litellm.locked.rev' flake.lock)"
@@ -82,7 +80,7 @@ jobs:
   update-models-dev-pricing:
     needs: update-pricing
     if: ${{ always() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     permissions:
       contents: write
       pull-requests: write
@@ -91,8 +89,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-        with:
-          cache-profile: dev
       - name: Update models.dev input
         run: |
           nix flake update models-dev

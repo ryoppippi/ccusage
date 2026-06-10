@@ -1,15 +1,15 @@
 name: Setup Nix
-description: Install Nix and restore the Nix store from the GitHub Actions cache
+description: Install Nix with platform-specific cache setup
 inputs:
-  cache-profile:
-    description: Which Nix cache key scope to use
-    default: package
   warm-dev-shell:
     description: Whether to instantiate the CI dev shell during setup
     default: 'false'
 runs:
   using: composite
   steps:
+    - uses: ./.github/actions/setup-linux-blacksmith-sticky-disk
+      if: runner.os == 'Linux'
+
     - name: Install Nix
       uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
       with:
@@ -17,31 +17,8 @@ runs:
         nix_conf: |
           access-tokens = github.com=${{ github.token }}
 
-    - name: Cache Nix store for package builds
-      if: inputs.cache-profile == 'package'
-      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
-      with:
-        # Package jobs should not rotate when only development tooling changes.
-        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
-        gc-max-store-size-linux: 3500000000
-        purge: true
-        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
-        purge-created: 172800
-        purge-primary-key: never
-
-    - name: Cache Nix store for development jobs
-      if: inputs.cache-profile == 'dev'
-      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
-      with:
-        # Development jobs include the separate dev flake and its tooling lock.
-        primary-key: nix-dev-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'dev/flake.lock', 'dev/flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        restore-prefixes-first-match: nix-dev-${{ runner.os }}-${{ runner.arch }}-
-        gc-max-store-size-linux: 3500000000
-        purge: true
-        purge-prefixes: nix-dev-${{ runner.os }}-${{ runner.arch }}-
-        purge-created: 172800
-        purge-primary-key: never
+    - uses: ./.github/actions/setup-macos-nix-cache
+      if: runner.os == 'macOS'
 
     - name: Fix single-user Nix store ownership
       if: runner.os != 'Windows'

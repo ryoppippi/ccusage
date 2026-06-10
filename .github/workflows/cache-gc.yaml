@@ -1,39 +1,30 @@
-name: Cache GC
+name: Sticky Disk GC
 
 on:
   schedule:
-    # Weekly on Sunday 03:00 UTC.
     - cron: '0 3 * * 0'
   workflow_dispatch:
 
-permissions: {}
+permissions: read-all
 
 jobs:
-  gc:
-    name: Garbage-collect old Actions caches
-    runs-on: ubuntu-slim
-    permissions:
-      actions: write
+  nix-store-gc:
+    name: Nix store GC (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-arm64
+            runner: blacksmith-32vcpu-ubuntu-2404-arm
+          - name: linux-x64
+            runner: blacksmith-32vcpu-ubuntu-2404
+
     steps:
-      - name: Delete caches not accessed in the last 14 days
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          # The per-run `purge` in setup-nix only trims superseded keys created
-          # by CI. This sweep also reclaims caches left behind by merged or
-          # abandoned branches that no longer trigger CI.
-          cutoff=$(date -u -d '14 days ago' +%s)
-          # Sort least-recently-accessed first so the stalest caches are the
-          # ones fetched under --limit; the default order is descending and
-          # would fetch the freshest caches instead, never reaching old ones.
-          gh cache list --limit 100 --sort last_accessed_at --order asc --json id,key,lastAccessedAt \
-            --jq '.[] | [.id, .lastAccessedAt, .key] | @tsv' \
-            | while IFS=$'\t' read -r id last key; do
-                last_epoch=$(date -u -d "$last" +%s)
-                if [ "$last_epoch" -lt "$cutoff" ]; then
-                  echo "Deleting stale cache: $key (last accessed $last)"
-                  gh cache delete "$id"
-                fi
-              done
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-nix
+      - name: Delete Nix store paths older than 7 days
+        run: nix-collect-garbage --delete-older-than 7d

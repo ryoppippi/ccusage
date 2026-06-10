@@ -1,0 +1,15 @@
+name: Setup macOS Nix cache
+description: Restore and save the macOS Nix store with the original Nix cache action
+runs:
+  using: composite
+  steps:
+    - name: Cache macOS Nix store
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'dev/flake.lock', 'dev/flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+        gc-max-store-size-macos: 3500000000
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
+        purge-created: 172800
+        purge-primary-key: never
