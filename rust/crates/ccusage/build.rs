@@ -105,28 +105,33 @@ fn compact_pricing_json(json: &str) -> Option<String> {
             continue;
         };
         let mut fields = Map::new();
-        for field in [
-            "input_cost_per_token",
-            "output_cost_per_token",
-            "cache_creation_input_token_cost",
-            "cache_read_input_token_cost",
-            "input_cost_per_token_above_200k_tokens",
-            "output_cost_per_token_above_200k_tokens",
-            "cache_creation_input_token_cost_above_200k_tokens",
-            "cache_read_input_token_cost_above_200k_tokens",
-            "max_input_tokens",
-            "provider_specific_entry",
+        for (source, target) in [
+            ("input_cost_per_token", "i"),
+            ("output_cost_per_token", "o"),
+            ("cache_creation_input_token_cost", "cc"),
+            ("cache_read_input_token_cost", "cr"),
+            ("input_cost_per_token_above_200k_tokens", "ia"),
+            ("output_cost_per_token_above_200k_tokens", "oa"),
+            ("cache_creation_input_token_cost_above_200k_tokens", "cca"),
+            ("cache_read_input_token_cost_above_200k_tokens", "cra"),
+            ("max_input_tokens", "ctx"),
         ] {
-            let Some(value) = pricing.get(field) else {
+            let Some(value) = pricing.get(source) else {
                 continue;
             };
             if !value.is_null() {
-                fields.insert(field.to_string(), value.clone());
+                fields.insert(target.to_string(), value.clone());
             }
         }
-        if fields.contains_key("input_cost_per_token")
-            && fields.contains_key("output_cost_per_token")
+        if let Some(fast) = pricing
+            .get("provider_specific_entry")
+            .and_then(Value::as_object)
+            .and_then(|entry| entry.get("fast"))
+            .filter(|value| !value.is_null())
         {
+            fields.insert("fast".to_string(), fast.clone());
+        }
+        if fields.contains_key("i") && fields.contains_key("o") {
             compact.insert(model, Value::Object(fields));
         }
     }

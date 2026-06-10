@@ -7,6 +7,7 @@ use std::{
 use ccusage_cli::PricingOverride;
 
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::fast::FxHashMap;
 
@@ -83,8 +84,28 @@ struct ProviderSpecificEntry {
 }
 
 #[derive(Debug, Deserialize)]
+struct CompactLiteLlmPricing {
+    i: f64,
+    o: f64,
+    cc: Option<f64>,
+    cr: Option<f64>,
+    ia: Option<f64>,
+    oa: Option<f64>,
+    cca: Option<f64>,
+    cra: Option<f64>,
+    ctx: Option<u64>,
+    fast: Option<f64>,
+}
+
+#[derive(Debug, Deserialize)]
 struct ModelsDevProvider {
     models: FxHashMap<String, ModelsDevModel>,
+}
+
+#[derive(Debug)]
+enum ModelsDevJson {
+    Providers(FxHashMap<String, ModelsDevProvider>),
+    Models(FxHashMap<String, ModelsDevModel>),
 }
 
 struct ModelsDevPricingCache {
@@ -238,7 +259,7 @@ impl PricingMap {
         };
         let mut loaded_count = 0;
         for (model, value) in raw {
-            let Ok(pricing) = serde_json::from_value::<LiteLlmPricing>(value) else {
+            let Some(pricing) = parse_litellm_pricing(value) else {
                 continue;
             };
             let Some(input) = pricing.input_cost_per_token else {
@@ -281,56 +302,62 @@ impl PricingMap {
     }
 
     fn load_models_dev_json_missing(&mut self, json: &str) -> Option<usize> {
-        let Ok(raw) = serde_json::from_str::<FxHashMap<String, ModelsDevProvider>>(json) else {
-            return None;
-        };
+        let raw = parse_models_dev_json(json)?;
+        Some(match raw {
+            ModelsDevJson::Providers(providers) => providers
+                .into_values()
+                .map(|provider| self.load_models_dev_models(provider.models))
+                .sum(),
+            ModelsDevJson::Models(models) => self.load_models_dev_models(models),
+        })
+    }
+
+    fn load_models_dev_models(&mut self, models: FxHashMap<String, ModelsDevModel>) -> usize {
         let mut loaded_count = 0;
-        for provider in raw.into_values() {
-            for (model_key, model) in provider.models {
-                let model_id = model.id.unwrap_or(model_key);
-                if self.entries.contains_key(&model_id) {
-                    continue;
-                }
-                let Some(cost) = model.cost else {
-                    continue;
-                };
-                let Some(input) = cost.input else {
-                    continue;
-                };
-                let Some(output) = cost.output else {
-                    continue;
-                };
-                let input = input / 1_000_000.0;
-                let output = output / 1_000_000.0;
-                let cache_read_explicit = cost.cache_read.is_some();
-                self.entries.insert(
-                    model_id.clone(),
-                    Pricing {
-                        input,
-                        output,
-                        cache_create: cost
-                            .cache_write
-                            .map(|value| value / 1_000_000.0)
-                            .unwrap_or(input * 1.25),
-                        cache_read: cost
-                            .cache_read
-                            .map(|value| value / 1_000_000.0)
-                            .unwrap_or(input * 0.1),
-                        cache_read_explicit,
-                        input_above_200k: None,
-                        output_above_200k: None,
-                        cache_create_above_200k: None,
-                        cache_read_above_200k: None,
-                        fast_multiplier: 1.0,
-                    },
-                );
-                if let Some(context_limit) = model.limit.and_then(|limit| limit.context) {
-                    self.context_limits.insert(model_id, context_limit);
-                }
-                loaded_count += 1;
+        for (model_key, model) in models {
+            let model_id = model.id.unwrap_or(model_key);
+            if self.entries.contains_key(&model_id) {
+                continue;
             }
+            let Some(cost) = model.cost else {
+                continue;
+            };
+            let Some(input) = cost.input else {
+                continue;
+            };
+            let Some(output) = cost.output else {
+                continue;
+            };
+            let input = input / 1_000_000.0;
+            let output = output / 1_000_000.0;
+            let cache_read_explicit = cost.cache_read.is_some();
+            self.entries.insert(
+                model_id.clone(),
+                Pricing {
+                    input,
+                    output,
+                    cache_create: cost
+                        .cache_write
+                        .map(|value| value / 1_000_000.0)
+                        .unwrap_or(input * 1.25),
+                    cache_read: cost
+                        .cache_read
+                        .map(|value| value / 1_000_000.0)
+                        .unwrap_or(input * 0.1),
+                    cache_read_explicit,
+                    input_above_200k: None,
+                    output_above_200k: None,
+                    cache_create_above_200k: None,
+                    cache_read_above_200k: None,
+                    fast_multiplier: 1.0,
+                },
+            );
+            if let Some(context_limit) = model.limit.and_then(|limit| limit.context) {
+                self.context_limits.insert(model_id, context_limit);
+            }
+            loaded_count += 1;
         }
-        Some(loaded_count)
+        loaded_count
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
@@ -957,6 +984,73 @@ impl PricingMap {
     }
 }
 
+fn parse_litellm_pricing(value: Value) -> Option<LiteLlmPricing> {
+    if value
+        .as_object()
+        .is_some_and(|entry| entry.contains_key("i") && entry.contains_key("o"))
+    {
+        if let Ok(compact) = serde_json::from_value::<CompactLiteLlmPricing>(value.clone()) {
+            return Some(LiteLlmPricing {
+                input_cost_per_token: Some(compact.i),
+                output_cost_per_token: Some(compact.o),
+                cache_creation_input_token_cost: compact.cc,
+                cache_read_input_token_cost: compact.cr,
+                input_cost_per_token_above_200k_tokens: compact.ia,
+                output_cost_per_token_above_200k_tokens: compact.oa,
+                cache_creation_input_token_cost_above_200k_tokens: compact.cca,
+                cache_read_input_token_cost_above_200k_tokens: compact.cra,
+                max_input_tokens: compact.ctx,
+                provider_specific_entry: compact
+                    .fast
+                    .map(|fast| ProviderSpecificEntry { fast: Some(fast) }),
+            });
+        }
+    }
+    let pricing = serde_json::from_value::<LiteLlmPricing>(value).ok()?;
+    pricing
+        .input_cost_per_token
+        .zip(pricing.output_cost_per_token)
+        .map(|_| pricing)
+}
+
+fn parse_models_dev_json(json: &str) -> Option<ModelsDevJson> {
+    let value = serde_json::from_str::<Value>(json).ok()?;
+    let Value::Object(entries) = &value else {
+        return None;
+    };
+    if entries.values().any(models_dev_entry_has_models_field) {
+        if !entries.values().all(models_dev_entry_has_models_field) {
+            return None;
+        }
+        return serde_json::from_value::<FxHashMap<String, ModelsDevProvider>>(value)
+            .ok()
+            .map(ModelsDevJson::Providers);
+    }
+    if !entries.values().all(models_dev_entry_has_required_cost) {
+        return None;
+    }
+    serde_json::from_value::<FxHashMap<String, ModelsDevModel>>(value)
+        .ok()
+        .map(ModelsDevJson::Models)
+}
+
+fn models_dev_entry_has_models_field(value: &Value) -> bool {
+    value
+        .as_object()
+        .is_some_and(|entry| entry.get("models").is_some_and(Value::is_object))
+}
+
+fn models_dev_entry_has_required_cost(value: &Value) -> bool {
+    value
+        .as_object()
+        .and_then(|entry| entry.get("cost"))
+        .and_then(Value::as_object)
+        .is_some_and(|cost| {
+            cost.get("input").is_some_and(Value::is_number)
+                && cost.get("output").is_some_and(Value::is_number)
+        })
+}
+
 /// Matches pricing keys across provider/model aliases while preserving version boundaries.
 fn pricing_key_matches(candidate: &str, model: &str, normalized_model: &str) -> bool {
     if contains_pricing_key(model, candidate) || contains_pricing_key(candidate, model) {
@@ -1119,6 +1213,7 @@ mod tests {
         embedded_models_dev_pricing, Pricing, PricingMap, BUILD_TIME_MODELS_DEV_JSON,
         BUILD_TIME_PRICING_JSON,
     };
+    use ccusage_test_support::fs_fixture;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
@@ -1280,6 +1375,61 @@ mod tests {
         assert_eq!(loaded, 1);
         assert!(pricing.find("gpt-valid").is_some());
         assert_eq!(pricing.context_limit("gpt-valid"), Some(123));
+    }
+
+    #[test]
+    fn loads_compact_litellm_pricing_json() {
+        let mut pricing = PricingMap::default();
+        let loaded = pricing.load_json(
+            r#"{
+                "gpt-compact": {
+                    "i": 0.000001,
+                    "o": 0.000010,
+                    "cc": 0.00000125,
+                    "cr": 0.0000001,
+                    "ia": 0.000002,
+                    "oa": 0.000020,
+                    "cca": 0.0000025,
+                    "cra": 0.0000002,
+                    "ctx": 123456,
+                    "fast": 1.5
+                }
+            }"#,
+        );
+
+        assert_eq!(loaded, 1);
+        let compact = pricing.find("gpt-compact").unwrap();
+        assert_eq!(compact.input, 1e-6);
+        assert_eq!(compact.output, 10e-6);
+        assert_eq!(compact.cache_create, 1.25e-6);
+        assert_eq!(compact.cache_read, 0.1e-6);
+        assert!(compact.cache_read_explicit);
+        assert_eq!(compact.input_above_200k, Some(2e-6));
+        assert_eq!(compact.output_above_200k, Some(20e-6));
+        assert_eq!(compact.cache_create_above_200k, Some(2.5e-6));
+        assert_eq!(compact.cache_read_above_200k, Some(0.2e-6));
+        assert_eq!(compact.fast_multiplier, 1.5);
+        assert_eq!(pricing.context_limit("gpt-compact"), Some(123456));
+    }
+
+    #[test]
+    fn falls_back_to_full_litellm_pricing_when_compact_shape_is_incomplete() {
+        let mut pricing = PricingMap::default();
+        let loaded = pricing.load_json(
+            r#"{
+                "gpt-full-with-extra-i": {
+                    "i": "provider metadata",
+                    "o": "provider metadata",
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010
+                }
+            }"#,
+        );
+
+        assert_eq!(loaded, 1);
+        let full = pricing.find("gpt-full-with-extra-i").unwrap();
+        assert_eq!(full.input, 1e-6);
+        assert_eq!(full.output, 10e-6);
     }
 
     #[test]
@@ -1466,6 +1616,62 @@ mod tests {
         assert_eq!(pricing.context_limit("gpt-fallback"), Some(456));
         assert!((alias.input - 4e-6).abs() < f64::EPSILON);
         assert_eq!(pricing.context_limits.get("gpt-alias"), Some(&654));
+    }
+
+    #[test]
+    fn rejects_malformed_models_dev_provider_payload() {
+        let fixture = fs_fixture!({
+            "models-dev.json": r#"{
+                "openai": {
+                    "models": {
+                        "gpt-fallback": {
+                            "cost": {
+                                "input": 2.0,
+                                "output": 8.0
+                            }
+                        }
+                    }
+                },
+                "broken-provider": {
+                    "name": "Broken Provider"
+                }
+            }"#,
+        });
+        let json = std::fs::read_to_string(fixture.path("models-dev.json")).unwrap();
+        let mut pricing = PricingMap::default();
+
+        assert_eq!(pricing.load_models_dev_json_missing(&json), None);
+        assert_eq!(pricing.len(), 0);
+    }
+
+    #[test]
+    fn loads_flat_models_dev_pricing_snapshot() {
+        let mut pricing = PricingMap::default();
+        let models_dev_json = r#"{
+                "claude-fallback": {
+                    "cost": {
+                        "input": 3.0,
+                        "output": 15.0,
+                        "cache_read": 0.3,
+                        "cache_write": 3.75
+                    },
+                    "limit": {
+                        "context": 200000
+                    }
+                }
+            }"#;
+
+        assert_eq!(
+            pricing.load_models_dev_json_missing(models_dev_json),
+            Some(1)
+        );
+
+        let fallback = pricing.find("claude-fallback").unwrap();
+        assert!((fallback.input - 3e-6).abs() < f64::EPSILON);
+        assert!((fallback.output - 15e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_create - 3.75e-6).abs() < f64::EPSILON);
+        assert!((fallback.cache_read - 0.3e-6).abs() < f64::EPSILON);
+        assert_eq!(pricing.context_limit("claude-fallback"), Some(200000));
     }
 
     #[test]

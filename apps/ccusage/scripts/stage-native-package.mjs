@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import process from 'node:process';
@@ -24,6 +25,21 @@ function readOption(name, fallback) {
 	return value;
 }
 
+function rewriteDarwinSystemLibraries(binaryPath) {
+	const linkedLibraries = execFileSync('otool', ['-L', binaryPath], { encoding: 'utf8' });
+	for (const line of linkedLibraries.split('\n')) {
+		const library = line.trim().split(/\s+/)[0];
+		if (/^\/nix\/store\/[^/]+-libiconv-[^/]+\/lib\/libiconv\.2\.dylib$/.test(library)) {
+			execFileSync('install_name_tool', [
+				'-change',
+				library,
+				'/usr/lib/libiconv.2.dylib',
+				binaryPath,
+			]);
+		}
+	}
+}
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '../../..');
 const platform = readOption('platform', process.platform);
@@ -44,6 +60,9 @@ mkdirSync(targetDir, { recursive: true });
 copyFileSync(source, target);
 if (platform !== 'win32') {
 	chmodSync(target, 0o755);
+}
+if (platform === 'darwin') {
+	rewriteDarwinSystemLibraries(target);
 }
 
 process.stdout.write(`${target}\n`);

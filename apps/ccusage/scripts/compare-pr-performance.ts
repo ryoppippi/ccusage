@@ -54,6 +54,11 @@ type PackageRunnerComparison = {
 	head?: PackageRunnerMeasurement;
 };
 
+type PackageInstall = {
+	acquisition: number;
+	binEntry: string;
+};
+
 type SampleOptions = {
 	runs: number;
 	warmup: number;
@@ -402,10 +407,11 @@ async function installPackageUrl({
 	label: string;
 	packageUrl: string;
 	timeoutMs: number;
-}): Promise<{ acquisition: number; binEntry: string }> {
+}): Promise<PackageInstall | undefined> {
 	await writeProgress(`${label} package install waiting for package URL`);
 	if (!(await waitForPackageUrl(packageUrl, timeoutMs))) {
-		throw new Error(`${label} package URL was not ready: ${packageUrl}`);
+		await writeProgress(`${label} package install skipped because package URL was not ready`);
+		return undefined;
 	}
 	await mkdir(installDir, { recursive: true });
 	await Bun.write(
@@ -1695,6 +1701,38 @@ function renderMarkdown(
 	return `${lines.join('\n')}\n`;
 }
 
+function renderSkippedMarkdown(options: {
+	basePackageUrl?: string;
+	baseSha?: string;
+	headRuntime: HeadRuntime;
+	headSha?: string;
+	reason: string;
+}): string {
+	const markerName =
+		options.headRuntime === 'rust' ? 'ccusage-rust-perf-comment' : 'ccusage-perf-comment';
+	const lines = [
+		`<!-- ${markerName} -->`,
+		...(options.headSha == null ? [] : [`<!-- ${markerName}:${options.headSha} -->`]),
+		'## ccusage performance comparison',
+		'',
+		...(options.headSha == null
+			? []
+			: [
+					`PR SHA: \`${formatSha(options.headSha)}\``,
+					...(options.baseSha == null ? [] : [`Base SHA: \`${formatSha(options.baseSha)}\``]),
+					'',
+				]),
+		'Performance comparison skipped.',
+		'',
+		options.reason,
+		...(options.basePackageUrl == null
+			? []
+			: ['', `Base package: \`${packageUrlSha(options.basePackageUrl)}\``]),
+		'',
+	];
+	return `${lines.join('\n')}\n`;
+}
+
 if (import.meta.vitest != null) {
 	describe(createCcusageCommandFromBin, () => {
 		it('builds hyperfine command text that benchmarks the published ccusage bin with both Claude and Codex fixture environment variables', () => {
@@ -1777,6 +1815,26 @@ if (import.meta.vitest != null) {
 	});
 
 	describe(createHeadCcusageCommand, () => {
+		describe(installPackageUrl, () => {
+			it('skips package installation when the package URL is not ready before the timeout', async () => {
+				await using fixture = await createFixture({});
+				vi.stubGlobal('Bun', {
+					sleep: vi.fn(),
+					stderr: {},
+					write: vi.fn(async () => undefined),
+				});
+
+				await expect(
+					installPackageUrl({
+						installDir: join(fixture.path, 'package'),
+						label: 'base',
+						packageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@missing',
+						timeoutMs: 0,
+					}),
+				).resolves.toBeUndefined();
+			});
+		});
+
 		it('resolves the installed package published bin instead of the package manager shim', async () => {
 			await using fixture = await createFixture({});
 			const packageDir = join(fixture.path, 'node_modules', 'ccusage');
@@ -2191,6 +2249,22 @@ if (import.meta.vitest != null) {
 				'| installed native package binary | 2.00 KiB | 1.00 KiB | -1.00 KiB | 2.00x |',
 			);
 		});
+
+		it('renders a commit-specific skip comment when the base package URL is unavailable', () => {
+			const markdown = renderSkippedMarkdown({
+				basePackageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@0123456789abcdef',
+				baseSha: '0123456789abcdef',
+				headRuntime: 'rust',
+				headSha: 'abcdef0123456789',
+				reason: 'Base package URL was not ready before the timeout.',
+			});
+
+			expect(markdown).toContain('<!-- ccusage-rust-perf-comment:abcdef0123456789 -->');
+			expect(markdown).toContain('PR SHA: `abcdef012345`');
+			expect(markdown).toContain('Base SHA: `0123456789ab`');
+			expect(markdown).toContain('Base package: `0123456789ab`');
+			expect(markdown).toContain('Base package URL was not ready before the timeout.');
+		});
 	});
 
 	describe(parsePeakRssBytes, () => {
@@ -2348,6 +2422,21 @@ const command = define({
 						packageUrl: headPackageUrl,
 						timeoutMs: ctx.values.packageRunnerTimeoutMs,
 					});
+		if (basePackageUrl != null && basePackageInstall == null && baseDir == null) {
+			const markdown = renderSkippedMarkdown({
+				basePackageUrl,
+				baseSha: ctx.values.baseSha,
+				headRuntime,
+				headSha: gitSha(resolve(ctx.values.headDir)),
+				reason: `Base package URL was not ready before ${formatDuration(ctx.values.packageRunnerTimeoutMs)}. Fixture performance comparison requires a base package when --base-dir is not provided.`,
+			});
+			if (ctx.values.output == null) {
+				await Bun.write(Bun.stdout, markdown);
+			} else {
+				await Bun.write(resolve(ctx.values.output), markdown);
+			}
+			return;
+		}
 		const headNativeBinEntry =
 			headPackageInstall == null
 				? undefined
