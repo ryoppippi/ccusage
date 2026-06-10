@@ -183,7 +183,7 @@ jobs:
           done
       - run: nix develop ./dev#ci --command just install
       - id: publish
-        run: nix develop ./dev#ci --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-*'
+        run: nix develop ./dev#ci --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-win32-x64'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'

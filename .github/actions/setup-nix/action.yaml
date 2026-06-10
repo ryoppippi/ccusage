@@ -22,6 +22,17 @@ runs:
         path: /nix
         commit: on-change
 
+    - name: Prepare mounted Nix store ownership
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo chown "$USER:$(id -gn)" /nix /nix/store
+        for path in /nix/var/log/nix /nix/var/nix; do
+          if [ -e "$path" ]; then
+            sudo chown -R "$USER:$(id -gn)" "$path"
+          fi
+        done
+
     - name: Install Nix
       uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
       with:
