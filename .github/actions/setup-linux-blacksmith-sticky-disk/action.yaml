@@ -17,12 +17,7 @@ runs:
       id: pnpm
       if: steps.blacksmith.outputs.enabled == 'true'
       shell: bash
-      run: |
-        package_manager="$(node -p "require('./package.json').packageManager ?? ''")"
-        case "$package_manager" in
-          pnpm@*) echo "version=${package_manager#pnpm@}" >> "$GITHUB_OUTPUT" ;;
-          *) echo "version=unknown" >> "$GITHUB_OUTPUT" ;;
-        esac
+      run: echo "version=$(jq -r '.packageManager | ltrimstr("pnpm@")' package.json)" >> "$GITHUB_OUTPUT"
 
     - name: Prepare Nix store mount point
       if: steps.blacksmith.outputs.enabled == 'true'
