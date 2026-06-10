@@ -214,6 +214,12 @@ The scheduled `update pricing` workflow runs the same update and validation, the
 </p>
 
 <p align="center">
+    <a href="https://blacksmith.sh">
+        <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/blacksmith.png" alt="Blacksmith" width="320">
+    </a>
+</p>
+
+<p align="center">
     <a href="https://github.com/sponsors/ryoppippi">
         <img src="https://sponsors.ryoppippi.com/sponsors.png" alt="Sponsors">
     </a>

@@ -65,6 +65,12 @@ features:
     </a>
   </div>
 
+  <div style="display: flex; justify-content: center; margin-top: 1rem;">
+    <a href="https://blacksmith.sh" target="_blank">
+      <img src="/blacksmith.png" alt="Blacksmith" style="display: block; width: min(320px, 80vw); height: auto;">
+    </a>
+  </div>
+
   <div style="display: flex; justify-content: center; margin-top: 2rem;">
     <a href="https://github.com/sponsors/ryoppippi" target="_blank">
       <img src="https://sponsors.ryoppippi.com/sponsors.png" alt="Sponsors" style="display: block; max-width: 100%; height: auto;">

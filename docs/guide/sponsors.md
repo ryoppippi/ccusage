@@ -1,6 +1,6 @@
 # Sponsors
 
-ccusage is sponsored by CodeRabbit.
+ccusage is sponsored by CodeRabbit and Blacksmith.
 
 <p align="center">
     <a href="https://coderabbit.link/ryoppippi">
@@ -8,6 +8,12 @@ ccusage is sponsored by CodeRabbit.
             <source media="(prefers-color-scheme: dark)" srcset="/coderabbit-logo-dark.svg">
             <img src="/coderabbit-logo.svg" alt="CodeRabbit" width="320">
         </picture>
+    </a>
+</p>
+
+<p align="center">
+    <a href="https://blacksmith.sh">
+        <img src="/blacksmith.png" alt="Blacksmith" width="320">
     </a>
 </p>
 
