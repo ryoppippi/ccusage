@@ -24,7 +24,12 @@ runs:
       if: steps.blacksmith.outputs.enabled == 'true'
       uses: useblacksmith/stickydisk@2b7a836cbb2b48f4780ae76a7b6fd79d545fb54a # v1.3.0
       with:
-        key: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}
+        # Scope the disk per job: a sticky disk clones the last committed
+        # snapshot and re-commits on completion, so jobs that realize different
+        # Nix closures (e.g. a full dev shell vs. a single `nix build`) would
+        # otherwise overwrite each other's store on a shared key and force cold
+        # re-downloads. Keying by job keeps each closure warm independently.
+        key: ${{ github.repository }}-nix-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}
         path: /nix
 
     - name: Prepare mounted Nix store ownership
