@@ -46,7 +46,7 @@ runs:
     - name: Fix single-user Nix store ownership
       if: runner.os == 'Linux'
       shell: bash
-      run: sudo chown -R "$USER:$(id -gn)" /nix/store /nix/var/nix
+      run: sudo chown -R "$USER:$(id -gn)" /nix/store /nix/var/log/nix /nix/var/nix
 
     - name: Load Nix CI development environment
       if: inputs.warm-dev-shell == 'true'
