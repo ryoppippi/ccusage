@@ -9,7 +9,7 @@ permissions: read-all
 jobs:
   changes:
     name: Detect code changes
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-slim
     outputs:
       code-changed: ${{ steps.detect.outputs.code-changed }}
     steps:

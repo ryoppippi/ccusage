@@ -8,7 +8,7 @@ on:
 jobs:
   approve:
     if: ${{ !github.event.issue.pull_request }}
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: write
