@@ -6,7 +6,6 @@
 	"type": "module",
 	"scripts": {
 		"build": "cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",
-		"deploy": "wrangler deploy",
 		"dev": "cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress dev"
 	},
 	"devDependencies": {
@@ -15,8 +14,7 @@
 		"@types/react": "catalog:types",
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-group-icons": "catalog:docs",
-		"vitepress-plugin-llms": "catalog:docs",
-		"wrangler": "catalog:docs"
+		"vitepress-plugin-llms": "catalog:docs"
 	},
 	"engines": {
 		"node": ">=22.11.0"

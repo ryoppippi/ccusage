@@ -5,8 +5,7 @@
 default:
     @just --list
 
-# Build the site (delegated; wrangler.jsonc runs `pnpm run build`, which also
-# copies the generated schema into public/ before VitePress)
+# Build the site (the pnpm script copies the schema into public/ before VitePress)
 build:
     pnpm run build
 
@@ -21,7 +20,3 @@ typecheck:
 # Preview the production build locally
 preview:
     pnpm exec vitepress preview
-
-# Deploy to Cloudflare
-deploy:
-    pnpm exec wrangler deploy

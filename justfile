@@ -5,9 +5,9 @@
 # Whole-repo jobs that the Nix flake owns (formatting, checks, schema) stay here.
 #
 # pnpm policy: repo-global tools provided by the Nix dev shell (cargo, tsgo, nix)
-# are called directly; package-scoped node binaries (vitest, vitepress, wrangler,
-# tsdown) go through pnpm; `build` is delegated with `pnpm run` because npm
-# prepack and Cloudflare both invoke that script by name.
+# are called directly; package-scoped node binaries (vitest, vitepress, tsdown)
+# go through pnpm; `build` is delegated with `pnpm run` because npm prepack
+# invokes that script by name.
 #
 # Run `just --list` (or `just <module>::--list`) to see everything.
 
