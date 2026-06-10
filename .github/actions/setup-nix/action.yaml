@@ -74,7 +74,7 @@ runs:
       with:
         primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'dev/flake.lock', 'dev/flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
         restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
-        gc-max-store-size-linux: 3500000000
+        gc-max-store-size-macos: 3500000000
         purge: true
         purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
         purge-created: 172800
