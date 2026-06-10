@@ -44,9 +44,14 @@ runs:
         purge-primary-key: never
 
     - name: Fix single-user Nix store ownership
-      if: runner.os == 'Linux'
+      if: runner.os != 'Windows'
       shell: bash
-      run: sudo chown -R "$USER:$(id -gn)" /nix/store /nix/var/log/nix /nix/var/nix
+      run: |
+        for path in /nix/store /nix/var/log/nix /nix/var/nix; do
+          if [ -e "$path" ]; then
+            sudo chown -R "$USER:$(id -gn)" "$path"
+          fi
+        done
 
     - name: Load Nix CI development environment
       if: inputs.warm-dev-shell == 'true'
