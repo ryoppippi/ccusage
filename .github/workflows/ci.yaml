@@ -30,9 +30,7 @@ jobs:
       - uses: ./.github/actions/setup-nix
         with:
           cache-profile: dev
-      - run: nix flake check --print-build-logs
-      - run: nix flake check ./dev --print-build-logs
-      - run: nix develop ./dev#ci --command just install
+      - run: nix develop ./dev#ci --command just flake-check
       - run: nix develop ./dev#ci --command just typecheck
 
   test:

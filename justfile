@@ -26,8 +26,8 @@ build: ccusage::build docs::build
 install:
     pnpm install --frozen-lockfile
 
-# Type-check every workspace package
-typecheck: ccusage::typecheck docs::typecheck
+# Install dependencies, then type-check every workspace package
+typecheck: install ccusage::typecheck docs::typecheck
 
 # Run the full test suite (Rust workspace + Vitest) in parallel
 [parallel]
@@ -45,10 +45,13 @@ generate-large-fixture output_dir codex_output_dir size_mib="1024":
 fmt:
     nix develop ./dev#ci --command treefmt
 
-# Run package typechecks and every flake check (treefmt, oxlint, clippy, schema drift, gitleaks, build)
-check: typecheck
+# Run root package checks and development tooling checks
+flake-check:
     nix flake check
     nix flake check ./dev
+
+# Run package typechecks and every flake check (treefmt, oxlint, clippy, schema drift, gitleaks, build)
+check: typecheck flake-check
 
 # Regenerate apps/ccusage/config-schema.json from the Rust source
 schema:
