@@ -244,6 +244,7 @@ jobs:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
         run: |
           preview_url="$(
+            # shellcheck disable=SC2016
             node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
           )"
           echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
@@ -315,6 +316,7 @@ jobs:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
         run: |
           preview_url="$(
+            # shellcheck disable=SC2016
             node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
           )"
           echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
