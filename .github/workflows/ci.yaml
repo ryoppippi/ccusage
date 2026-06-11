@@ -30,6 +30,15 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
       - run: nix flake check --print-build-logs
+      # EXPERIMENT: pin the crane deps in a nix profile so they survive the
+      # sticky disk's GC-root-respecting trim (profiles were the only roots that
+      # persisted in testing); unrooted intermediate deps were dropped and
+      # rebuilt every run.
+      - name: Pin Rust deps cache (experiment)
+        run: |
+          nix build .#ccusage.cargoArtifacts --no-link --print-build-logs
+          nix-env --profile /nix/var/nix/profiles/ccusage-deps --set "$(nix eval --raw .#ccusage.cargoArtifacts.outPath)"
+          ls -la /nix/var/nix/profiles/ | grep ccusage || true
       - run: nix develop --command just typecheck
 
   test:
