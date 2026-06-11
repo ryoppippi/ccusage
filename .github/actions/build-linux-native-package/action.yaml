@@ -26,6 +26,10 @@ runs:
           nix build .#ccusage-static --print-build-logs
         fi
 
+    - uses: ./.github/actions/pin-nix-deps
+      with:
+        attr: .#ccusage-static.cargoArtifacts
+
     - name: Verify Linux binary is static
       shell: bash
       env:
