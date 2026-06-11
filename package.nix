@@ -7,7 +7,6 @@
   root ? ./.,
   stdenv,
   apple-sdk_15,
-  libiconv,
 }:
 let
   inherit ((builtins.fromJSON (builtins.readFile (root + /package.json)))) version;
@@ -28,14 +27,20 @@ let
     doCheck = false;
     cargoExtraArgs = "-p ccusage --bin ccusage";
     CCUSAGE_PRICING_JSON_PATH = "${inputs.litellm}/model_prices_and_context_window.json";
-    RUSTFLAGS = lib.optionalString stdenv.isLinux "-C link-arg=-fuse-ld=mold";
+    RUSTFLAGS =
+      lib.optionalString stdenv.isLinux "-C link-arg=-fuse-ld=mold"
+      # The nixpkgs Darwin stdenv injects -liconv even though ccusage uses no
+      # iconv symbols, recording an unused /nix/store libiconv dependency that
+      # crashes non-Nix Macs (#1251). dead_strip_dylibs drops dylib load
+      # commands with no referenced symbols, so the unused libiconv is removed
+      # and the binary links only system dylibs.
+      + lib.optionalString stdenv.isDarwin "-C link-arg=-Wl,-dead_strip_dylibs";
     nativeBuildInputs = [
       pkg-config
     ]
     ++ lib.optionals stdenv.isLinux [ mold ];
     buildInputs = lib.optionals stdenv.isDarwin [
       apple-sdk_15
-      libiconv
     ];
   };
   # Keep the dependency artifact keyed only by inputs that affect Cargo deps.
@@ -50,11 +55,18 @@ craneLib.buildPackage (
   // {
     inherit cargoArtifacts;
     postInstall = lib.optionalString stdenv.isDarwin ''
-      install_name_tool -change ${libiconv}/lib/libiconv.2.dylib /usr/lib/libiconv.2.dylib $out/bin/ccusage
-      # End-user machines have no /nix/store, so any dylib outside the macOS
-      # system paths would crash the published binary with a missing dynamic
-      # library error. grep prints the offending entries when it matches.
-      if otool -L $out/bin/ccusage | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)'; then
+      # The nixpkgs Darwin stdenv cc-wrapper injects -liconv into the link even
+      # when libiconv is absent from buildInputs.  dead_strip_dylibs (set in
+      # RUSTFLAGS) drops it locally, but in CI the cc-wrapper's -liconv may
+      # arrive after the linker has resolved dead_strip_dylibs.  Rewrite the
+      # install name as a robust fallback so the safety gate below doesn't fail
+      # on a dylib that carries no referenced symbols.
+      for lib in $(otool -L "$out/bin/ccusage" | tail -n +2 | awk '{print $1}' | grep -E '^/nix/store/[^/]+-libiconv-'); do
+        install_name_tool -change "$lib" /usr/lib/libiconv.2.dylib "$out/bin/ccusage"
+      done
+      # Every remaining dylib MUST be a macOS system path.  grep prints the
+      # offending entries when it matches — fail the build for any matches.
+      if otool -L "$out/bin/ccusage" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)'; then
         echo "error: ccusage links dylibs that do not exist on end-user machines" >&2
         exit 1
       fi

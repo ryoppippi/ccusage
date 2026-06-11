@@ -63,7 +63,10 @@ in
             # End-user Intel Macs have no /nix/store, so fail the build if the
             # binary links anything outside the macOS system paths.
             postInstall = ''
-              if otool -L $out/bin/ccusage | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)'; then
+              for lib in $(otool -L "$out/bin/ccusage" | tail -n +2 | awk '{print $1}' | grep -E '^/nix/store/[^/]+-libiconv-'); do
+                install_name_tool -change "$lib" /usr/lib/libiconv.2.dylib "$out/bin/ccusage"
+              done
+              if otool -L "$out/bin/ccusage" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)'; then
                 echo "error: ccusage-darwin-x64 links dylibs that do not exist on end-user machines" >&2
                 exit 1
               fi
