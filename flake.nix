@@ -50,6 +50,7 @@
         ./nix/git-hooks.nix
         ./nix/packages.nix
         ./nix/static-package.nix
+        ./nix/darwin-x64-package.nix
         ./nix/tests.nix
         ./nix/checks.nix
         ./nix/dev-shell.nix
