@@ -23,13 +23,20 @@ in
       craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
       inherit (config.packages.ccusage.passthru) cargoArtifacts commonArgs;
       nixFilter = inputs.nix-filter.lib;
-      repoSrc = nixFilter {
+      # Scope the source to the Rust tree plus the few out-of-tree files the
+      # build and tests pull in at compile time, so the derivation only rebuilds
+      # when something it actually depends on changes — not on every docs, TS, or
+      # config edit elsewhere in the repo:
+      #   * rust/build.rs           reads ../../../flake.lock
+      #   * config_schema.rs tests  include_str! ../../../../ccusage.example.json
+      #   * ccusage-cli tests       include_str! ../../../../apps/ccusage/package.json
+      coverageSrc = nixFilter {
         inherit root;
-        exclude = [
-          (nixFilter.matchName "node_modules")
-          (nixFilter.matchName "target")
-          (nixFilter.matchName "dist")
-          (nixFilter.matchName "coverage")
+        include = [
+          "rust"
+          "flake.lock"
+          "ccusage.example.json"
+          "apps/ccusage/package.json"
         ];
       };
     in
@@ -37,7 +44,7 @@ in
       packages.ccusage-coverage = craneLib.cargoLlvmCov (
         commonArgs
         // {
-          src = repoSrc;
+          src = coverageSrc;
           sourceRoot = "source/rust";
           cargoLock = root + /rust/Cargo.lock;
           inherit cargoArtifacts;
