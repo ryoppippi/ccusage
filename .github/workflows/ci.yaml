@@ -39,7 +39,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      code-quality: write
       pull-requests: read
 
     steps:
@@ -48,10 +47,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-      # Vitest is the only step that needs the JS toolchain (the coverage step
-      # builds via `nix build`), so install just pnpm/node/just instead of
-      # realizing the full dev shell, which drags in every linter, formatter,
-      # and the pre-commit hook closure and dominated this job's wall time.
+      # Vitest needs the JS toolchain; the Rust tests run via `nix build`. Install
+      # just pnpm/node/just instead of realizing the full dev shell, which drags
+      # in every linter, formatter, and the pre-commit hook closure and dominated
+      # this job's wall time.
       - name: Install JS tooling
         run: nix profile install --inputs-from . nixpkgs#pnpm nixpkgs#nodejs nixpkgs#just
       - run: pnpm install --frozen-lockfile
@@ -61,19 +60,8 @@ jobs:
           mkdir -p "$HOME/.config/claude/projects"
       - name: Run Vitest tests
         run: just test-vitest
-      - name: Generate Rust coverage report
-        run: |
-          mkdir -p coverage
-          nix build .#ccusage-coverage --print-build-logs --out-link "$RUNNER_TEMP/coverage-report"
-          cp "$RUNNER_TEMP/coverage-report" coverage/cobertura.xml
-      - name: Upload Rust coverage report
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3 # v1.3.0
-        with:
-          file: coverage/cobertura.xml
-          language: Rust
-          label: code-coverage/cargo-llvm-cov
-          fail-on-error: false
+      - name: Run Rust tests
+        run: nix build .#ccusage-tests --print-build-logs
 
   build-native-packages:
     needs: changes

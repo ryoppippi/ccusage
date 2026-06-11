@@ -1,8 +1,8 @@
-# Rust coverage report built as a Nix derivation so it shares the crane
+# Rust workspace test run as a Nix derivation so it shares the crane
 # `cargoArtifacts` cache (warm on the per-job Blacksmith sticky disk) instead of
-# the dev-shell's `cargo llvm-cov`, which recompiled the whole workspace into an
-# uncached `rust/target` on every CI run. Output is the cobertura XML file at
-# `$out`, consumed by the coverage upload step in CI via `nix build`.
+# recompiling into an uncached `rust/target` on every CI run. Built by the CI
+# test job via `nix build .#ccusage-tests`; the derivation succeeds only when
+# `cargo test --workspace` passes.
 { inputs, ... }:
 let
   root = ./..;
@@ -23,26 +23,35 @@ in
       craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
       inherit (config.packages.ccusage.passthru) cargoArtifacts commonArgs;
       nixFilter = inputs.nix-filter.lib;
-      repoSrc = nixFilter {
+      # Scope the source to the Rust tree plus the few out-of-tree files the
+      # build and tests pull in at compile time, so the derivation only rebuilds
+      # when something it actually depends on changes — not on every docs, TS, or
+      # config edit elsewhere in the repo:
+      #   * rust/build.rs           reads ../../../flake.lock
+      #   * config_schema.rs tests  include_str! ../../../../ccusage.example.json
+      #   * ccusage-cli tests       include_str! ../../../../apps/ccusage/package.json
+      testSrc = nixFilter {
         inherit root;
-        exclude = [
-          (nixFilter.matchName "node_modules")
-          (nixFilter.matchName "target")
-          (nixFilter.matchName "dist")
-          (nixFilter.matchName "coverage")
+        include = [
+          "rust"
+          "flake.lock"
+          "ccusage.example.json"
+          "apps/ccusage/package.json"
         ];
       };
     in
     {
-      packages.ccusage-coverage = craneLib.cargoLlvmCov (
+      packages.ccusage-tests = craneLib.cargoTest (
         commonArgs
         // {
-          src = repoSrc;
+          src = testSrc;
           sourceRoot = "source/rust";
           cargoLock = root + /rust/Cargo.lock;
           inherit cargoArtifacts;
+          # commonArgs disables checks for the release build; re-enable here so
+          # cargoTest actually runs the test suite rather than skipping it.
+          doCheck = true;
           cargoExtraArgs = "--workspace";
-          cargoLlvmCovExtraArgs = "--cobertura --output-path $out";
           # jiff resolves named time zones (e.g. Asia/Tokyo) from the system
           # zoneinfo database, which the hermetic build sandbox lacks, so it
           # would fall back to UTC and shift the timezone-dependent tests by a
