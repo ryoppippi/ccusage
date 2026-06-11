@@ -37,6 +37,7 @@ in
           staticCommonArgs = config.packages.ccusage.passthru.commonArgs // {
             cargoExtraArgs = "-p ccusage --bin ccusage --target ${linuxStaticTarget}";
             nativeBuildInputs = with staticPkgs; [
+              mold
               pkg-config
             ];
             buildInputs = [ ];
@@ -45,6 +46,7 @@ in
           staticDepsOnlyArgs = config.packages.ccusage.passthru.depsOnlyArgs // {
             cargoExtraArgs = "-p ccusage --bin ccusage --target ${linuxStaticTarget}";
             nativeBuildInputs = with staticPkgs; [
+              mold
               pkg-config
             ];
             buildInputs = [ ];

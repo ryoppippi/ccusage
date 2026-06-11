@@ -2,6 +2,7 @@
   craneLib,
   inputs,
   lib,
+  mold,
   pkg-config,
   root ? ./.,
   stdenv,
@@ -27,9 +28,11 @@ let
     doCheck = false;
     cargoExtraArgs = "-p ccusage --bin ccusage";
     CCUSAGE_PRICING_JSON_PATH = "${inputs.litellm}/model_prices_and_context_window.json";
+    RUSTFLAGS = lib.optionalString stdenv.isLinux "-C link-arg=-fuse-ld=mold";
     nativeBuildInputs = [
       pkg-config
-    ];
+    ]
+    ++ lib.optionals stdenv.isLinux [ mold ];
     buildInputs = lib.optionals stdenv.isDarwin [
       apple-sdk_15
       libiconv

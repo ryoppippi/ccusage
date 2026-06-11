@@ -56,12 +56,21 @@ in
             delta
             dust
           ])
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.mold
+          ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             pkgs.apple-sdk_15
           ]
           ++ config.pre-commit.settings.enabledPackages;
 
         shellHook = ''
+          if [ "$(uname -s)" = "Linux" ]; then
+            case " ''${RUSTFLAGS:-} " in
+              *" -C link-arg=-fuse-ld=mold "*) ;;
+              *) export RUSTFLAGS="''${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-fuse-ld=mold" ;;
+            esac
+          fi
           if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
             echo "📦 Installing dependencies..."
             pnpm install --frozen-lockfile
