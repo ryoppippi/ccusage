@@ -19,11 +19,18 @@ runs:
       run: |
         # arm64 builds natively; x64 cross-compiles on this same arm64 runner
         # (the Apple SDK is multi-arch), so no separate Intel runner is needed.
-        if [ "$ARCH" = "x64" ]; then
-          nix build .#ccusage-darwin-x64 --print-build-logs
-        else
-          nix build .#ccusage --print-build-logs
-        fi
+        case "$ARCH" in
+          x64)
+            nix build .#ccusage-darwin-x64 --print-build-logs
+            ;;
+          arm64)
+            nix build .#ccusage --print-build-logs
+            ;;
+          *)
+            echo "Unsupported arch: $ARCH" >&2
+            exit 1
+            ;;
+        esac
 
     - name: Stage native package
       shell: bash
