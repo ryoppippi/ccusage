@@ -36,7 +36,6 @@ runs:
         echo "::group::surviving gc roots"
         nix-store --gc --print-roots 2>/dev/null | grep -Ev '/proc/|/run/' | head -40 || true
         echo "::endgroup::"
-        exit 1
 
     - name: Build Linux static binary
       shell: bash
