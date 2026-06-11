@@ -15,6 +15,33 @@ runs:
   steps:
     - uses: ./.github/actions/setup-nix
 
+    - name: DEBUG inspect restored sticky disk
+      shell: bash
+      run: |
+        echo "::group::deps presence"
+        OUT="$(nix eval --raw '.#ccusage-static.cargoArtifacts.outPath' 2>/dev/null || true)"
+        echo "deps outPath: $OUT"
+        if [ -n "$OUT" ]; then
+          if nix-store --query --valid-paths "$OUT" >/dev/null 2>&1; then
+            echo "RESULT: DEPS PRESENT on restored disk"
+          else
+            echo "RESULT: DEPS MISSING on restored disk"
+          fi
+        fi
+        echo "::endgroup::"
+        echo "::group::gc roots"
+        nix-store --gc --print-roots 2>/dev/null | grep -Ev '/proc/|/run/' | head -50 || true
+        echo "::endgroup::"
+        echo "::group::store stats"
+        du -sh /nix/store 2>/dev/null || true
+        ls -la /nix 2>/dev/null || true
+        echo "::endgroup::"
+        echo "::group::what gc would delete"
+        nix-collect-garbage --dry-run 2>&1 | tail -8 || true
+        echo "::endgroup::"
+        # Stop before the expensive build; this run only inspects the disk.
+        exit 1
+
     - name: Build Linux static binary
       shell: bash
       env:
