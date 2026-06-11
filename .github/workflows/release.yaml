@@ -30,10 +30,10 @@ jobs:
             arch: arm64
             binary: result/bin/ccusage
           - name: build-mac-x64
-            os: macos-15-intel
+            os: blacksmith-12vcpu-macos-26
             platform: darwin
             arch: x64
-            binary: rust/target/release/ccusage
+            binary: result/bin/ccusage
           - name: build-windows-arm64
             os: windows-11-arm
             platform: win32
@@ -56,12 +56,7 @@ jobs:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
       - uses: ./.github/actions/build-macos-nix-native-package
-        if: matrix.platform == 'darwin' && matrix.arch == 'arm64'
-        with:
-          arch: ${{ matrix.arch }}
-          binary: ${{ matrix.binary }}
-      - uses: ./.github/actions/build-macos-cargo-native-package
-        if: matrix.platform == 'darwin' && matrix.arch == 'x64'
+        if: matrix.platform == 'darwin'
         with:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}

@@ -103,6 +103,11 @@ jobs:
             platform: darwin
             arch: arm64
             binary: result/bin/ccusage
+          - name: build-mac-x64
+            os: blacksmith-12vcpu-macos-26
+            platform: darwin
+            arch: x64
+            binary: result/bin/ccusage
           - name: build-windows-x64
             os: blacksmith-32vcpu-windows-2025
             platform: win32
@@ -160,7 +165,7 @@ jobs:
             tar -xf "$archive"
           done
       - id: publish
-        run: pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-win32-x64'
+        run: pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-darwin-x64' './packages/ccusage-win32-x64'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
@@ -176,6 +181,9 @@ jobs:
           - blacksmith-32vcpu-ubuntu-2404
           - blacksmith-32vcpu-ubuntu-2404-arm
           - blacksmith-12vcpu-macos-26
+          # Intel macOS to exercise the cross-built x86_64 darwin binary on real
+          # Intel hardware (the build runner is arm64).
+          - macos-15-intel
           - blacksmith-32vcpu-windows-2025
 
     steps:
