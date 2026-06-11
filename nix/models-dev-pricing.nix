@@ -45,8 +45,11 @@ pkgs.runCommand "models-dev-pricing.json"
     tar -xzf ${zod} -C work/node_modules/zod --strip-components=1
 
     # The generator imports `./packages/core/src/generate.ts`, so it must run
-    # from inside the workspace next to the vendored node_modules.
+    # from inside the workspace next to the vendored node_modules. It also
+    # imports its sibling `./models-dev-compact.ts`, so copy that alongside it
+    # under the same relative name the import expects.
     cp ${./models-dev-gen.ts} work/gen.ts
+    cp ${./models-dev-compact.ts} work/models-dev-compact.ts
 
     cd work
     OUTFILE="$out" bun run gen.ts
