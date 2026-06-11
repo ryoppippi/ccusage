@@ -27,7 +27,14 @@ let
     doCheck = false;
     cargoExtraArgs = "-p ccusage --bin ccusage";
     CCUSAGE_PRICING_JSON_PATH = "${inputs.litellm}/model_prices_and_context_window.json";
-    RUSTFLAGS = lib.optionalString stdenv.isLinux "-C link-arg=-fuse-ld=mold";
+    RUSTFLAGS =
+      lib.optionalString stdenv.isLinux "-C link-arg=-fuse-ld=mold"
+      # The nixpkgs Darwin stdenv injects -liconv even though ccusage uses no
+      # iconv symbols, recording an unused /nix/store libiconv dependency that
+      # crashes non-Nix Macs (#1251). dead_strip_dylibs drops dylib load
+      # commands with no referenced symbols, so the unused libiconv is removed
+      # and the binary links only system dylibs.
+      + lib.optionalString stdenv.isDarwin "-C link-arg=-Wl,-dead_strip_dylibs";
     nativeBuildInputs = [
       pkg-config
     ]
