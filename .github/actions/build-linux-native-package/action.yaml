@@ -26,15 +26,6 @@ runs:
           nix build .#ccusage-static --print-build-logs
         fi
 
-    # Mirror the PR-token hardening from the build step above: on
-    # `pull_request` runs (nix-github-token == 'false') the pin's `nix build`
-    # and `nix eval` calls must also disable access tokens.
-    - uses: ./.github/actions/pin-nix-deps
-      env:
-        NIX_CONFIG: ${{ inputs.nix-github-token == 'false' && 'access-tokens =' || '' }}
-      with:
-        attr: .#ccusage-static.cargoArtifacts
-
     - name: Verify Linux binary is static
       shell: bash
       env:

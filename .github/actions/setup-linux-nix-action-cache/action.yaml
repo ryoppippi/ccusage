@@ -1,9 +1,10 @@
 name: Setup Linux Nix (action cache, macOS-style)
 description: >
   Install Nix and restore/save the store with cache-nix-action, mirroring the
-  macOS setup. Combined with the deps profile pin, the GC keeps the rooted
-  cargoArtifacts while trimming the (substitutable) toolchain, so the cache
-  stays under the GitHub Actions size limit but still warms the deps.
+  macOS setup. No gc-max-store-size: the Blacksmith cache backend is unlimited,
+  so we never garbage-collect before saving — the whole store (including the
+  unrooted crane deps) is cached, exactly like macOS where the small store keeps
+  GC from running ("Not collecting garbage").
 runs:
   using: composite
   steps:
@@ -19,7 +20,6 @@ runs:
       with:
         primary-key: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'package.nix', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock') }}
         restore-prefixes-first-match: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-
-        gc-max-store-size-linux: 4000000000
         purge: true
         purge-prefixes: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-
         purge-created: 172800
