@@ -62,7 +62,7 @@ jobs:
           git checkout -B "$branch"
           git add flake.lock
           git commit -m "chore(pricing): update LiteLLM snapshot"
-          git push --force-with-lease origin "$branch"
+          git push --force origin "$branch"
 
           body="$(printf '%s\n' \
             'Updates the locked LiteLLM pricing input used by Nix builds.' \
@@ -126,7 +126,7 @@ jobs:
           git checkout -B "$branch"
           git add flake.lock rust/crates/ccusage/src/models-dev-pricing.json
           git commit -m "chore(pricing): update models.dev snapshot"
-          git push --force-with-lease origin "$branch"
+          git push --force origin "$branch"
 
           body="$(printf '%s\n' \
             'Updates the pinned models.dev input and its committed pricing snapshot.' \
