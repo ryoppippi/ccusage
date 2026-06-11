@@ -38,13 +38,21 @@ in
               targets = [ target ];
             }
           );
+          # Inherit Darwin buildInputs from the base package and only filter out
+          # the nixpkgs libiconv (aarch64-only); the binary links the multi-arch
+          # libSystem from the SDK instead. Filtering rather than hardcoding the
+          # list keeps future Darwin deps in the base package from being dropped
+          # silently.
+          crossBuildInputs = pkgs.lib.filter (
+            dep: dep != pkgs.libiconv
+          ) config.packages.ccusage.passthru.commonArgs.buildInputs;
           crossCommonArgs = config.packages.ccusage.passthru.commonArgs // {
             cargoExtraArgs = "-p ccusage --bin ccusage --target ${target}";
-            buildInputs = [ pkgs.apple-sdk_15 ];
+            buildInputs = crossBuildInputs;
           };
           crossDepsOnlyArgs = config.packages.ccusage.passthru.depsOnlyArgs // {
             cargoExtraArgs = "-p ccusage --bin ccusage --target ${target}";
-            buildInputs = [ pkgs.apple-sdk_15 ];
+            buildInputs = crossBuildInputs;
           };
           crossCargoArtifacts = crossCraneLib.buildDepsOnly crossDepsOnlyArgs;
         in
