@@ -39,8 +39,6 @@ runs:
         echo "::group::what gc would delete"
         nix-collect-garbage --dry-run 2>&1 | tail -8 || true
         echo "::endgroup::"
-        # Stop before the expensive build; this run only inspects the disk.
-        exit 1
 
     - name: Build Linux static binary
       shell: bash
