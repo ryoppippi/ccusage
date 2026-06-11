@@ -79,15 +79,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
     name: ${{ matrix.name }}
-    # Each native build shares one per-job, per-arch Blacksmith sticky disk
-    # across every run. Overlapping runs clone the same snapshot and re-commit
-    # wholesale, so a later run overwrites the deps another run just pinned and
-    # both rebuild from scratch. Serialize runs of the same matrix entry (queue,
-    # don't cancel) so the pinned deps survive and stay warm. The key is per
-    # matrix.name because each entry already has its own disk.
-    concurrency:
-      group: build-native-${{ matrix.name }}
-      cancel-in-progress: false
     permissions:
       actions: write
       contents: read
