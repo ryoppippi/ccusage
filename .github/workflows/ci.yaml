@@ -220,7 +220,10 @@ jobs:
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
       - name: Run preview E2E with pnpm dlx
-        if: matrix.runner == 'pnpm'
+        # pnpm dlx on Windows doesn't install optional dependency native
+        # binaries (ccusage.exe) into the temporary virtual store, causing
+        # the CLI launcher's spawn to fail with ENOENT.
+        if: matrix.runner == 'pnpm' && runner.os != 'Windows'
         shell: pwsh
         # On Windows, `--config.package-import-method=copy` works around a
         # pnpm bug where the dlx store hardlinks the platform-native optional
