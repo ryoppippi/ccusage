@@ -19,6 +19,7 @@ jiff = { version = "0.2.24", default-features = false, features = [
 	"std",
 	"tz-system",
 	"tzdb-zoneinfo",
+	"tzdb-bundle-platform",
 ] }
 memchr = "2"
 compact_str = "0.9"
