@@ -72,13 +72,6 @@ in
           staticCommonArgs
           // {
             cargoArtifacts = staticCargoArtifacts;
-            # Expose the deps-only artifacts so CI can pin them with a GC root and
-            # keep them on the Blacksmith sticky disk across runs; otherwise the
-            # store path is unreferenced once the binary is built and gets pruned,
-            # forcing a full ~190s dependency rebuild on every run.
-            passthru = {
-              cargoArtifacts = staticCargoArtifacts;
-            };
             # A PT_INTERP header means the binary requests a dynamic loader,
             # so it would not run on end-user machines without the build-time
             # loader path. READELF is exported by the cross bintools wrapper.
