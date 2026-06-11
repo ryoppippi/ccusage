@@ -26,6 +26,23 @@ runs:
           nix build .#ccusage-static --print-build-logs
         fi
 
+    # Pin the deps-only artifacts with a GC root that lives on the mounted Nix
+    # store (the Blacksmith sticky disk). Without a root the crane cargoArtifacts
+    # path is unreferenced once the binary is built, so the sticky disk drops it
+    # and the next run rebuilds all dependencies (~190s). The root persists with
+    # the disk, keeping the deps warm across runs.
+    - name: Pin dependency cache root
+      shell: bash
+      env:
+        NIX_GITHUB_TOKEN: ${{ inputs.nix-github-token }}
+      run: |
+        mkdir -p /nix/ccusage-ci-gcroots
+        if [ "$NIX_GITHUB_TOKEN" = "false" ]; then
+          NIX_CONFIG="access-tokens =" nix build '.#ccusage-static.cargoArtifacts' --out-link /nix/ccusage-ci-gcroots/deps
+        else
+          nix build '.#ccusage-static.cargoArtifacts' --out-link /nix/ccusage-ci-gcroots/deps
+        fi
+
     - name: Verify Linux binary is static
       shell: bash
       env:
