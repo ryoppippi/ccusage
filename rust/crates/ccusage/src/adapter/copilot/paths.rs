@@ -45,6 +45,32 @@ pub(super) fn session_state_paths() -> Result<Vec<PathBuf>> {
     Ok(session_state_event_files(&session_state_dir))
 }
 
+/// Short-circuit existence probe for `has_data()`. Returns `true` as soon
+/// as ONE `<COPILOT_CONFIG_DIR>/session-state/<uuid>/events.jsonl` file is
+/// found, without enumerating or sorting the rest of the directory.
+/// Cheaper than `session_state_paths()` when the only question is "is
+/// there any data on disk?" — which is what the cross-source aggregator's
+/// `Detected:` sentinel needs.
+pub(super) fn has_any_session_state_event_file() -> bool {
+    let Some(base) = copilot_base_dir() else {
+        return false;
+    };
+    let session_state_dir = base.join(SESSION_STATE_DIR_NAME);
+    let Ok(entries) = std::fs::read_dir(&session_state_dir) else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        if path.join(EVENTS_FILENAME).is_file() {
+            return true;
+        }
+    }
+    false
+}
+
 fn copilot_base_dir() -> Option<PathBuf> {
     // Use `var_os` (not `var`) so a non-UTF-8 directory path — legal on
     // Unix — does NOT silently fall through to the `~/.copilot` default.

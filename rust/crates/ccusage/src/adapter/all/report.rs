@@ -31,28 +31,67 @@ fn row_json(row: &AllRow) -> Value {
         "totalCost": json_float(row.total_cost),
         "modelBreakdowns": row.model_breakdowns,
     });
-    if let (Some(obj), Some(agents)) = (value.as_object_mut(), row.metadata_agents.as_ref()) {
-        obj.insert(
-            "metadata".to_string(),
-            row.metadata
-                .clone()
-                .unwrap_or_else(|| json!({ "agents": agents })),
-        );
-    } else if let (Some(obj), Some(metadata)) = (value.as_object_mut(), row.metadata.as_ref()) {
-        obj.insert("metadata".to_string(), metadata.clone());
+    if let Some(metadata) = build_row_metadata(row) {
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert("metadata".to_string(), metadata);
+        }
     }
     value
 }
 
+/// Assembles the per-row `metadata` JSON object for `row_json`.
+///
+/// Sources, in order: existing `row.metadata` (loader-side per-row signals
+/// like `lastActivity`/`projectPath`; reachable only via session-mode
+/// today), `row.metadata_agents` → `"agents"` (guarded against future
+/// loader-side overwrite), and the first-class `row.credits` → `"credits"`
+/// (always injected when `Some`, which is what makes `--all --json`
+/// surface Copilot AIU billing on the aggregated row).
+fn build_row_metadata(row: &AllRow) -> Option<Value> {
+    let mut map = serde_json::Map::new();
+    if let Some(existing) = row.metadata.as_ref().and_then(Value::as_object) {
+        for (k, v) in existing {
+            map.insert(k.clone(), v.clone());
+        }
+    }
+    if let Some(agents) = row.metadata_agents.as_ref() {
+        if !map.contains_key("agents") {
+            map.insert("agents".to_string(), json!(agents));
+        }
+    }
+    if let Some(credits) = row.credits {
+        // Raw `json!` for `5.0`/`5` byte-parity with `output.rs::summary_json`.
+        map.insert("credits".to_string(), json!(credits));
+    }
+    if map.is_empty() {
+        None
+    } else {
+        Some(Value::Object(map))
+    }
+}
+
 fn totals_json(rows: &[AllRow]) -> Value {
-    json!({
+    let mut totals = json!({
         "inputTokens": rows.iter().map(|row| row.input_tokens).sum::<u64>(),
         "outputTokens": rows.iter().map(|row| row.output_tokens).sum::<u64>(),
         "cacheCreationTokens": rows.iter().map(|row| row.cache_creation_tokens).sum::<u64>(),
         "cacheReadTokens": rows.iter().map(|row| row.cache_read_tokens).sum::<u64>(),
         "totalTokens": rows.iter().map(|row| row.total_tokens).sum::<u64>(),
         "totalCost": json_float(rows.iter().map(|row| row.total_cost).sum::<f64>()),
-    })
+    });
+    // `credits` emission rules — designed for byte-parity with the direct
+    // per-agent renderer (`output.rs::totals_json`): gate on positive SUM
+    // (matches `if credits > 0.0` there), emit via raw `json!` (so `5.0`
+    // doesn't collapse to `5`). Per-row uses `Option::is_some` instead
+    // (preserves the "absent vs explicit-zero" channel distinction).
+    // Pinned by `totals_json_credits_uses_float_representation_matching_direct_renderer`.
+    let total_credits = rows.iter().filter_map(|row| row.credits).sum::<f64>();
+    if total_credits > 0.0 {
+        if let Some(obj) = totals.as_object_mut() {
+            obj.insert("credits".to_string(), json!(total_credits));
+        }
+    }
+    totals
 }
 
 fn rows_key(kind: AgentReportKind) -> &'static str {
