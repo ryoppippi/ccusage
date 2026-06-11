@@ -14,6 +14,9 @@ pub(crate) struct CcusageConfig {
     /// JSON Schema URL for validation and autocomplete.
     #[serde(rename = "$schema")]
     pub(crate) schema_url: Option<String>,
+    /// Billing model. Set to `"subscription"` if you pay a flat monthly fee
+    /// (Claude Team / Max / Pro) to suppress inflated token-calculated costs.
+    pub(crate) billing: Option<ConfigBillingType>,
     /// Default values for all-agent reports and legacy Claude commands.
     pub(crate) defaults: Option<SharedOptions>,
     /// Command-specific configuration for all-agent reports.
@@ -520,6 +523,19 @@ pub(crate) enum ConfigCostSource {
     Ccusage,
     Cc,
     Both,
+}
+
+/// Billing model for cost display.
+///
+/// Use `"subscription"` if you pay a flat monthly fee (Claude Team / Max / Pro)
+/// so that ccusage shows $0 instead of inflated token-calculated amounts.
+#[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ConfigBillingType {
+    /// Default: calculate costs from token counts and model pricing.
+    Api,
+    /// Flat-fee subscription: all costs are reported as $0.
+    Subscription,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema, Clone)]
@@ -1102,9 +1118,9 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
-                "droid",
+                "$schema", "amp", "billing", "claude", "codebuff", "codex", "commands", "copilot",
+                "defaults", "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw",
+                "pi", "qwen", "droid",
             ],
         );
         assert!(

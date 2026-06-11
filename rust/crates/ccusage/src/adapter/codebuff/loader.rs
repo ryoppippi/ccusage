@@ -7,7 +7,7 @@ use super::{
     paths::discover_chat_files,
 };
 use crate::{
-    cli::SharedArgs, format_date_tz, parse_tz, LoadedEntry, PricingMap, Result, UsageEntry,
+    cli::{CostMode, SharedArgs}, format_date_tz, parse_tz, LoadedEntry, PricingMap, Result, UsageEntry,
     UsageMessage,
 };
 
@@ -29,9 +29,10 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
             deduped.insert(entry.dedup_key.clone(), entry);
         }
     }
+    let mode = shared.mode;
     let mut entries = deduped
         .into_values()
-        .map(|entry| to_loaded_entry(entry, tz.as_ref(), pricing))
+        .map(|entry| to_loaded_entry(entry, tz.as_ref(), mode, pricing))
         .collect::<Vec<_>>();
     entries.sort_by_key(|entry| entry.timestamp);
     Ok(entries)
@@ -40,10 +41,19 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
 fn to_loaded_entry(
     entry: CodebuffEntry,
     tz: Option<&JiffTimeZone>,
+    mode: CostMode,
     pricing: &PricingMap,
 ) -> LoadedEntry {
-    let cost = calculate_codebuff_cost(&entry, pricing);
-    let missing_pricing_model = missing_codebuff_pricing(&entry, pricing);
+    let cost = if mode == CostMode::Subscription {
+        0.0
+    } else {
+        calculate_codebuff_cost(&entry, pricing)
+    };
+    let missing_pricing_model = if mode.skips_pricing() {
+        None
+    } else {
+        missing_codebuff_pricing(&entry, pricing)
+    };
     let data = UsageEntry {
         session_id: Some(entry.session_id.clone()),
         timestamp: entry.timestamp_text.clone(),

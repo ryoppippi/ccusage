@@ -8,15 +8,15 @@ use serde_json::{Map, Value};
 
 use crate::{
     cli::{
-        normalize_date_bound, BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs,
+        normalize_date_bound, BillingType, BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs,
         PricingOverride, SharedArgs, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay,
         WeeklyArgs,
     },
     config_schema::{
-        BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
-        ConfigPricingOverride, ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay,
-        DailySpecificOptions, OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions,
-        WeeklySpecificOptions,
+        BlocksSpecificOptions, CodexOptions, ConfigBillingType, ConfigCodexSpeed, ConfigCostMode,
+        ConfigCostSource, ConfigPricingOverride, ConfigSortOrder, ConfigVisualBurnRate,
+        ConfigWeekDay, DailySpecificOptions, OpenClawOptions, PiOptions, SharedOptions,
+        StatuslineSpecificOptions, WeeklySpecificOptions,
     },
 };
 
@@ -29,6 +29,13 @@ struct ConfigCommand {
 pub(crate) struct ConfigContext {
     value: Option<Value>,
     command: ConfigCommand,
+}
+
+impl ConfigContext {
+    fn root_billing(&self) -> Option<ConfigBillingType> {
+        let root = self.value.as_ref()?.as_object()?;
+        serde_json::from_value(root.get("billing")?.clone()).ok()
+    }
 }
 
 impl ConfigContext {
@@ -261,8 +268,16 @@ fn is_report_command(command: &str) -> bool {
 }
 
 pub(crate) fn apply_config_to_shared(shared: &mut SharedArgs, config: &ConfigContext) {
+    let billing: Option<BillingType> = config.root_billing().map(Into::into);
+    if let Some(billing) = billing {
+        shared.billing = billing;
+    }
     for options in config.option_maps() {
         apply_shared_options(shared, SharedOptions::from_map(options));
+    }
+    // Billing is a stronger signal than mode: subscription always forces zero costs.
+    if shared.billing == BillingType::Subscription {
+        shared.mode = CostMode::Subscription;
     }
 }
 
@@ -604,6 +619,15 @@ impl From<ConfigCostSource> for CostSource {
     }
 }
 
+impl From<ConfigBillingType> for BillingType {
+    fn from(value: ConfigBillingType) -> Self {
+        match value {
+            ConfigBillingType::Api => Self::Api,
+            ConfigBillingType::Subscription => Self::Subscription,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::{json, Value};
@@ -611,8 +635,8 @@ mod tests {
     use super::*;
     use crate::{
         cli::{
-            BlocksArgs, CodexSpeed, CostMode, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay,
-            WeeklyArgs,
+            BillingType, BlocksArgs, CodexSpeed, CostMode, SortOrder, StatuslineArgs,
+            VisualBurnRate, WeekDay, WeeklyArgs,
         },
         DEFAULT_SESSION_DURATION_HOURS,
     };
@@ -909,6 +933,66 @@ mod tests {
         assert_eq!(result.input_cost_per_token, Some(2e-6)); // overridden
         assert_eq!(result.output_cost_per_token, Some(15e-6)); // preserved
         assert_eq!(result.cache_read_input_token_cost, Some(3e-7)); // preserved
+    }
+
+    #[test]
+    fn subscription_billing_forces_cost_mode_and_suppresses_pricing_warnings() {
+        let config = context(
+            json!({
+                "billing": "subscription"
+            }),
+            "daily",
+            None,
+            "daily",
+        );
+        let mut shared = SharedArgs::default();
+
+        apply_config_to_shared(&mut shared, &config);
+
+        assert_eq!(shared.billing, BillingType::Subscription);
+        assert_eq!(shared.mode, CostMode::Subscription);
+    }
+
+    #[test]
+    fn subscription_billing_overrides_explicit_mode_setting() {
+        let config = context(
+            json!({
+                "billing": "subscription",
+                "defaults": {
+                    "mode": "calculate"
+                }
+            }),
+            "daily",
+            None,
+            "daily",
+        );
+        let mut shared = SharedArgs::default();
+
+        apply_config_to_shared(&mut shared, &config);
+
+        assert_eq!(shared.billing, BillingType::Subscription);
+        assert_eq!(shared.mode, CostMode::Subscription);
+    }
+
+    #[test]
+    fn api_billing_leaves_mode_unchanged() {
+        let config = context(
+            json!({
+                "billing": "api",
+                "defaults": {
+                    "mode": "calculate"
+                }
+            }),
+            "daily",
+            None,
+            "daily",
+        );
+        let mut shared = SharedArgs::default();
+
+        apply_config_to_shared(&mut shared, &config);
+
+        assert_eq!(shared.billing, BillingType::Api);
+        assert_eq!(shared.mode, CostMode::Calculate);
     }
 
     fn context(value: Value, raw: &str, agent: Option<&str>, report: &str) -> ConfigContext {

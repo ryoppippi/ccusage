@@ -395,7 +395,7 @@ fn calculate_gemini_cost(
     pricing: &PricingMap,
 ) -> f64 {
     match mode {
-        CostMode::Display => 0.0,
+        CostMode::Subscription | CostMode::Display => 0.0,
         CostMode::Auto | CostMode::Calculate => {
             for candidate in model_candidates(model) {
                 if pricing.find(&candidate).is_some() {
@@ -419,7 +419,7 @@ fn missing_gemini_pricing(
     mode: CostMode,
     pricing: &PricingMap,
 ) -> Option<String> {
-    if mode == CostMode::Display {
+    if mode.skips_pricing() {
         return None;
     }
     missing_pricing_model_for_candidates(

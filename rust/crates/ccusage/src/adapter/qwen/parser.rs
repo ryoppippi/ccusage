@@ -22,7 +22,7 @@ use crate::{
 const DEFAULT_QWEN_MODEL: &str = "unknown";
 
 pub(super) fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
-    let pricing = if shared.mode == CostMode::Display {
+    let pricing = if shared.mode.skips_pricing() {
         None
     } else {
         Some(PricingMap::load_with_overrides(
@@ -167,7 +167,7 @@ fn calculate_qwen_cost(
     pricing: Option<&PricingMap>,
 ) -> f64 {
     for candidate in qwen_model_candidates(model) {
-        if mode == CostMode::Display
+        if mode.skips_pricing()
             || pricing.is_some_and(|pricing| pricing.find(&candidate).is_some())
         {
             return calculate_cost_for_usage(Some(&candidate), usage, None, mode, pricing);
@@ -182,7 +182,7 @@ fn missing_qwen_pricing(
     mode: CostMode,
     pricing: Option<&PricingMap>,
 ) -> Option<String> {
-    if mode == CostMode::Display {
+    if mode.skips_pricing() {
         return None;
     }
     missing_pricing_model_for_candidates(

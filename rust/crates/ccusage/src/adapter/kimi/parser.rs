@@ -216,7 +216,7 @@ fn calculate_kimi_cost(
     usage: TokenUsageRaw,
 ) -> f64 {
     match mode {
-        CostMode::Display => 0.0,
+        CostMode::Subscription | CostMode::Display => 0.0,
         CostMode::Auto | CostMode::Calculate => {
             for candidate in model_candidates(entry) {
                 if pricing.find(&candidate).is_some() {
@@ -240,7 +240,7 @@ fn missing_kimi_pricing(
     pricing: &PricingMap,
     usage: TokenUsageRaw,
 ) -> Option<String> {
-    if mode == CostMode::Display {
+    if mode.skips_pricing() {
         return None;
     }
     missing_pricing_model_for_candidates(

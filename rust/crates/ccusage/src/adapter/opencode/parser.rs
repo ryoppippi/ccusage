@@ -124,7 +124,7 @@ fn missing_open_code_pricing(
     mode: CostMode,
     pricing: Option<&PricingMap>,
 ) -> Option<String> {
-    if mode == CostMode::Display || cost_usd.is_some_and(|cost| cost > 0.0) {
+    if mode.skips_pricing() || cost_usd.is_some_and(|cost| cost > 0.0) {
         return None;
     }
     missing_pricing_model_for_candidates(

@@ -28,6 +28,7 @@ pub(crate) fn calculate_cost_for_usage(
     pricing: Option<&PricingMap>,
 ) -> f64 {
     match mode {
+        CostMode::Subscription => 0.0,
         CostMode::Display => cost_usd.unwrap_or(0.0),
         CostMode::Auto => {
             cost_usd.unwrap_or_else(|| calculate_cost_from_tokens(model, usage, pricing))
@@ -43,7 +44,10 @@ pub(crate) fn missing_pricing_model_for_usage(
     mode: CostMode,
     pricing: Option<&PricingMap>,
 ) -> Option<String> {
-    if mode == CostMode::Display || (mode == CostMode::Auto && cost_usd.is_some()) {
+    if mode == CostMode::Subscription
+        || mode == CostMode::Display
+        || (mode == CostMode::Auto && cost_usd.is_some())
+    {
         return None;
     }
     missing_pricing_model_for_token_total(model, crate::total_usage_tokens(usage), pricing)
@@ -228,5 +232,24 @@ mod tests {
         .unwrap();
 
         assert_eq!(usage.cache_creation_token_count(), 300);
+    }
+
+    #[test]
+    fn subscription_mode_returns_zero_regardless_of_tokens() {
+        let usage = TokenUsageRaw {
+            input_tokens: 1_000,
+            output_tokens: 500,
+            ..TokenUsageRaw::default()
+        };
+
+        let cost = calculate_cost_for_usage(
+            Some("test-model"),
+            usage,
+            Some(42.0), // even if a recorded cost exists
+            CostMode::Subscription,
+            Some(&pricing()),
+        );
+
+        assert_eq!(cost, 0.0);
     }
 }

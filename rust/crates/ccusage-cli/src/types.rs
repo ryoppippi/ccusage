@@ -52,6 +52,7 @@ pub struct SharedArgs {
     pub compact: bool,
     pub single_thread: bool,
     pub no_cost: bool,
+    pub billing: BillingType,
     pub pricing_overrides: BTreeMap<String, PricingOverride>,
 }
 
@@ -180,6 +181,16 @@ pub enum CostMode {
     Auto,
     Calculate,
     Display,
+    /// Internal mode activated by `billing: "subscription"` in `ccusage.json`.
+    /// All costs are forced to zero regardless of recorded or calculated values.
+    Subscription,
+}
+
+impl CostMode {
+    /// Returns `true` for modes that do not require pricing data to be loaded.
+    pub fn skips_pricing(self) -> bool {
+        matches!(self, CostMode::Display | CostMode::Subscription)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -214,6 +225,19 @@ pub enum CostSource {
     Ccusage,
     Cc,
     Both,
+}
+
+/// Billing model declared by the user in `ccusage.json`.
+///
+/// `Subscription` forces all computed costs to zero so that
+/// Claude Team / Max / Pro users are not shown inflated token-calculated amounts.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum BillingType {
+    /// Default: derive costs from token counts and model pricing tables.
+    #[default]
+    Api,
+    /// Flat-fee subscription: report all costs as $0.
+    Subscription,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]

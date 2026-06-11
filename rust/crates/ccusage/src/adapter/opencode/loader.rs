@@ -42,7 +42,7 @@ pub(crate) fn load_entries_from_directory(
     opencode_dir: &Path,
     shared: &SharedArgs,
 ) -> Result<Vec<LoadedEntry>> {
-    let pricing = if shared.mode == CostMode::Display {
+    let pricing = if shared.mode.skips_pricing() {
         None
     } else {
         Some(PricingMap::load_with_overrides(

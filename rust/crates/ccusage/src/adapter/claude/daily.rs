@@ -36,7 +36,7 @@ pub(super) fn load_daily_summaries_inner(
         return Ok(Vec::new());
     }
 
-    let pricing = if shared.mode == CostMode::Display {
+    let pricing = if shared.mode.skips_pricing() {
         None
     } else {
         Some(PricingMap::load_with_overrides(

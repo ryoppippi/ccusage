@@ -127,6 +127,7 @@ fn calculate_kilo_cost(
     pricing: &PricingMap,
 ) -> f64 {
     match mode {
+        CostMode::Subscription => 0.0,
         CostMode::Display => data.cost_usd.unwrap_or(0.0),
         CostMode::Auto => data
             .cost_usd
@@ -163,7 +164,7 @@ fn missing_kilo_pricing(
     mode: CostMode,
     pricing: &PricingMap,
 ) -> Option<String> {
-    if mode == CostMode::Display || data.cost_usd.is_some_and(|cost| cost > 0.0) {
+    if mode.skips_pricing() || data.cost_usd.is_some_and(|cost| cost > 0.0) {
         return None;
     }
     let model = data.message.model.as_deref()?;

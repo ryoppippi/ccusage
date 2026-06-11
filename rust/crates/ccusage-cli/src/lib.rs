@@ -4,9 +4,9 @@ mod parser;
 mod types;
 
 pub use types::{
-    normalize_date_bound, AgentCommandArgs, AgentReportKind, BlocksArgs, Cli, CliConfig,
-    CodexSpeed, Command, CostMode, CostSource, DailyArgs, NoConfig, PricingOverride, SessionArgs,
-    SharedArgs, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
+    normalize_date_bound, AgentCommandArgs, AgentReportKind, BillingType, BlocksArgs, Cli,
+    CliConfig, CodexSpeed, Command, CostMode, CostSource, DailyArgs, NoConfig, PricingOverride,
+    SessionArgs, SharedArgs, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
 };
 
 #[cfg(test)]
