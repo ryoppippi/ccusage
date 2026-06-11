@@ -30,6 +30,12 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix
       - run: nix flake check --print-build-logs
+      # Pin even on failure so deps built during a failing run stay rooted and
+      # warm the next run; skip on cancel (nothing useful to pin).
+      - if: ${{ !cancelled() }}
+        uses: ./.github/actions/pin-nix-deps
+        with:
+          attr: .#ccusage.cargoArtifacts
       - run: nix develop --command just typecheck
 
   test:
@@ -62,11 +68,26 @@ jobs:
         run: just test-vitest
       - name: Run Rust tests
         run: nix build .#ccusage-tests --print-build-logs
+      # Pin even on failure so deps built during a failing run stay rooted and
+      # warm the next run; skip on cancel (nothing useful to pin).
+      - if: ${{ !cancelled() }}
+        uses: ./.github/actions/pin-nix-deps
+        with:
+          attr: .#ccusage.cargoArtifacts
 
   build-native-packages:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
     name: ${{ matrix.name }}
+    # Each native build shares one per-job, per-arch Blacksmith sticky disk
+    # across every run. Overlapping runs clone the same snapshot and re-commit
+    # wholesale, so a later run overwrites the deps another run just pinned and
+    # both rebuild from scratch. Serialise runs of the same matrix entry (queue,
+    # don't cancel) so the pinned deps survive and stay warm. The key is per
+    # matrix.name because each entry already has its own disk.
+    concurrency:
+      group: build-native-${{ matrix.name }}
+      cancel-in-progress: false
     permissions:
       actions: write
       contents: read

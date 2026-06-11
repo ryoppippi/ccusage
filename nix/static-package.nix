@@ -72,6 +72,13 @@ in
           staticCommonArgs
           // {
             cargoArtifacts = staticCargoArtifacts;
+            # Exposed so CI can pin the deps-only artifacts with a Nix profile
+            # root and keep them on the sticky disk across runs; otherwise the
+            # store path is unreferenced once the binary is built and the disk's
+            # GC-root-respecting trim drops it, forcing a full dependency rebuild.
+            passthru = {
+              cargoArtifacts = staticCargoArtifacts;
+            };
             # A PT_INTERP header means the binary requests a dynamic loader,
             # so it would not run on end-user machines without the build-time
             # loader path. READELF is exported by the cross bintools wrapper.

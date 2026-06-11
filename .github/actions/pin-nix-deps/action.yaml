@@ -1,0 +1,22 @@
+name: Pin Nix deps cache
+description: >
+  Pin a crane cargoArtifacts derivation into a Nix profile so it survives the
+  Blacksmith sticky disk's GC-root-respecting trim. The deps are an unrooted
+  intermediate, so without a profile root they are dropped on commit and
+  recompiled (~3min) on every run; a profile is the one root that persists.
+inputs:
+  attr:
+    description: Flake attribute of the cargoArtifacts derivation to pin
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Pin Rust deps in a Nix profile
+      shell: bash
+      env:
+        DEPS_ATTR: ${{ inputs.attr }}
+      run: |
+        # The deps were already realized by the preceding build/check, so this
+        # only ensures the path and roots it; it does not recompile.
+        nix build "$DEPS_ATTR" --no-link --print-build-logs
+        nix-env --profile /nix/var/nix/profiles/ccusage-deps --set "$(nix eval --raw "$DEPS_ATTR.outPath")"
