@@ -43,6 +43,12 @@ in
           inherit cargoArtifacts;
           cargoExtraArgs = "--workspace";
           cargoLlvmCovExtraArgs = "--cobertura --output-path $out";
+          # jiff resolves named time zones (e.g. Asia/Tokyo) from the system
+          # zoneinfo database, which the hermetic build sandbox lacks, so it
+          # would fall back to UTC and shift the timezone-dependent tests by a
+          # day. Point it at the nixpkgs tzdata; referencing the store path here
+          # also pulls it into the sandbox as a build input.
+          TZDIR = "${pkgs.tzdata}/share/zoneinfo";
           # The workspace tests resolve default Claude data directories from
           # $HOME; the sandbox has none, so seed a writable HOME with the same
           # empty directory layout the CI test job creates before running tests.
