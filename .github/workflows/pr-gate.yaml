@@ -1,7 +1,13 @@
 name: PR Gate
 
+# Must be pull_request_target, NOT pull_request: only the target variant runs
+# with the base repo's write permissions for forked/outside-contributor PRs.
+# With plain `pull_request`, outside-contributor runs are gated as
+# `action_required` and never execute, so the auto-close gate silently no-ops.
+# This workflow never checks out PR code (it only calls the GitHub API via
+# github-script), so the usual pull_request_target injection risk does not apply.
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
 
