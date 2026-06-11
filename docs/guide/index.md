@@ -87,11 +87,11 @@ ccusage reads from local coding CLI data directories:
 | Kilo         | `kilo`     | `${KILO_DATA_DIR:-~/.local/share/kilo}`         |
 | Kimi         | `kimi`     | `${KIMI_DATA_DIR:-~/.kimi}`                     |
 | Qwen         | `qwen`     | `${QWEN_DATA_DIR:-~/.qwen}`                     |
-| Copilot CLI  | `copilot`  | `~/.copilot/otel/*.jsonl`                       |
+| Copilot CLI  | `copilot`  | `${COPILOT_CONFIG_DIR:-~/.copilot}/session-state/<sessionId>/events.jsonl` |
 | Gemini CLI   | `gemini`   | `${GEMINI_DATA_DIR:-~/.gemini/tmp}`             |
 
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
-Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.
+Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives. `COPILOT_CONFIG_DIR` is the exception — it mirrors the Copilot CLI's own single-directory semantics and does not split on commas.
 
 Some coding agents have been investigated but are not supported because their local files do not contain reliable token usage. See [Source Support Q&A](/guide/source-support-qa) for the current notes on Antigravity CLI, Grok CLI, and Devin CLI.
 
