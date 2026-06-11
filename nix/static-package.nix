@@ -1,3 +1,18 @@
+# Distribution-only Linux build, kept separate from the default `ccusage`
+# package on purpose:
+#
+#   * `ccusage` (package.nix) is the host-native build used for `nix run`,
+#     the dev shell, `nix flake check`, and schema generation. On Linux it is
+#     glibc-dynamic with a runpath into `/nix/store`, so it is fast for local
+#     work but NOT portable to end-user machines.
+#   * `ccusage-static` (this file) cross-compiles to musl and links fully
+#     statically, producing the portable binary that `release.yaml` ships to
+#     npm. The release matrix runs `nix build .#ccusage-static` for Linux;
+#     macOS arm64 uses the native Nix build, while macOS x64 and Windows fall
+#     back to `cargo build` because Nix cannot target those runners.
+#
+# So Linux release artifacts must come from `.#ccusage-static`, never the
+# default `.#ccusage`, which would embed unusable `/nix/store` paths.
 {
   inputs,
   ...
