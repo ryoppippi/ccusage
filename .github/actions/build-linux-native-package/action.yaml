@@ -13,7 +13,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-nix
+    - uses: ./.github/actions/setup-linux-nix-action-cache
 
     - name: Build Linux static binary
       shell: bash

@@ -1,0 +1,26 @@
+name: Setup Linux Nix (action cache, macOS-style)
+description: >
+  Install Nix and restore/save the store with cache-nix-action, mirroring the
+  macOS setup. Combined with the deps profile pin, the GC keeps the rooted
+  cargoArtifacts while trimming the (substitutable) toolchain, so the cache
+  stays under the GitHub Actions size limit but still warms the deps.
+runs:
+  using: composite
+  steps:
+    - name: Install Nix
+      uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      with:
+        github_access_token: ${{ github.token }}
+        nix_conf: |
+          access-tokens = github.com=${{ github.token }}
+
+    - name: Cache Linux Nix store
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        primary-key: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'package.nix', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock') }}
+        restore-prefixes-first-match: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-
+        gc-max-store-size-linux: 4000000000
+        purge: true
+        purge-prefixes: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-
+        purge-created: 172800
+        purge-primary-key: never
