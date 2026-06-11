@@ -66,11 +66,8 @@ jobs:
         if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           mkdir -p coverage
-          env -u CFLAGS -u CXXFLAGS nix develop --command cargo llvm-cov \
-            --manifest-path rust/Cargo.toml \
-            --workspace \
-            --cobertura \
-            --output-path coverage/cobertura.xml
+          nix build .#ccusage-coverage --print-build-logs --out-link "$RUNNER_TEMP/coverage-report"
+          cp "$RUNNER_TEMP/coverage-report" coverage/cobertura.xml
       - name: Upload Rust coverage report
         if: (github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3 # v1.3.0
