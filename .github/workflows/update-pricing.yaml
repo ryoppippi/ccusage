@@ -47,11 +47,16 @@ jobs:
           nix develop --command just check
       - name: Create pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PRICING_AUTOMATION_TOKEN }}
         run: |
           if git diff --quiet; then
             echo "Pricing snapshot is already up to date."
             exit 0
+          fi
+
+          if [ -z "$GH_TOKEN" ]; then
+            echo "PRICING_AUTOMATION_TOKEN is required because the ccusage org blocks GITHUB_TOKEN from creating pull requests."
+            exit 1
           fi
 
           git config user.name "github-actions[bot]"
@@ -111,11 +116,16 @@ jobs:
           nix develop --command just check
       - name: Create pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PRICING_AUTOMATION_TOKEN }}
         run: |
           if git diff --quiet; then
             echo "Pricing snapshot is already up to date."
             exit 0
+          fi
+
+          if [ -z "$GH_TOKEN" ]; then
+            echo "PRICING_AUTOMATION_TOKEN is required because the ccusage org blocks GITHUB_TOKEN from creating pull requests."
+            exit 1
           fi
 
           git config user.name "github-actions[bot]"
