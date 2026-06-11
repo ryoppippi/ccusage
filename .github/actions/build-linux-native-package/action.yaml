@@ -15,6 +15,29 @@ runs:
   steps:
     - uses: ./.github/actions/setup-nix
 
+    - name: DEBUG did the pin survive on the build-native disk
+      shell: bash
+      run: |
+        echo "::group::profiles on restored disk"
+        ls -la /nix/var/nix/profiles/ 2>&1 || true
+        echo "ccusage-deps profile -> $(readlink -f /nix/var/nix/profiles/ccusage-deps 2>&1 || echo NONE)"
+        echo "::endgroup::"
+        echo "::group::musl deps presence"
+        OUT="$(NIX_CONFIG='access-tokens =' nix eval --raw '.#ccusage-static.cargoArtifacts.outPath' 2>/dev/null || true)"
+        echo "musl deps outPath: $OUT"
+        if [ -n "$OUT" ]; then
+          if nix-store --query --valid-paths "$OUT" >/dev/null 2>&1; then
+            echo "RESULT: musl deps PRESENT on restored disk (pin worked)"
+          else
+            echo "RESULT: musl deps MISSING on restored disk (pin did NOT survive)"
+          fi
+        fi
+        echo "::endgroup::"
+        echo "::group::surviving gc roots"
+        nix-store --gc --print-roots 2>/dev/null | grep -Ev '/proc/|/run/' | head -40 || true
+        echo "::endgroup::"
+        exit 1
+
     - name: Build Linux static binary
       shell: bash
       env:
