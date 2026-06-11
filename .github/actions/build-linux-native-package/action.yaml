@@ -21,9 +21,9 @@ runs:
         NIX_GITHUB_TOKEN: ${{ inputs.nix-github-token }}
       run: |
         if [ "$NIX_GITHUB_TOKEN" = "false" ]; then
-          NIX_CONFIG="access-tokens =" nix build .#ccusage-static
+          NIX_CONFIG="access-tokens =" nix build .#ccusage-static --print-build-logs
         else
-          nix build .#ccusage-static
+          nix build .#ccusage-static --print-build-logs
         fi
 
     - name: Verify Linux binary is static
