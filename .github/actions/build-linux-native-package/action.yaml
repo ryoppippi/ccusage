@@ -13,7 +13,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-nix
+    - uses: ./.github/actions/setup-linux-nix-action-cache
 
     - name: Build Linux static binary
       shell: bash
@@ -26,9 +26,9 @@ runs:
           nix build .#ccusage-static --print-build-logs
         fi
 
-    # Mirror the PR-token hardening from the build step above: on
-    # `pull_request` runs (nix-github-token == 'false') the pin's `nix build`
-    # and `nix eval` calls must also disable access tokens.
+    # Root the deps so the cache-nix-action gc-max trim keeps them while
+    # dropping stale paths. On PR runs (nix-github-token == 'false') the pin's
+    # nix build / eval must disable access tokens too.
     - uses: ./.github/actions/pin-nix-deps
       env:
         NIX_CONFIG: ${{ inputs.nix-github-token == 'false' && 'access-tokens =' || '' }}
