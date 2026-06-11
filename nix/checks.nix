@@ -112,9 +112,14 @@ in
           '';
     in
     {
+      # `nix flake check` deliberately omits a full `config.packages.ccusage`
+      # build: ccusage-clippy already compiles the entire workspace with
+      # `--all-targets` (catching any build break), and the build-native-packages
+      # CI job produces and verifies the actual release binary. Building the
+      # optimized native package here too only duplicated a ~70s release compile
+      # on cache-cold runners.
       checks = {
         inherit ccusage-clippy ccusage-fmt config-schema;
-        ccusage = config.packages.ccusage;
         oxlint = mkRepoCheck "oxlint-check" [ pkgs.oxlint ] ''
           oxlint .
         '';
