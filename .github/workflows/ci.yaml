@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions: read-all
@@ -47,29 +48,26 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-      # Realize the dev shell (and run its pnpm install hook) up front so the
-      # setup time lands in this dedicated step instead of bleeding into the
-      # first timed step below and adding noise to action-timeline.
-      - name: Warm Nix dev shell
-        run: nix develop --command true
+      # Vitest is the only step that needs the JS toolchain (the coverage step
+      # builds via `nix build`), so install just pnpm/bun/just instead of
+      # realizing the full dev shell, which drags in every linter, formatter,
+      # and the pre-commit hook closure and dominated this job's wall time.
+      - name: Install JS tooling
+        run: nix profile install --inputs-from . nixpkgs#pnpm_11 nixpkgs#bun nixpkgs#just
+      - run: pnpm install --frozen-lockfile
       - name: Create default Claude directories for tests
         run: |
           mkdir -p "$HOME/.claude/projects"
           mkdir -p "$HOME/.config/claude/projects"
-      - name: Run test suite
-        if: github.event_name != 'pull_request' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
-        run: nix develop --command just test
       - name: Run Vitest tests
-        if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-        run: nix develop --command just test-vitest
+        run: just test-vitest
       - name: Generate Rust coverage report
-        if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           mkdir -p coverage
           nix build .#ccusage-coverage --print-build-logs --out-link "$RUNNER_TEMP/coverage-report"
           cp "$RUNNER_TEMP/coverage-report" coverage/cobertura.xml
       - name: Upload Rust coverage report
-        if: (github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3 # v1.3.0
         with:
           file: coverage/cobertura.xml
