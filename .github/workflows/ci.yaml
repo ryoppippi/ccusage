@@ -168,7 +168,10 @@ jobs:
         run: pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-linux-arm64' './packages/ccusage-linux-x64' './packages/ccusage-darwin-arm64' './packages/ccusage-darwin-x64' './packages/ccusage-win32-x64'
 
   ccusage-preview-e2e:
-    if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
+    # Run on PRs and on pushes to the default branch. `push` only fires on main
+    # (see on.push.branches), so this validates the published preview package
+    # post-merge too, not just on PRs.
+    if: needs.changes.outputs.code-changed == 'true'
     needs:
       - changes
       - npm-publish-dry-run-and-upload-pkg-pr-now
