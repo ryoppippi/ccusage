@@ -50,6 +50,7 @@
         ./nix/git-hooks.nix
         ./nix/packages.nix
         ./nix/static-package.nix
+        ./nix/coverage.nix
         ./nix/checks.nix
         ./nix/dev-shell.nix
       ];
