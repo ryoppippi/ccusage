@@ -38,7 +38,7 @@ jobs:
         run: |
           nix build .#ccusage.cargoArtifacts --no-link --print-build-logs
           nix-env --profile /nix/var/nix/profiles/ccusage-deps --set "$(nix eval --raw .#ccusage.cargoArtifacts.outPath)"
-          ls -la /nix/var/nix/profiles/ | grep ccusage || true
+          for f in /nix/var/nix/profiles/ccusage*; do [ -e "$f" ] && ls -la "$f"; done
       - run: nix develop --command just typecheck
 
   test:
