@@ -222,10 +222,14 @@ jobs:
       - name: Run preview E2E with pnpm dlx
         if: matrix.runner == 'pnpm'
         shell: pwsh
+        # `--config.package-import-method=copy` works around a Windows-specific
+        # pnpm bug where the dlx store hardlinks the platform-native optional
+        # dependency package directory but leaves `bin/ccusage.exe` missing,
+        # causing the launcher to fail with `spawn ENOENT`.
         run: |
-          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PREVIEW_URL" --version
-          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
-          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 dlx "$env:CCUSAGE_PREVIEW_URL" daily --offline
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 --config.package-import-method=copy dlx "$env:CCUSAGE_PREVIEW_URL" --version
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 --config.package-import-method=copy dlx "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
+          pnpm --config.block-exotic-subdeps=false --config.minimum-release-age=0 --config.package-import-method=copy dlx "$env:CCUSAGE_PREVIEW_URL" daily --offline
       - name: Run preview E2E with bunx
         if: matrix.runner == 'bun'
         shell: pwsh
