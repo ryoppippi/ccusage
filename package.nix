@@ -7,7 +7,6 @@
   root ? ./.,
   stdenv,
   apple-sdk_15,
-  libiconv,
 }:
 let
   inherit ((builtins.fromJSON (builtins.readFile (root + /package.json)))) version;
@@ -35,7 +34,6 @@ let
     ++ lib.optionals stdenv.isLinux [ mold ];
     buildInputs = lib.optionals stdenv.isDarwin [
       apple-sdk_15
-      libiconv
     ];
   };
   # Keep the dependency artifact keyed only by inputs that affect Cargo deps.
@@ -50,10 +48,11 @@ craneLib.buildPackage (
   // {
     inherit cargoArtifacts;
     postInstall = lib.optionalString stdenv.isDarwin ''
-      install_name_tool -change ${libiconv}/lib/libiconv.2.dylib /usr/lib/libiconv.2.dylib $out/bin/ccusage
-      # End-user machines have no /nix/store, so any dylib outside the macOS
-      # system paths would crash the published binary with a missing dynamic
-      # library error. grep prints the offending entries when it matches.
+      # ccusage does not use libiconv (no iconv symbols); it used to be pulled in
+      # via buildInputs and recorded as an unused /nix/store dylib dependency
+      # that crashed non-Nix Macs (#1251). With libiconv dropped the binary links
+      # only system dylibs. Keep this gate so any future stray /nix/store dylib
+      # fails the build instead of shipping. grep prints the offending entries.
       if otool -L $out/bin/ccusage | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)'; then
         echo "error: ccusage links dylibs that do not exist on end-user machines" >&2
         exit 1
