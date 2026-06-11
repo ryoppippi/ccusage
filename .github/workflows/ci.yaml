@@ -251,6 +251,12 @@ jobs:
           # env var (cleaner than a --config flag, and only pnpm reads it).
           # https://pnpm.io/settings#minimumreleaseage
           npm_config_minimum_release_age: '0'
+          # pnpm 11 also defaults blockExoticSubdeps to true, which rejects the
+          # URL-resolved native optional deps (e.g. @ccusage/ccusage-linux-x64)
+          # that pkg.pr.new injects into the published ccusage manifest. Allow
+          # them via the env var so `pnpm dlx <url>` can install the matching
+          # native binary. https://pnpm.io/settings#blockexoticsubdeps
+          npm_config_block_exotic_subdeps: 'false'
         run: |
           # pnpm dlx on Windows doesn't install optional native binaries into its
           # temporary store, so the CLI launcher fails with spawn ENOENT; skip
