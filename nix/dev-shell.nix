@@ -20,7 +20,8 @@ in
       devShells.default = pkgs.mkShell {
         buildInputs =
           (with pkgs; [
-            pnpm_11
+            nodejs
+            pnpm
             bun
 
             rustToolchain
