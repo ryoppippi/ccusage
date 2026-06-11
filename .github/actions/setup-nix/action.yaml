@@ -1,5 +1,9 @@
 name: Setup Nix
 description: Install Nix with platform-specific cache setup
+inputs:
+  cache-key-suffix:
+    description: Extra suffix to scope the macOS Nix cache key (e.g. cross target arch)
+    default: ''
 runs:
   using: composite
   steps:
