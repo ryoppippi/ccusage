@@ -19,7 +19,7 @@ runs:
     - name: Cache Linux Nix store
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
-        primary-key: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'package.nix', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock') }}
+        primary-key: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
         restore-prefixes-first-match: nix-buildnative-${{ runner.os }}-${{ runner.arch }}-
         gc-max-store-size-linux: 2000000000
         purge: true
