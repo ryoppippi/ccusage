@@ -66,38 +66,12 @@ pub(crate) fn has_data() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, ffi::OsString, path::Path, sync::Mutex};
-
-    use ccusage_test_support::fs_fixture;
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
     use serde_json::json;
 
     use super::*;
     use crate::UsageSummary;
     use crate::cli::{CostMode, SharedArgs};
-
-    static QWEN_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
-
-    struct QwenDataDirGuard {
-        previous: Option<OsString>,
-    }
-
-    impl QwenDataDirGuard {
-        fn set(path: &Path) -> Self {
-            let previous = env::var_os("QWEN_DATA_DIR");
-            unsafe { env::set_var("QWEN_DATA_DIR", path) };
-            Self { previous }
-        }
-    }
-
-    impl Drop for QwenDataDirGuard {
-        fn drop(&mut self) {
-            if let Some(previous) = self.previous.take() {
-                unsafe { env::set_var("QWEN_DATA_DIR", previous) };
-            } else {
-                unsafe { env::remove_var("QWEN_DATA_DIR") };
-            }
-        }
-    }
 
     #[test]
     fn loads_qwen_jsonl_usage_entries() {
@@ -114,8 +88,7 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
-        let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
-        let _guard = QwenDataDirGuard::set(fixture.root());
+        let _guard = EnvVarGuard::set("QWEN_DATA_DIR", fixture.root());
         let entries = load_entries(&shared).unwrap();
 
         assert_eq!(entries.len(), 1);
@@ -140,8 +113,7 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
-        let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
-        let _guard = QwenDataDirGuard::set(fixture.root());
+        let _guard = EnvVarGuard::set("QWEN_DATA_DIR", fixture.root());
         let entries = load_entries(&shared).unwrap();
         let rows = summarize_entries(&entries, AgentReportKind::Daily).unwrap();
         let report = report_from_rows(&rows, AgentReportKind::Daily);

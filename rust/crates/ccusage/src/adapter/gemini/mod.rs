@@ -12,28 +12,15 @@ pub(crate) use loader::load_entries;
 pub(crate) use report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
-static GEMINI_DATA_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-#[cfg(test)]
 struct GeminiDataDirEnvGuard {
-    previous: Option<std::ffi::OsString>,
+    _guard: ccusage_test_support::EnvVarGuard,
 }
 
 #[cfg(test)]
 impl GeminiDataDirEnvGuard {
     fn set(path: &std::path::Path) -> Self {
-        let previous = std::env::var_os(paths::GEMINI_DATA_DIR_ENV);
-        unsafe { std::env::set_var(paths::GEMINI_DATA_DIR_ENV, path) };
-        Self { previous }
-    }
-}
-
-#[cfg(test)]
-impl Drop for GeminiDataDirEnvGuard {
-    fn drop(&mut self) {
-        match &self.previous {
-            Some(value) => unsafe { std::env::set_var(paths::GEMINI_DATA_DIR_ENV, value) },
-            None => unsafe { std::env::remove_var(paths::GEMINI_DATA_DIR_ENV) },
+        Self {
+            _guard: ccusage_test_support::EnvVarGuard::set(paths::GEMINI_DATA_DIR_ENV, path),
         }
     }
 }

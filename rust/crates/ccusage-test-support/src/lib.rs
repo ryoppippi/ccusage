@@ -1,12 +1,48 @@
 use std::{
+    ffi::{OsStr, OsString},
     fs,
     path::{Path, PathBuf},
+    sync::{Mutex, MutexGuard},
 };
 
 use assert_fs::{
     TempDir,
     fixture::{ChildPath, FileWriteStr, PathChild, PathCreateDir},
 };
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+fn env_lock() -> MutexGuard<'static, ()> {
+    ENV_LOCK.lock().unwrap()
+}
+
+pub struct EnvVarGuard {
+    key: &'static str,
+    previous: Option<OsString>,
+    _guard: MutexGuard<'static, ()>,
+}
+
+impl EnvVarGuard {
+    pub fn set(key: &'static str, value: impl AsRef<OsStr>) -> Self {
+        let guard = env_lock();
+        let previous = std::env::var_os(key);
+        unsafe { std::env::set_var(key, value) };
+        Self {
+            key,
+            previous,
+            _guard: guard,
+        }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
 
 pub struct Fixture {
     dir: TempDir,

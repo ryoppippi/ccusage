@@ -11,9 +11,6 @@ use crate::{
 pub(crate) use loader::load_entries;
 pub(crate) use report::{report_from_rows, summarize_entries};
 
-#[cfg(test)]
-static KIMI_DATA_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
     let pricing = PricingMap::load_with_overrides(

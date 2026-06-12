@@ -48,35 +48,17 @@ fn default_goose_db_candidates() -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, path::Path, sync::Mutex};
+    use std::path::Path;
 
     use super::*;
-    use ccusage_test_support::fs_fixture;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-    struct EnvDirGuard;
-
-    impl EnvDirGuard {
-        fn set(dir: &Path) -> Self {
-            unsafe { env::set_var(GOOSE_PATH_ROOT_ENV, dir) };
-            Self
-        }
-    }
-
-    impl Drop for EnvDirGuard {
-        fn drop(&mut self) {
-            unsafe { env::remove_var(GOOSE_PATH_ROOT_ENV) };
-        }
-    }
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
 
     #[test]
     fn discovers_goose_path_root_database() {
-        let _guard = ENV_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "data/sessions/sessions.db": "",
         });
-        let _cleanup = EnvDirGuard::set(fixture.root());
+        let _cleanup = EnvVarGuard::set(GOOSE_PATH_ROOT_ENV, fixture.root());
 
         let paths = goose_db_paths().unwrap();
 

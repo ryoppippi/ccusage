@@ -80,44 +80,22 @@ use super::report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
 mod tests {
-    use std::{env, path::Path, sync::Mutex};
-
     use super::super::{parser::parse_usage_object, paths::CODEBUFF_DATA_DIR_ENV};
     use super::*;
     use crate::{
         TokenUsageRaw, UsageEntry, UsageMessage, cli::AgentReportKind, parse_ts_timestamp,
     };
-    use ccusage_test_support::fs_fixture;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-    struct EnvDirGuard {
-        key: &'static str,
-    }
-
-    impl EnvDirGuard {
-        fn set(key: &'static str, dir: &Path) -> Self {
-            unsafe { env::set_var(key, dir) };
-            Self { key }
-        }
-    }
-
-    impl Drop for EnvDirGuard {
-        fn drop(&mut self) {
-            unsafe { env::remove_var(self.key) };
-        }
-    }
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
 
     #[test]
     fn loads_assistant_usage_from_chat_messages() {
-        let _guard = ENV_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project-a/chats/2026-01-02T03-04-05.000Z/chat-messages.json": r#"[
                 {"role":"user","text":"hello"},
                 {"id":"assistant-message","role":"assistant","timestamp":"2026-01-02T03:04:06.000Z","metadata":{"model":"claude-sonnet-4-20250514","usage":{"inputTokens":100,"outputTokens":50,"cacheCreationInputTokens":20,"cacheReadInputTokens":10}},"credits":1.25}
             ]"#,
         });
-        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, fixture.root());
+        let _cleanup = EnvVarGuard::set(CODEBUFF_DATA_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let shared = SharedArgs {
@@ -145,7 +123,6 @@ mod tests {
 
     #[test]
     fn falls_back_to_run_state_provider_usage() {
-        let _guard = ENV_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project-a/chats/2026-01-02T03-04-05.000Z/chat-messages.json": r#"[
                 {"variant":"agent","metadata":{"runState":{"sessionState":{"mainAgentState":{"messageHistory":[
@@ -154,7 +131,7 @@ mod tests {
                 ]}}}}}
             ]"#,
         });
-        let _cleanup = EnvDirGuard::set(CODEBUFF_DATA_DIR_ENV, fixture.root());
+        let _cleanup = EnvVarGuard::set(CODEBUFF_DATA_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();

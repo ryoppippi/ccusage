@@ -48,7 +48,6 @@ mod tests {
 
     #[test]
     fn discovers_json_and_jsonl_logs() {
-        let _guard = super::super::GEMINI_DATA_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "chats/a.json": "{}",
             "chats/b.jsonl": "{}\n",
