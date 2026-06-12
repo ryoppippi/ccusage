@@ -118,7 +118,9 @@ const sortObject = (value: unknown): unknown => {
 };
 
 function sortedEntries<T>(value: Record<string, T>): Array<[string, T]> {
-	return Object.entries(value).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+	return Object.entries(value).sort(([left], [right]) =>
+		left < right ? -1 : left > right ? 1 : 0,
+	);
 }
 
 const outfile = process.env.OUTFILE;
