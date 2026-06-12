@@ -7,6 +7,7 @@ use std::{
 };
 
 use memchr::memmem::Finder;
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs};
@@ -35,16 +36,20 @@ static THREAD_SPAWN_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(b"thread_spawn"));
 
 const CODEX_AUTO_REVIEW_MODEL: &str = "codex-auto-review";
-// New entries must be inserted in descending release-date order.
-const CODEX_AUTO_REVIEW_FALLBACK_MODELS: [(&str, &str); 7] = [
-    ("2026-04-23", "gpt-5.5"),
-    ("2026-03-05", "gpt-5.4"),
-    ("2026-02-05", "gpt-5.3-codex"),
-    ("2025-12-11", "gpt-5.2-codex"),
-    ("2025-11-13", "gpt-5.1-codex"),
-    ("2025-09-15", "gpt-5-codex"),
-    ("2025-08-07", "gpt-5"),
-];
+const CODEX_AUTO_REVIEW_FALLBACKS_JSON: &str = include_str!("codex-auto-review-fallbacks.json");
+
+static CODEX_AUTO_REVIEW_FALLBACK_MODELS: LazyLock<Vec<CodexAutoReviewFallback<'static>>> =
+    LazyLock::new(|| {
+        serde_json::from_str(CODEX_AUTO_REVIEW_FALLBACKS_JSON)
+            .expect("embedded codex-auto-review fallback snapshot must parse")
+    });
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CodexAutoReviewFallback<'a> {
+    released_on: &'a str,
+    model: &'a str,
+}
 
 #[derive(Clone, Copy)]
 enum CodexLineKind {
@@ -517,11 +522,15 @@ fn codex_log_model_fallback(model: &str, timestamp: &str) -> Option<&'static str
         return Some("gpt-5");
     };
     Some(
-        CODEX_AUTO_REVIEW_FALLBACK_MODELS
+        codex_auto_review_fallback_models()
             .iter()
-            .find_map(|(released_on, fallback)| (date >= *released_on).then_some(*fallback))
+            .find_map(|fallback| (date >= fallback.released_on).then_some(fallback.model))
             .unwrap_or("gpt-5"),
     )
+}
+
+fn codex_auto_review_fallback_models() -> &'static [CodexAutoReviewFallback<'static>] {
+    CODEX_AUTO_REVIEW_FALLBACK_MODELS.as_slice()
 }
 
 fn codex_timestamp_date(timestamp: &str) -> Option<&str> {
@@ -949,5 +958,24 @@ fn subtract_codex_raw_usage(
         total_tokens: current
             .total_tokens
             .saturating_sub(previous.map_or(0, |usage| usage.total_tokens)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loads_codex_auto_review_fallbacks_from_models_dev_snapshot() {
+        let fallbacks = codex_auto_review_fallback_models();
+
+        assert_eq!(fallbacks.len(), 7);
+        assert_eq!(fallbacks[0].released_on, "2026-04-23");
+        assert_eq!(fallbacks[0].model, "gpt-5.5");
+        assert_eq!(fallbacks[6].released_on, "2025-08-07");
+        assert_eq!(fallbacks[6].model, "gpt-5");
+        assert!(fallbacks
+            .windows(2)
+            .all(|window| window[0].released_on > window[1].released_on));
     }
 }

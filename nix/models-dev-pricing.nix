@@ -1,14 +1,13 @@
-# Reproducibly regenerate the compacted models.dev pricing snapshot from the
-# pinned `models-dev` flake input. The upstream repository ships per-model TOML
-# sources rather than a prebuilt catalog, so we run their own `generateCatalog`
-# routine (via `nix/models-dev-gen.ts`) with Bun. Its only runtime dependencies
-# are `remeda` and `zod` (both zero-dependency packages), which we vendor
-# directly from the registry using the integrity hashes pinned in upstream
-# `bun.lock`.
+# Reproducibly regenerate compacted models.dev snapshots from the pinned
+# `models-dev` flake input. The upstream repository ships per-model TOML sources
+# rather than a prebuilt catalog, so we run their own `generateCatalog` routine
+# (via `nix/models-dev-gen.ts`) with Bun. Its only runtime dependencies are
+# `remeda` and `zod` (both zero-dependency packages), which we vendor directly
+# from the registry using the integrity hashes pinned in upstream `bun.lock`.
 #
-# The build output is copied into the repository (see `just gen-models-dev-pricing`)
-# and embedded at build time, so every platform ships identical pinned data
-# without build-time network access.
+# The build outputs are copied into the repository (see
+# `just gen-models-dev-pricing`) and embedded at build time, so every platform
+# ships identical pinned data without build-time network access.
 {
   pkgs,
   modelsDevSrc,
@@ -26,7 +25,7 @@ let
     hash = "sha512-lY7CDW43ECgW9u1TcT3IoXHflywfVqDYze4waEz812jR/bZ8FHDsl7pFQoSZTz5N+2NqRXs8GBwnAwo3ZNxqhQ==";
   };
 in
-pkgs.runCommand "models-dev-pricing.json"
+pkgs.runCommand "models-dev-snapshots"
   {
     nativeBuildInputs = [ pkgs.bun ];
   }
@@ -52,5 +51,8 @@ pkgs.runCommand "models-dev-pricing.json"
     cp ${./models-dev-compact.ts} work/models-dev-compact.ts
 
     cd work
-    OUTFILE="$out" bun run gen.ts
+    mkdir -p "$out"
+    OUTFILE="$out/models-dev-pricing.json" \
+      CODEX_AUTO_REVIEW_FALLBACKS_OUTFILE="$out/codex-auto-review-fallbacks.json" \
+      bun run gen.ts
   ''
