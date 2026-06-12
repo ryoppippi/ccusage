@@ -33,15 +33,6 @@ runs:
           nix build .#ccusage-static --print-build-logs
         fi
 
-    # Root the deps so the cache-nix-action gc-max trim keeps them while
-    # dropping stale paths. On PR runs (nix-github-token == 'false') the pin's
-    # nix build / eval must disable access tokens too.
-    - uses: ./.github/actions/pin-nix-deps
-      env:
-        NIX_CONFIG: ${{ inputs.nix-github-token == 'false' && 'access-tokens =' || '' }}
-      with:
-        attr: .#ccusage-static.cargoArtifacts
-
     - name: Verify Linux binary is static
       shell: bash
       env:

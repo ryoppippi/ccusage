@@ -3,9 +3,11 @@ description: >
   Install Nix and restore/save the store with cache-nix-action, shared by Linux
   and macOS. cache-nix-action only caches non-substitutable paths (the crane
   deps, not the cache.nixos.org toolchain), so the cache stays small (~900MB).
-  gc-max-store-size bounds it so old deps generations and stale build outputs do
-  not accumulate across runs; the deps profile pin keeps the current deps rooted
-  so the GC trims everything except what the next build reuses.
+  No gc-max-store-size: these runners are ephemeral (restore -> build -> save),
+  so the store never accumulates across runs the way a sticky disk did. Trimming
+  before save would only delete the unrooted crane deps and force a recompile, so
+  we let cache-nix-action save the whole non-substitutable set as-is and rely on
+  purge to roll off stale entries.
 inputs:
   cache-scope:
     description: >
@@ -32,10 +34,6 @@ runs:
       with:
         primary-key: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
         restore-prefixes-first-match: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
-        # cache-nix-action applies the size limit matching the runner OS, so set
-        # both to keep this action cross-platform.
-        gc-max-store-size-linux: 2000000000
-        gc-max-store-size-macos: 3500000000
         purge: true
         purge-prefixes: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
         purge-created: 172800

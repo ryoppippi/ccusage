@@ -30,12 +30,6 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: ./.github/actions/setup-nix-cache
       - run: nix flake check --print-build-logs
-      # Pin even on failure so deps built during a failing run stay rooted and
-      # warm the next run; skip on cancel (nothing useful to pin).
-      - if: ${{ !cancelled() }}
-        uses: ./.github/actions/pin-nix-deps
-        with:
-          attr: .#ccusage.cargoArtifacts
       - run: nix develop --command just typecheck
 
   test:
@@ -68,12 +62,6 @@ jobs:
         run: just test-vitest
       - name: Run Rust tests
         run: nix build .#ccusage-tests --print-build-logs
-      # Pin even on failure so deps built during a failing run stay rooted and
-      # warm the next run; skip on cancel (nothing useful to pin).
-      - if: ${{ !cancelled() }}
-        uses: ./.github/actions/pin-nix-deps
-        with:
-          attr: .#ccusage.cargoArtifacts
 
   build-native-packages:
     needs: changes
