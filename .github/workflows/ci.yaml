@@ -228,17 +228,20 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           # actions/download-artifact talks to the artifact backend through the
           # Blacksmith-proxied results-receiver endpoint, whose local agent is
-          # not yet listening in the first seconds after a macOS VM boots — the
+          # not yet listening in the first seconds after a macOS VM boots: the
           # download runs ~2s in and intermittently hits ECONNREFUSED on
           # ListArtifacts (re-running the job, once the agent is warm, succeeds).
           # gh run download uses the api.github.com REST API directly, sidestepping
           # that proxy, and we retry with backoff to ride out any transient hiccup.
+          # This job intentionally skips actions/checkout, so we bind the repo
+          # explicitly via GH_REPO/--repo to give the CLI repository context.
           $dir = "$env:RUNNER_TEMP/e2e-fixture"
           for ($i = 1; $i -le 5; $i++) {
-            gh run download $env:GITHUB_RUN_ID --name ccusage-e2e-fixture --dir $dir
+            gh run download $env:GITHUB_RUN_ID --repo $env:GH_REPO --name ccusage-e2e-fixture --dir $dir
             if ($LASTEXITCODE -eq 0) { break }
             if ($i -eq 5) { throw "failed to download the E2E fixture after 5 attempts" }
             Start-Sleep -Seconds ($i * 5)
