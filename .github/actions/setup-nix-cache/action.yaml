@@ -32,14 +32,17 @@ runs:
     - name: Cache Nix store
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
-        # Bump the version salt to bust every entry at once (e.g. after changing
-        # what the cache stores, like dropping gc-max-store-size). On an exact
-        # primary-key hit cache-nix-action skips saving, so a stale entry would
-        # otherwise stick forever while the deps hash is unchanged.
-        primary-key: nix-v2-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        restore-prefixes-first-match: nix-v2-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
+        # The commit sha is appended so every commit writes a fresh entry:
+        # cache-nix-action skips saving on an exact primary-key hit, so a key that
+        # only depended on the deps hash would persist the first run's store
+        # forever. restore-prefixes-first-match (without the sha) then restores
+        # the newest prior entry to warm the deps. The cache backend is
+        # effectively unlimited, so one entry per commit is fine and `purge`
+        # rolls off the old ones.
+        primary-key: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}-${{ github.sha }}
+        restore-prefixes-first-match: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}-
         purge: true
-        purge-prefixes: nix-v2-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
+        purge-prefixes: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
         purge-created: 172800
         purge-primary-key: never
 
