@@ -531,6 +531,181 @@ mod tests {
     }
 
     #[test]
+    fn resolves_codex_auto_review_to_latest_model_for_event_date() {
+        let fixture = fs_fixture!({
+            "run.jsonl": [
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-02-05T00:00:00.000Z",
+                    "model": "codex-auto-review",
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                })
+                .to_string(),
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-03-05T00:00:00.000Z",
+                    "model": "codex-auto-review",
+                    "usage": {
+                        "input_tokens": 20,
+                        "output_tokens": 10,
+                        "total_tokens": 30,
+                    },
+                })
+                .to_string(),
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-04-23T00:00:00.000Z",
+                    "model": "codex-auto-review",
+                    "usage": {
+                        "input_tokens": 30,
+                        "output_tokens": 15,
+                        "total_tokens": 45,
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.3-codex"));
+        assert_eq!(events[1].model.as_deref(), Some("gpt-5.4"));
+        assert_eq!(events[2].model.as_deref(), Some("gpt-5.5"));
+        assert!(events.iter().all(|event| event.is_fallback_model));
+    }
+
+    #[test]
+    fn resolves_codex_auto_review_with_invalid_event_date_falls_back_to_file_mtime() {
+        // When the log's own timestamp fields are unparseable AND no alternate
+        // timestamp fields are present, the parser falls back to the file's
+        // modified time so the date-based fallback table still resolves to a
+        // real model rather than locking in a misleading malformed string.
+        let fixture = fs_fixture!({
+            "invalid-month.jsonl": json!({
+                "type": "turn.completed",
+                "timestamp": "2026-99-99T00:00:00.000Z",
+                "model": "codex-auto-review",
+                "usage": {
+                    "input_tokens": 10,
+                    "output_tokens": 5,
+                    "total_tokens": 15,
+                },
+            })
+            .to_string(),
+            "invalid-leap-day.jsonl": json!({
+                "type": "turn.completed",
+                "timestamp": "2026-02-29T00:00:00.000Z",
+                "model": "codex-auto-review",
+                "usage": {
+                    "input_tokens": 20,
+                    "output_tokens": 10,
+                    "total_tokens": 30,
+                },
+            })
+            .to_string(),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 2);
+        // File mtime is "now" at fixture creation, which is on or after every
+        // entry currently in the fallback table, so resolution lands on the
+        // newest known model. The exact value updates when the table grows.
+        assert!(events
+            .iter()
+            .all(|event| event.model.as_deref().is_some_and(|model| model
+                .starts_with("gpt-5"))));
+        assert!(events.iter().all(|event| event.is_fallback_model));
+    }
+
+    #[test]
+    fn resolves_codex_auto_review_uses_created_at_when_top_level_timestamp_is_malformed() {
+        // Regression test for the model-date resolution chain short-circuiting
+        // on a malformed top-level `timestamp` and ignoring the `created_at`
+        // fallback field that holds a parseable date.
+        let fixture = fs_fixture!({
+            "run.jsonl": json!({
+                "type": "turn.completed",
+                "timestamp": "not-a-date",
+                "created_at": "2025-12-11T00:00:00.000Z",
+                "model": "codex-auto-review",
+                "usage": {
+                    "input_tokens": 10,
+                    "output_tokens": 5,
+                    "total_tokens": 15,
+                },
+            })
+            .to_string(),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert!(events[0].is_fallback_model);
+    }
+
+    #[test]
+    fn resolves_codex_auto_review_turn_context_for_each_event_date() {
+        let fixture = fs_fixture!({
+            "session.jsonl": [
+                json!({
+                    "timestamp": "2025-12-11T00:00:00.000Z",
+                    "type": "turn_context",
+                    "payload": {
+                        "model": "codex-auto-review",
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2025-12-11T00:01:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 10,
+                                "output_tokens": 5,
+                                "total_tokens": 15,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-04-23T00:01:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 20,
+                                "output_tokens": 10,
+                                "total_tokens": 30,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[1].model.as_deref(), Some("gpt-5.5"));
+        assert!(events.iter().all(|event| event.is_fallback_model));
+    }
+
+    #[test]
     fn loads_headless_usage_with_token_count_text_content() {
         let fixture = fs_fixture!({
             "run.jsonl":

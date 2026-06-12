@@ -1135,7 +1135,6 @@ fn normalized_pricing_key(value: &str) -> Cow<'_, str> {
 /// canonical pricing keys.
 fn pricing_alias(model: &str) -> Option<&'static str> {
     match model {
-        "codex-auto-review" => Some("gpt-5.5"),
         "gpt-5.3-spark" => Some("gpt-5.3-codex-spark"),
         _ => None,
     }
@@ -1796,23 +1795,11 @@ mod tests {
     }
 
     #[test]
-    fn embedded_pricing_resolves_codex_auto_review_model() {
+    fn embedded_pricing_does_not_resolve_undated_codex_auto_review_model() {
         let pricing = PricingMap::load_embedded();
-        let auto_review = pricing
-            .find("codex-auto-review")
-            .expect("codex-auto-review should resolve via model alias");
-        let latest_codex = pricing
-            .find("gpt-5.5")
-            .expect("canonical latest Codex pricing should exist");
 
-        assert_eq!(auto_review.input, latest_codex.input);
-        assert_eq!(auto_review.output, latest_codex.output);
-        assert_eq!(auto_review.cache_read, latest_codex.cache_read);
-        assert_eq!(auto_review.fast_multiplier, latest_codex.fast_multiplier);
-        assert_eq!(
-            pricing.context_limit("codex-auto-review"),
-            pricing.context_limit("gpt-5.5")
-        );
+        assert!(pricing.find("codex-auto-review").is_none());
+        assert!(pricing.context_limit("codex-auto-review").is_none());
     }
 
     #[test]

@@ -7,8 +7,10 @@
  * Anthropic-relevant models and the few pricing fields ccusage consumes. The
  * embedded output is a flat map keyed by runtime model id. The output is
  * committed to the repository and embedded at build time, so every platform
- * ships the identical, pinned data without any build-time network access. Run
- * via `just gen-models-dev-pricing` (see `nix/models-dev-pricing.nix`).
+ * ships the identical, pinned data without any build-time network access. The
+ * same pinned catalog also generates the Codex auto-review fallback metadata
+ * used by the Rust parser. Run via `just gen-models-dev-pricing` (see
+ * `nix/models-dev-pricing.nix`).
  */
 import { generateCatalog } from './packages/core/src/generate.ts';
 import {
@@ -26,13 +28,22 @@ type Cost = {
 	cache_write?: number | null;
 };
 type Model = { id?: string; cost?: Cost; limit?: { context?: number | null } };
+type ModelMetadata = {
+	id?: string;
+	release_date?: string;
+};
 type Provider = { models?: Record<string, Model> };
 type EmbeddedModel = {
 	cost: Cost;
 	limit?: { context: number };
 };
+type CodexAutoReviewFallback = {
+	releasedOn: string;
+	model: string;
+};
 
-const { providers } = (await generateCatalog('.')) as {
+const { models, providers } = (await generateCatalog('.')) as {
+	models: Record<string, ModelMetadata>;
 	providers: Record<string, Provider>;
 };
 
@@ -95,3 +106,71 @@ if (outfile == null || outfile.length === 0) {
 }
 
 await Bun.write(outfile, `${JSON.stringify(sortObject(out), null, 2)}\n`);
+
+const codexFallbacksOutfile = process.env.CODEX_AUTO_REVIEW_FALLBACKS_OUTFILE;
+if (codexFallbacksOutfile != null && codexFallbacksOutfile.length > 0) {
+	await Bun.write(
+		codexFallbacksOutfile,
+		`${JSON.stringify(generateCodexAutoReviewFallbacks(models), null, 2)}\n`,
+	);
+}
+
+function generateCodexAutoReviewFallbacks(
+	models: Record<string, ModelMetadata>,
+): CodexAutoReviewFallback[] {
+	const entries = Object.entries(models).filter(([modelId, model]) =>
+		isCodexAutoReviewFallbackCandidate(modelId, model),
+	);
+	const codexDecimalVersions = new Set(
+		entries
+			.map(([modelId]) => codexDecimalVersion(openAiModelName(modelId)))
+			.filter((version): version is string => version != null),
+	);
+
+	return entries
+		.filter(([modelId, model]) => {
+			const version = baseDecimalVersion(openAiModelName(modelId));
+			if (version == null || !codexDecimalVersions.has(version)) {
+				return true;
+			}
+			// Drop the base entry only when a `-codex` variant shipped on the same
+			// date. If the codex variant ships later, keep the base so events in
+			// the gap still resolve to the most recent model available then.
+			return !entries.some(
+				([candidateId, candidateModel]) =>
+					codexDecimalVersion(openAiModelName(candidateId)) === version &&
+					candidateModel.release_date === model.release_date,
+			);
+		})
+		.map(([modelId, model]) => ({
+			releasedOn: model.release_date!,
+			model: openAiModelName(model.id ?? modelId),
+		}))
+		.sort((left, right) => right.releasedOn.localeCompare(left.releasedOn));
+}
+
+function isCodexAutoReviewFallbackCandidate(modelId: string, model: ModelMetadata): boolean {
+	if (model.release_date == null || !/^\d{4}-\d{2}-\d{2}$/.test(model.release_date)) {
+		return false;
+	}
+	const modelName = openAiModelName(modelId);
+	return (
+		modelName === 'gpt-5' ||
+		modelName === 'gpt-5-codex' ||
+		/^gpt-5\.\d+$/.test(modelName) ||
+		/^gpt-5\.\d+-codex$/.test(modelName)
+	);
+}
+
+function baseDecimalVersion(modelId: string): string | undefined {
+	return /^gpt-5\.\d+$/.test(modelId) ? modelId : undefined;
+}
+
+function codexDecimalVersion(modelId: string): string | undefined {
+	const match = /^(gpt-5\.\d+)-codex$/.exec(modelId);
+	return match?.[1];
+}
+
+function openAiModelName(modelId: string): string {
+	return modelId.startsWith('openai/') ? modelId.slice('openai/'.length) : modelId;
+}

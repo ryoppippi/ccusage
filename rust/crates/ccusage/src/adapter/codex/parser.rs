@@ -7,6 +7,7 @@ use std::{
 };
 
 use memchr::memmem::Finder;
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs};
@@ -34,10 +35,31 @@ static PROMPT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
 static THREAD_SPAWN_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(b"thread_spawn"));
 
+const CODEX_AUTO_REVIEW_MODEL: &str = "codex-auto-review";
+const CODEX_AUTO_REVIEW_FALLBACKS_JSON: &str = include_str!("codex-auto-review-fallbacks.json");
+
+static CODEX_AUTO_REVIEW_FALLBACK_MODELS: LazyLock<Vec<CodexAutoReviewFallback<'static>>> =
+    LazyLock::new(|| {
+        serde_json::from_str(CODEX_AUTO_REVIEW_FALLBACKS_JSON)
+            .expect("embedded codex-auto-review fallback snapshot must parse")
+    });
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CodexAutoReviewFallback<'a> {
+    released_on: &'a str,
+    model: &'a str,
+}
+
 #[derive(Clone, Copy)]
 enum CodexLineKind {
     Session,
     Headless,
+}
+
+struct CodexExecTimestamps {
+    event: String,
+    model: String,
 }
 
 fn is_codex_subagent_session(path: &Path) -> bool {
@@ -267,20 +289,12 @@ fn visit_codex_session_entry(
 
     let parsed_model =
         codex_model_from_payload(payload).or_else(|| info.and_then(codex_model_from_info));
-    if let Some(model) = parsed_model.clone() {
-        *current_model = Some(model);
-        *current_model_is_fallback = false;
-    }
-    let mut is_fallback_model = false;
-    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
-        is_fallback_model = true;
-        *current_model_is_fallback = true;
-        *current_model = Some("gpt-5".to_string());
-        current_model.clone()
-    });
-    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
-        is_fallback_model = true;
-    }
+    let (model, is_fallback_model) = resolve_codex_usage_model(
+        parsed_model,
+        &timestamp,
+        current_model,
+        current_model_is_fallback,
+    );
 
     visit(CodexTokenUsageEvent {
         session_id: session_id.to_string(),
@@ -307,13 +321,16 @@ fn add_codex_exec_event(
         return Ok(());
     };
     let parsed_model = codex_model_from_result(value);
-    let timestamp =
-        codex_timestamp_from_result(value).unwrap_or_else(|| fallback_timestamp.to_string());
+    let timestamps = CodexExecTimestamps {
+        event: codex_timestamp_from_result(value).unwrap_or_else(|| fallback_timestamp.to_string()),
+        model: codex_model_timestamp_from_result(value)
+            .unwrap_or_else(|| fallback_timestamp.to_string()),
+    };
     visit_codex_exec_usage_event(
         session_id,
         raw_usage,
         parsed_model,
-        timestamp,
+        timestamps,
         current_model,
         current_model_is_fallback,
         visit,
@@ -335,13 +352,17 @@ fn add_codex_exec_event_from_value(
         return Ok(());
     };
     let parsed_model = codex_model_from_result_value(&value);
-    let timestamp =
-        codex_timestamp_from_result_value(&value).unwrap_or_else(|| fallback_timestamp.to_string());
+    let timestamps = CodexExecTimestamps {
+        event: codex_timestamp_from_result_value(&value)
+            .unwrap_or_else(|| fallback_timestamp.to_string()),
+        model: codex_model_timestamp_from_result_value(&value)
+            .unwrap_or_else(|| fallback_timestamp.to_string()),
+    };
     visit_codex_exec_usage_event(
         session_id,
         raw_usage,
         parsed_model,
-        timestamp,
+        timestamps,
         current_model,
         current_model_is_fallback,
         visit,
@@ -352,28 +373,20 @@ fn visit_codex_exec_usage_event(
     session_id: &str,
     raw_usage: CodexRawUsage,
     parsed_model: Option<String>,
-    timestamp: String,
+    timestamps: CodexExecTimestamps,
     current_model: &mut Option<String>,
     current_model_is_fallback: &mut bool,
     visit: &mut impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    if let Some(model) = parsed_model.clone() {
-        *current_model = Some(model);
-        *current_model_is_fallback = false;
-    }
-    let mut is_fallback_model = false;
-    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
-        is_fallback_model = true;
-        *current_model_is_fallback = true;
-        *current_model = Some("gpt-5".to_string());
-        current_model.clone()
-    });
-    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
-        is_fallback_model = true;
-    }
+    let (model, is_fallback_model) = resolve_codex_usage_model(
+        parsed_model,
+        &timestamps.model,
+        current_model,
+        current_model_is_fallback,
+    );
     visit(CodexTokenUsageEvent {
         session_id: session_id.to_string(),
-        timestamp,
+        timestamp: timestamps.event,
         model,
         input_tokens: raw_usage.input_tokens,
         cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
@@ -468,6 +481,96 @@ fn parsed_model_is_missing(
     current_model_is_fallback: bool,
 ) -> bool {
     model.is_some() && current_model.is_some() && current_model_is_fallback
+}
+
+fn resolve_codex_usage_model(
+    parsed_model: Option<String>,
+    timestamp: &str,
+    current_model: &mut Option<String>,
+    current_model_is_fallback: &mut bool,
+) -> (Option<String>, bool) {
+    if let Some(model) = parsed_model.as_ref() {
+        *current_model = Some(model.clone());
+        *current_model_is_fallback = false;
+    }
+    let mut is_fallback_model = false;
+    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
+        is_fallback_model = true;
+        *current_model_is_fallback = true;
+        *current_model = Some("gpt-5".to_string());
+        current_model.clone()
+    });
+    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
+        is_fallback_model = true;
+    }
+    let model = model.map(|model| {
+        codex_log_model_fallback(&model, timestamp)
+            .map(|fallback| {
+                is_fallback_model = true;
+                fallback.to_string()
+            })
+            .unwrap_or(model)
+    });
+    (model, is_fallback_model)
+}
+
+fn codex_log_model_fallback(model: &str, timestamp: &str) -> Option<&'static str> {
+    if model != CODEX_AUTO_REVIEW_MODEL {
+        return None;
+    }
+    let Some(date) = codex_timestamp_date(timestamp) else {
+        return Some("gpt-5");
+    };
+    Some(
+        codex_auto_review_fallback_models()
+            .iter()
+            .find_map(|fallback| (date >= fallback.released_on).then_some(fallback.model))
+            .unwrap_or("gpt-5"),
+    )
+}
+
+fn codex_auto_review_fallback_models() -> &'static [CodexAutoReviewFallback<'static>] {
+    CODEX_AUTO_REVIEW_FALLBACK_MODELS.as_slice()
+}
+
+fn codex_timestamp_date(timestamp: &str) -> Option<&str> {
+    let date = timestamp.get(..10)?;
+    let bytes = date.as_bytes();
+    if !(bytes.len() == 10
+        && bytes[0..4].iter().all(u8::is_ascii_digit)
+        && bytes[4] == b'-'
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[7] == b'-'
+        && bytes[8..10].iter().all(u8::is_ascii_digit))
+    {
+        return None;
+    }
+    let year = codex_date_part(&bytes[0..4])?;
+    let month = codex_date_part(&bytes[5..7])?;
+    let day = codex_date_part(&bytes[8..10])?;
+    let max_day = codex_days_in_month(year, month)?;
+    (day >= 1 && day <= max_day).then_some(date)
+}
+
+fn codex_date_part(bytes: &[u8]) -> Option<u16> {
+    bytes.iter().try_fold(0u16, |value, byte| {
+        let digit = byte.checked_sub(b'0')?;
+        (digit <= 9).then_some(value * 10 + u16::from(digit))
+    })
+}
+
+fn codex_days_in_month(year: u16, month: u16) -> Option<u16> {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => Some(31),
+        4 | 6 | 9 | 11 => Some(30),
+        2 if codex_is_leap_year(year) => Some(29),
+        2 => Some(28),
+        _ => None,
+    }
+}
+
+fn codex_is_leap_year(year: u16) -> bool {
+    year % 4 == 0 && year % 100 != 0 || year % 400 == 0
 }
 
 fn codex_session_id(sessions_dir: &Path, path: &Path) -> String {
@@ -650,6 +753,30 @@ fn codex_timestamp_from_result(value: &CodexLogEntry<'_>) -> Option<String> {
         })
 }
 
+fn codex_model_timestamp_from_result(value: &CodexLogEntry<'_>) -> Option<String> {
+    raw_or_normalized_codex_timestamp(value.timestamp.as_ref())
+        .or_else(|| raw_or_normalized_codex_timestamp(value.created_at.as_ref()))
+        .or_else(|| raw_or_normalized_codex_timestamp(value.created_at_camel.as_ref()))
+        .or_else(|| {
+            value
+                .data
+                .as_ref()
+                .and_then(raw_or_normalized_result_fields_timestamp)
+        })
+        .or_else(|| {
+            value
+                .result
+                .as_ref()
+                .and_then(raw_or_normalized_result_fields_timestamp)
+        })
+        .or_else(|| {
+            value
+                .response
+                .as_ref()
+                .and_then(raw_or_normalized_result_fields_timestamp)
+        })
+}
+
 fn codex_timestamp_from_result_value(value: &Value) -> Option<String> {
     normalize_value_fields_timestamp(value)
         .or_else(|| value.get("data").and_then(normalize_value_fields_timestamp))
@@ -665,16 +792,67 @@ fn codex_timestamp_from_result_value(value: &Value) -> Option<String> {
         })
 }
 
+fn codex_model_timestamp_from_result_value(value: &Value) -> Option<String> {
+    raw_or_normalized_value_fields_timestamp(value)
+        .or_else(|| {
+            value
+                .get("data")
+                .and_then(raw_or_normalized_value_fields_timestamp)
+        })
+        .or_else(|| {
+            value
+                .get("result")
+                .and_then(raw_or_normalized_value_fields_timestamp)
+        })
+        .or_else(|| {
+            value
+                .get("response")
+                .and_then(raw_or_normalized_value_fields_timestamp)
+        })
+}
+
 fn normalize_result_fields_timestamp(value: &CodexResultFields<'_>) -> Option<String> {
     normalize_codex_timestamp(value.timestamp.as_ref())
         .or_else(|| normalize_codex_timestamp(value.created_at.as_ref()))
         .or_else(|| normalize_codex_timestamp(value.created_at_camel.as_ref()))
 }
 
+fn raw_or_normalized_result_fields_timestamp(value: &CodexResultFields<'_>) -> Option<String> {
+    raw_or_normalized_codex_timestamp(value.timestamp.as_ref())
+        .or_else(|| raw_or_normalized_codex_timestamp(value.created_at.as_ref()))
+        .or_else(|| raw_or_normalized_codex_timestamp(value.created_at_camel.as_ref()))
+}
+
 fn normalize_value_fields_timestamp(value: &Value) -> Option<String> {
     normalize_value_timestamp(value.get("timestamp"))
         .or_else(|| normalize_value_timestamp(value.get("created_at")))
         .or_else(|| normalize_value_timestamp(value.get("createdAt")))
+}
+
+fn raw_or_normalized_value_fields_timestamp(value: &Value) -> Option<String> {
+    raw_or_normalized_value_timestamp(value.get("timestamp"))
+        .or_else(|| raw_or_normalized_value_timestamp(value.get("created_at")))
+        .or_else(|| raw_or_normalized_value_timestamp(value.get("createdAt")))
+}
+
+fn raw_or_normalized_codex_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<String> {
+    match value? {
+        CodexTimestamp::String(text) => {
+            let text = text.trim();
+            if text.is_empty() {
+                return None;
+            }
+            if codex_timestamp_date(text).is_some() {
+                return Some(text.to_string());
+            }
+            // Malformed string: try parsing-based normalization. If that also
+            // fails, return None so the caller's `or_else` chain can try the
+            // next available timestamp field instead of locking in a string
+            // that downstream date resolution will reject.
+            normalize_codex_timestamp(value)
+        }
+        CodexTimestamp::Number(_) => normalize_codex_timestamp(value),
+    }
 }
 
 fn normalize_codex_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<String> {
@@ -697,6 +875,25 @@ fn normalize_codex_timestamp(value: Option<&CodexTimestamp<'_>>) -> Option<Strin
             )))
         }
     }
+}
+
+fn raw_or_normalized_value_timestamp(value: Option<&Value>) -> Option<String> {
+    let value = value?;
+    if let Some(text) = value.as_str() {
+        let text = text.trim();
+        if text.is_empty() {
+            return None;
+        }
+        if codex_timestamp_date(text).is_some() {
+            return Some(text.to_string());
+        }
+        // Malformed string: try parsing-based normalization. If that also
+        // fails, return None so the caller's `or_else` chain can try the
+        // next available timestamp field instead of locking in a string
+        // that downstream date resolution will reject.
+        return normalize_value_timestamp(Some(value));
+    }
+    normalize_value_timestamp(Some(value))
 }
 
 fn normalize_value_timestamp(value: Option<&Value>) -> Option<String> {
@@ -778,5 +975,24 @@ fn subtract_codex_raw_usage(
         total_tokens: current
             .total_tokens
             .saturating_sub(previous.map_or(0, |usage| usage.total_tokens)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loads_codex_auto_review_fallbacks_from_models_dev_snapshot() {
+        let fallbacks = codex_auto_review_fallback_models();
+
+        assert_eq!(fallbacks.len(), 7);
+        assert_eq!(fallbacks[0].released_on, "2026-04-23");
+        assert_eq!(fallbacks[0].model, "gpt-5.5");
+        assert_eq!(fallbacks[6].released_on, "2025-08-07");
+        assert_eq!(fallbacks[6].model, "gpt-5");
+        assert!(fallbacks
+            .windows(2)
+            .all(|window| window[0].released_on > window[1].released_on));
     }
 }
