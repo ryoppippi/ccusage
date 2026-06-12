@@ -28,18 +28,8 @@
 		}
 	},
 	"scripts": {
-		"bench": "just bench",
 		"build": "tsdown && scripts/ensure-native-binary.nu",
-		"build:rust": "just build-rust",
-		"ensure:native-binary": "just ensure-native-binary",
-		"generate:schema": "just generate-schema",
-		"prepack": "pnpm run build && clean-pkg-json",
-		"start": "just start",
-		"test:statusline": "just test-statusline",
-		"test:statusline:all": "just test-statusline-all",
-		"test:statusline:opus4": "just test-statusline-opus4",
-		"test:statusline:sonnet4": "just test-statusline-sonnet4",
-		"test:statusline:sonnet41": "just test-statusline-sonnet41"
+		"prepack": "pnpm run build && clean-pkg-json"
 	},
 	"devDependencies": {
 		"@types/bun": "catalog:types",
