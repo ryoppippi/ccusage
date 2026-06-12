@@ -782,13 +782,11 @@
 	},
 	"anthropic/claude-opus-4.8": {
 		"cost": {
-			"cache_read": 0.5,
-			"cache_write": 6.25,
-			"input": 5,
-			"output": 25
+			"input": 4.2929,
+			"output": 21.4646
 		},
 		"limit": {
-			"context": 1000000
+			"context": 1048576
 		}
 	},
 	"anthropic/claude-opus-4.8-fast": {
@@ -863,7 +861,7 @@
 			"output": 15
 		},
 		"limit": {
-			"context": 1000000
+			"context": 200000
 		}
 	},
 	"anthropic/claude-sonnet-4-20250514": {
@@ -923,8 +921,6 @@
 	},
 	"anthropic/claude-sonnet-4.6": {
 		"cost": {
-			"cache_read": 0.3,
-			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1009,6 +1005,7 @@
 	"claude-3-5-haiku": {
 		"cost": {
 			"cache_read": 0.08,
+			"cache_write": 1,
 			"input": 0.8,
 			"output": 4
 		},
@@ -1018,8 +1015,6 @@
 	},
 	"claude-3-5-haiku-20241022": {
 		"cost": {
-			"cache_read": 0.08,
-			"cache_write": 1,
 			"input": 0.8,
 			"output": 4
 		},
@@ -1083,8 +1078,6 @@
 	},
 	"claude-3-7-sonnet-20250219": {
 		"cost": {
-			"cache_read": 0.3,
-			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1243,8 +1236,6 @@
 	},
 	"claude-haiku-4-5-20251001": {
 		"cost": {
-			"cache_read": 0.1,
-			"cache_write": 1.25,
 			"input": 1,
 			"output": 5
 		},
@@ -1319,8 +1310,6 @@
 	},
 	"claude-opus-4-1-20250805": {
 		"cost": {
-			"cache_read": 1.5,
-			"cache_write": 18.75,
 			"input": 15,
 			"output": 75
 		},
@@ -1395,8 +1384,6 @@
 	},
 	"claude-opus-4-20250514": {
 		"cost": {
-			"cache_read": 1.5,
-			"cache_write": 18.75,
 			"input": 15,
 			"output": 75
 		},
@@ -1417,8 +1404,6 @@
 	},
 	"claude-opus-4-5-20251101": {
 		"cost": {
-			"cache_read": 0.5,
-			"cache_write": 6.25,
 			"input": 5,
 			"output": 25
 		},
@@ -1714,6 +1699,17 @@
 			"context": 1000000
 		}
 	},
+	"claude-opus4-8": {
+		"cost": {
+			"cache_read": 0.563,
+			"cache_write": 7.049,
+			"input": 5.64,
+			"output": 28.198
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
 	"claude-sonnet-4": {
 		"cost": {
 			"cache_read": 0.3,
@@ -1722,7 +1718,7 @@
 			"output": 15
 		},
 		"limit": {
-			"context": 1000000
+			"context": 216000
 		}
 	},
 	"claude-sonnet-4-0": {
@@ -1738,8 +1734,6 @@
 	},
 	"claude-sonnet-4-20250514": {
 		"cost": {
-			"cache_read": 0.3,
-			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1760,8 +1754,6 @@
 	},
 	"claude-sonnet-4-5-20250929": {
 		"cost": {
-			"cache_read": 0.3,
-			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1771,11 +1763,11 @@
 	},
 	"claude-sonnet-4-5-20250929-thinking": {
 		"cost": {
-			"input": 3,
-			"output": 15
+			"input": 2.992,
+			"output": 14.994
 		},
 		"limit": {
-			"context": 200000
+			"context": 1000000
 		}
 	},
 	"claude-sonnet-4-5@20250929": {
@@ -2353,6 +2345,17 @@
 			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
+		},
+		"limit": {
+			"context": 1000000
+		}
+	},
+	"~anthropic/claude-fable-latest": {
+		"cost": {
+			"cache_read": 1,
+			"cache_write": 12.5,
+			"input": 10,
+			"output": 50
 		},
 		"limit": {
 			"context": 1000000
