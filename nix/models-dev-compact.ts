@@ -36,8 +36,8 @@ function compareModelsDevPricingCandidates(
 		compareBoolean(left.hasExplicitCacheRead, right.hasExplicitCacheRead) ||
 		compareBoolean(left.hasExplicitCacheWrite, right.hasExplicitCacheWrite) ||
 		compareBoolean(left.hasContextLimit, right.hasContextLimit) ||
-		compareStringAscending(left.sourceProviderId, right.sourceProviderId) ||
-		compareStringAscending(left.sourceModelId, right.sourceModelId)
+		compareStringPreferSmaller(left.sourceProviderId, right.sourceProviderId) ||
+		compareStringPreferSmaller(left.sourceModelId, right.sourceModelId)
 	);
 }
 
@@ -56,6 +56,6 @@ function compareBoolean(left: boolean, right: boolean): number {
 	return compareNumber(left ? 1 : 0, right ? 1 : 0);
 }
 
-function compareStringAscending(left: string, right: string): number {
+function compareStringPreferSmaller(left: string, right: string): number {
 	return left === right ? 0 : left < right ? 1 : -1;
 }
