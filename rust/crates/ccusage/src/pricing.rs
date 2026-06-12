@@ -361,10 +361,12 @@ impl PricingMap {
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
-        self.find_entry(model)
+        self.find_entry_or_alias(model)
             .or_else(|| {
                 self.enable_models_dev_fallback
-                    .then(|| models_dev_pricing().and_then(|pricing| pricing.find_entry(model)))
+                    .then(|| {
+                        models_dev_pricing().and_then(|pricing| pricing.find_entry_or_alias(model))
+                    })
                     .flatten()
             })
             // The embedded models.dev snapshot is a separate map, so it only
@@ -372,9 +374,14 @@ impl PricingMap {
             // fuzzy alias matching. It works offline, unlike the network source.
             .or_else(|| {
                 self.enable_embedded_models_dev_fallback
-                    .then(|| embedded_models_dev_pricing().find_entry(model))
+                    .then(|| embedded_models_dev_pricing().find_entry_or_alias(model))
                     .flatten()
             })
+    }
+
+    fn find_entry_or_alias(&self, model: &str) -> Option<Pricing> {
+        self.find_entry(model)
+            .or_else(|| pricing_alias(model).and_then(|alias| self.find_entry(alias)))
     }
 
     fn find_entry(&self, model: &str) -> Option<Pricing> {
@@ -733,23 +740,23 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
-        let gpt_5_5_pricing = Pricing {
-            input: 5e-6,
-            output: 30e-6,
-            cache_create: 5e-6,
-            cache_read: 0.5e-6,
-            cache_read_explicit: true,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: fast_multiplier_overrides
-                .multiplier_for("gpt-5.5")
-                .unwrap_or(1.0),
-        };
-        self.entries.insert("gpt-5.5".to_string(), gpt_5_5_pricing);
-        self.entries
-            .insert("codex-auto-review".to_string(), gpt_5_5_pricing);
+        self.entries.insert(
+            "gpt-5.5".to_string(),
+            Pricing {
+                input: 5e-6,
+                output: 30e-6,
+                cache_create: 5e-6,
+                cache_read: 0.5e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.5")
+                    .unwrap_or(1.0),
+            },
+        );
         self.entries.insert(
             "grok-4.3".to_string(),
             Pricing {
@@ -826,14 +833,15 @@ impl PricingMap {
         };
         self.entries
             .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
-        let gpt_5_3_codex_pricing = Pricing {
-            fast_multiplier: fast_multiplier_overrides
-                .multiplier_for("gpt-5.3-codex")
-                .unwrap_or(1.0),
-            ..gpt_5_codex_pricing
-        };
-        self.entries
-            .insert("gpt-5.3-codex".to_string(), gpt_5_3_codex_pricing);
+        self.entries.insert(
+            "gpt-5.3-codex".to_string(),
+            Pricing {
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.3-codex")
+                    .unwrap_or(1.0),
+                ..gpt_5_codex_pricing
+            },
+        );
         self.entries
             .insert("gpt-5.2".to_string(), gpt_5_codex_pricing);
         self.entries.insert(
@@ -1114,6 +1122,14 @@ fn normalized_pricing_key(value: &str) -> Cow<'_, str> {
         Cow::Owned(value.replace(['.', '@'], "-"))
     } else {
         Cow::Borrowed(value)
+    }
+}
+
+fn pricing_alias(model: &str) -> Option<&'static str> {
+    match model {
+        "codex-auto-review" => Some("gpt-5.5"),
+        "gpt-5.3-spark" => Some("gpt-5.3-codex-spark"),
+        _ => None,
     }
 }
 
@@ -1781,6 +1797,18 @@ mod tests {
         assert_eq!(auto_review.output, latest_codex.output);
         assert_eq!(auto_review.cache_read, latest_codex.cache_read);
         assert_eq!(auto_review.fast_multiplier, latest_codex.fast_multiplier);
+    }
+
+    #[test]
+    fn embedded_pricing_resolves_codex_spark_short_model() {
+        let pricing = PricingMap::load_embedded();
+        let short_spark = pricing.find("gpt-5.3-spark").unwrap();
+        let codex_spark = pricing.find("gpt-5.3-codex-spark").unwrap();
+
+        assert_eq!(short_spark.input, codex_spark.input);
+        assert_eq!(short_spark.output, codex_spark.output);
+        assert_eq!(short_spark.cache_read, codex_spark.cache_read);
+        assert_eq!(short_spark.fast_multiplier, codex_spark.fast_multiplier);
     }
 
     #[test]
