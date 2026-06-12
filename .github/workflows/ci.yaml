@@ -269,12 +269,7 @@ jobs:
           function Invoke-Ccusage([string[]]$ccArgs) {
             switch ($env:RUNNER_KIND) {
               'npm' { return (npx --yes $url @ccArgs) }
-              # pnpm 11 defaults blockExoticSubdeps to true, which rejects the
-              # URL-resolved native optional deps that pkg.pr.new injects into
-              # the published ccusage manifest. The matching npm_config_* env
-              # var is silently ignored by pnpm, so opt out via the CLI flag.
-              # https://pnpm.io/settings#blockexoticsubdeps
-              'pnpm' { return (pnpm --config.block-exotic-subdeps=false dlx $url @ccArgs) }
+              'pnpm' { return (pnpm dlx $url @ccArgs) }
               'bun' { return (bunx -p $url ccusage @ccArgs) }
             }
           }
