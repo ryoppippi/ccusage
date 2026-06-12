@@ -5,12 +5,56 @@
 default:
     @just --list
 
-# Build the package: config schema, bundle, then the native binary glue.
-# Delegated to the pnpm script because npm `prepack` and `pkg-pr-new publish`
-# invoke `pnpm run build` by name (and tsdown lives in this package's
-# node_modules), so the script must stay the single source of truth.
-build:
-    pnpm run build
+# Build the package bundle and verify native binary glue.
+build: build-package
+
+build-package:
+    tsdown
+    just ensure-native-binary
+
+prepack:
+    just build-package
+    clean-pkg-json
+
+bench *args:
+    node scripts/bench.mjs {{args}}
+
+build-rust:
+    cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage
+
+ensure-native-binary:
+    scripts/ensure-native-binary.nu
+
+generate-schema:
+    cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json
+    oxfmt --write config-schema.json
+    cp config-schema.json ../../docs/public/config-schema.json
+
+start *args:
+    cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- {{args}}
+
+test-statusline:
+    just test-statusline-file test/statusline-test.json
+
+test-statusline-all:
+    @echo 'Testing Sonnet 4:'
+    just test-statusline-sonnet4
+    @echo 'Testing Opus 4.1:'
+    just test-statusline-opus4
+    @echo 'Testing Sonnet 4.1:'
+    just test-statusline-sonnet41
+
+test-statusline-opus4:
+    just test-statusline-file test/statusline-test-opus4.json --offline
+
+test-statusline-sonnet4:
+    just test-statusline-file test/statusline-test-sonnet4.json --offline
+
+test-statusline-sonnet41:
+    just test-statusline-file test/statusline-test-sonnet41.json --offline
+
+test-statusline-file file *args:
+    cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline {{args}} < {{file}}
 
 # Type-check the package (tsgo comes from the Nix dev shell, so call it directly)
 typecheck:

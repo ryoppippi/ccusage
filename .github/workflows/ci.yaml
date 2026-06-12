@@ -347,17 +347,22 @@ jobs:
       # `nix develop` dev shell is unnecessary. Install just the tools the perf
       # scripts invoke, pinned to the flake's nixpkgs via `--inputs-from .`.
       - name: Install perf tooling
-        run: nix profile install --inputs-from . nixpkgs#pnpm nixpkgs#nodejs nixpkgs#bun nixpkgs#hyperfine nixpkgs#just
-      - run: pnpm install --frozen-lockfile
+        run: nix profile install --inputs-from . nixpkgs#bun nixpkgs#just
 
       - name: Resolve PR preview package URL
         env:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
         run: |
           preview_url="$(
-            # shellcheck disable=SC2016
-            node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
+            printf '%s\n' "$PKG_PR_NEW_URLS" \
+              | tr '[:space:]' '\n' \
+              | grep -E '(^|/)ccusage@' \
+              | head -n 1
           )"
+          if [ -z "$preview_url" ]; then
+            echo "ccusage preview URL not found in: $PKG_PR_NEW_URLS" >&2
+            exit 1
+          fi
           echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
 
       - name: Generate large ccusage fixture
@@ -369,7 +374,7 @@ jobs:
 
       - name: Compare performance
         run: |
-          pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+          apps/ccusage/scripts/compare-pr-performance.nu \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \

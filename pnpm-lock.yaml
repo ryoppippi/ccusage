@@ -39,10 +39,6 @@ catalogs:
     pkg-pr-new:
       specifier: ^0.0.75
       version: 0.0.75
-  runtime:
-    gunshi:
-      specifier: ^0.31.0
-      version: 0.31.0
   testing:
     fs-fixture:
       specifier: ^2.8.1
@@ -92,9 +88,6 @@ importers:
       fs-fixture:
         specifier: catalog:testing
         version: 2.8.1
-      gunshi:
-        specifier: catalog:runtime
-        version: 0.31.0
       mitata:
         specifier: catalog:testing
         version: 1.0.34
@@ -1376,10 +1369,6 @@ packages:
   gray-matter@4.0.3:
     resolution: {integrity: sha512-5v6yZd4JK3eMI3FqqCouswVqwugaA9r4dNZB1wwcmrD02QkV5H0y7XBQW8QwQqEaZY1pM9aqORSORhJRdNK44Q==}
     engines: {node: '>=6.0'}
-
-  gunshi@0.31.0:
-    resolution: {integrity: sha512-D7Amp1BlSzI5cbXiL16TPQ6mp6p3Hzboc1pyc2gYu3j1rXQyG5aYfE4bZW0J3MzU7pKdTJlFytxWlCwif3CxvA==}
-    engines: {node: '>= 22'}
 
   hast-util-to-html@9.0.5:
     resolution: {integrity: sha512-OguPdidb+fbHQSU4Q4ZiLKnzWo8Wwsf5bZfbvu7//a9oTYoqD/fWpe96NuHkoS9h0ccGOTe0C4NGXdtS0iObOw==}
@@ -3322,8 +3311,6 @@ snapshots:
       kind-of: 6.0.3
       section-matter: 1.0.0
       strip-bom-string: 1.0.0
-
-  gunshi@0.31.0: {}
 
   hast-util-to-html@9.0.5:
     dependencies:

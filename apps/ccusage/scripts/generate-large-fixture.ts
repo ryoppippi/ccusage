@@ -2,7 +2,6 @@
 
 import path, { join, resolve } from 'node:path';
 import process from 'node:process';
-import { cli, define } from 'gunshi';
 
 const DEFAULT_SIZE_MIB = 1024;
 export const DEFAULT_CODEX_SIZE_MIB = 1024;
@@ -287,62 +286,91 @@ if (import.meta.vitest != null) {
 	});
 }
 
-const command = define({
-	name: 'generate-large-fixture',
-	description: 'Generate synthetic JSONL fixtures for ccusage performance CI',
-	toKebab: true,
-	args: {
-		outputDir: {
-			type: 'string',
-			required: true,
-			description: 'Claude config directory to create',
-		},
-		codexOutputDir: {
-			type: 'string',
-			description: 'Codex home directory to create',
-		},
-		sizeMib: {
-			type: 'number',
-			default: DEFAULT_SIZE_MIB,
-			description: 'Target JSONL file size in MiB',
-		},
-		codexSizeMib: {
-			type: 'number',
-			default: DEFAULT_CODEX_SIZE_MIB,
-			description: 'Target Codex JSONL file size in MiB',
-		},
-	},
-	async run(ctx) {
-		if (!Number.isInteger(ctx.values.sizeMib) || ctx.values.sizeMib < 1) {
-			throw new Error('--size-mib must be a positive integer');
+function parseCliArgs(args: string[]): {
+	codexOutputDir?: string;
+	codexSizeMib: number;
+	outputDir: string;
+	sizeMib: number;
+} {
+	const values: {
+		codexOutputDir?: string;
+		codexSizeMib: number;
+		outputDir?: string;
+		sizeMib: number;
+	} = {
+		codexSizeMib: DEFAULT_CODEX_SIZE_MIB,
+		sizeMib: DEFAULT_SIZE_MIB,
+	};
+	for (let index = 0; index < args.length; index++) {
+		const flag = args[index];
+		const next = args[index + 1];
+		if (flag === '--output-dir') {
+			if (next == null) {
+				throw new Error('--output-dir requires a value');
+			}
+			values.outputDir = next;
+			index++;
+			continue;
 		}
-		if (!Number.isInteger(ctx.values.codexSizeMib) || ctx.values.codexSizeMib < 1) {
-			throw new Error('--codex-size-mib must be a positive integer');
+		if (flag === '--codex-output-dir') {
+			if (next == null) {
+				throw new Error('--codex-output-dir requires a value');
+			}
+			values.codexOutputDir = next;
+			index++;
+			continue;
 		}
-
-		const outputDir = resolve(ctx.values.outputDir);
-		const claudeResult = await generateClaudeFixture(outputDir, ctx.values.sizeMib);
-
-		await Bun.write(
-			Bun.stdout,
-			`Generated Claude fixture ${outputDir}\nFiles: ${claudeResult.fileCount.toLocaleString('en-US')}\nRows: ${claudeResult.lineCount.toLocaleString('en-US')}\nSize: ${formatBytes(claudeResult.totalBytes)}\n`,
-		);
-
-		if (ctx.values.codexOutputDir != null) {
-			const codexOutputDir = resolve(ctx.values.codexOutputDir);
-			const codexResult = await generateCodexFixture(codexOutputDir, ctx.values.codexSizeMib);
-			await Bun.write(
-				Bun.stdout,
-				`Generated Codex fixture ${codexOutputDir}\nFiles: ${codexResult.fileCount.toLocaleString('en-US')}\nRows: ${codexResult.lineCount.toLocaleString('en-US')}\nSize: ${formatBytes(codexResult.totalBytes)}\n`,
-			);
+		if (flag === '--size-mib') {
+			if (next == null) {
+				throw new Error('--size-mib requires a value');
+			}
+			values.sizeMib = Number(next);
+			index++;
+			continue;
 		}
-	},
-});
+		if (flag === '--codex-size-mib') {
+			if (next == null) {
+				throw new Error('--codex-size-mib requires a value');
+			}
+			values.codexSizeMib = Number(next);
+			index++;
+			continue;
+		}
+		throw new Error(`Unknown argument: ${flag ?? ''}`);
+	}
+	if (values.outputDir == null) {
+		throw new Error('--output-dir is required');
+	}
+	if (!Number.isInteger(values.sizeMib) || values.sizeMib < 1) {
+		throw new Error('--size-mib must be a positive integer');
+	}
+	if (!Number.isInteger(values.codexSizeMib) || values.codexSizeMib < 1) {
+		throw new Error('--codex-size-mib must be a positive integer');
+	}
+	return {
+		codexOutputDir: values.codexOutputDir,
+		codexSizeMib: values.codexSizeMib,
+		outputDir: values.outputDir,
+		sizeMib: values.sizeMib,
+	};
+}
 
 if (import.meta.main) {
-	await cli(Bun.argv.slice(2), command, {
-		name: 'generate-large-fixture',
-		description: 'Generate synthetic JSONL fixtures for ccusage performance CI',
-		renderHeader: null,
-	});
+	const args = parseCliArgs(Bun.argv.slice(2));
+	const outputDir = resolve(args.outputDir);
+	const claudeResult = await generateClaudeFixture(outputDir, args.sizeMib);
+
+	await Bun.write(
+		Bun.stdout,
+		`Generated Claude fixture ${outputDir}\nFiles: ${claudeResult.fileCount.toLocaleString('en-US')}\nRows: ${claudeResult.lineCount.toLocaleString('en-US')}\nSize: ${formatBytes(claudeResult.totalBytes)}\n`,
+	);
+
+	if (args.codexOutputDir != null) {
+		const codexOutputDir = resolve(args.codexOutputDir);
+		const codexResult = await generateCodexFixture(codexOutputDir, args.codexSizeMib);
+		await Bun.write(
+			Bun.stdout,
+			`Generated Codex fixture ${codexOutputDir}\nFiles: ${codexResult.fileCount.toLocaleString('en-US')}\nRows: ${codexResult.lineCount.toLocaleString('en-US')}\nSize: ${formatBytes(codexResult.totalBytes)}\n`,
+		);
+	}
 }

@@ -66,7 +66,7 @@ function parseArgs(args) {
 }
 
 function printHelp() {
-	console.log(`Usage: pnpm --filter ccusage bench [options] [-- ccusage args...]
+	console.log(`Usage: just ccusage::bench [options] [-- ccusage args...]
 
 Options:
   --full            Use mitata summary output with its default sample tuning
@@ -75,11 +75,11 @@ Options:
   -h, --help        Show this help
 
 Examples:
-  pnpm --filter ccusage bench
-  pnpm --filter ccusage bench --full
-  pnpm --filter ccusage bench --samples 1
-  pnpm --filter ccusage bench -- --offline --json session
-  pnpm --filter ccusage bench -- --offline --json --since 20260101`);
+  just ccusage::bench
+  just ccusage::bench --full
+  just ccusage::bench --samples 1
+  just ccusage::bench -- --offline --json session
+  just ccusage::bench -- --offline --json --since 20260101`);
 }
 
 function runCli(cliArgs) {
@@ -111,7 +111,7 @@ function formatTime(nanoseconds) {
 const { cliArgs, full, name, samples } = parseArgs(process.argv.slice(2));
 
 if (!existsSync(builtCli)) {
-	throw new Error('Built CLI not found. Run `pnpm --filter ccusage build` first.');
+	throw new Error('Built CLI not found. Run `just ccusage::build` first.');
 }
 
 console.log(`Node: ${process.version}`);
