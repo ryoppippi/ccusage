@@ -108,7 +108,7 @@ def main [
     let options = {
         base_bin_entry: $base_bin_entry
         base_package_url: $values.base_package_url
-        base_runtime_description: (if $values.base_package_url == null { null } else { 'Base runs the published `ccusage` package from `pkg.pr.new`, installed before measurement' })
+        base_runtime_description: (if $base_package_install == null { null } else { 'Base runs the published `ccusage` package from `pkg.pr.new`, installed before measurement' })
         base_sha: (if $values.base_sha != null { $values.base_sha } else if $base_dir == null { null } else { git_sha $base_dir })
         codex_fixture_dir: $codex_fixture_dir
         fixture_dir: $fixture_dir
