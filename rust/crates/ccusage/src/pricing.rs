@@ -469,16 +469,16 @@ impl PricingMap {
             1.0
         };
 
-        let cache_create = if override_value.cache_creation_input_token_cost.is_some() {
-            override_value.cache_creation_input_token_cost.unwrap()
+        let cache_create = if let Some(value) = override_value.cache_creation_input_token_cost {
+            value
         } else if should_scale && base.cache_create > 0.0 {
             base.cache_create * scale
         } else {
             base.cache_create
         };
 
-        let cache_read = if override_value.cache_read_input_token_cost.is_some() {
-            override_value.cache_read_input_token_cost.unwrap()
+        let cache_read = if let Some(value) = override_value.cache_read_input_token_cost {
+            value
         } else if should_scale && base.cache_read > 0.0 {
             base.cache_read * scale
         } else {
