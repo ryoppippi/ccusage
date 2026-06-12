@@ -27,6 +27,7 @@ fn test_agent_rows(agent: &'static str) -> AgentRows {
             cache_read_tokens: 0,
             total_tokens: 1,
             total_cost: 0.0,
+            credits: None,
             metadata: None,
             metadata_agents: Some(vec![agent]),
             agent_breakdowns: None,
@@ -88,6 +89,7 @@ fn aggregates_daily_agent_rows_by_period() {
                 cache_read_tokens: 10,
                 total_tokens: 120,
                 total_cost: 0.01,
+                credits: None,
                 metadata: None,
                 metadata_agents: Some(vec!["codex"]),
                 agent_breakdowns: None,
@@ -103,6 +105,7 @@ fn aggregates_daily_agent_rows_by_period() {
                 cache_read_tokens: 3,
                 total_tokens: 83,
                 total_cost: 0.02,
+                credits: None,
                 metadata: None,
                 metadata_agents: Some(vec!["claude"]),
                 agent_breakdowns: None,
@@ -145,6 +148,7 @@ fn merges_same_agent_daily_rows_into_one_monthly_breakdown() {
                 cache_read_tokens: 2,
                 total_tokens: 18,
                 total_cost: 0.01,
+                credits: None,
                 metadata: None,
                 metadata_agents: Some(vec!["claude"]),
                 agent_breakdowns: None,
@@ -168,6 +172,7 @@ fn merges_same_agent_daily_rows_into_one_monthly_breakdown() {
                 cache_read_tokens: 4,
                 total_tokens: 36,
                 total_cost: 0.05,
+                credits: None,
                 metadata: None,
                 metadata_agents: Some(vec!["claude"]),
                 agent_breakdowns: None,
@@ -191,6 +196,7 @@ fn merges_same_agent_daily_rows_into_one_monthly_breakdown() {
                 cache_read_tokens: 6,
                 total_tokens: 51,
                 total_cost: 0.02,
+                credits: None,
                 metadata: None,
                 metadata_agents: Some(vec!["codex"]),
                 agent_breakdowns: None,
@@ -262,6 +268,7 @@ fn renders_all_report_json_with_period_and_agent_metadata() {
         cache_read_tokens: 10,
         total_tokens: 130,
         total_cost: 0.01,
+        credits: None,
         metadata: None,
         metadata_agents: Some(vec!["codex"]),
         agent_breakdowns: None,
@@ -376,6 +383,7 @@ fn aggregates_model_breakdowns_across_agents() {
                 cache_read_tokens: 2,
                 total_tokens: 17,
                 total_cost: 0.03,
+                credits: None,
                 metadata: None,
                 metadata_agents: Some(vec!["codex"]),
                 agent_breakdowns: None,
@@ -399,6 +407,7 @@ fn aggregates_model_breakdowns_across_agents() {
                 cache_read_tokens: 4,
                 total_tokens: 57,
                 total_cost: 0.07,
+                credits: None,
                 metadata: None,
                 metadata_agents: Some(vec!["claude"]),
                 agent_breakdowns: None,
@@ -456,6 +465,7 @@ fn displays_total_tokens_with_cache_tokens_like_typescript_table() {
         cache_read_tokens: 10,
         total_tokens: 120,
         total_cost: 0.01,
+        credits: None,
         metadata: None,
         metadata_agents: Some(vec!["codex"]),
         agent_breakdowns: None,
@@ -479,6 +489,7 @@ fn report_title_uses_detected_agents_even_when_filtered_rows_are_sparse() {
         cache_read_tokens: 10,
         total_tokens: 120,
         total_cost: 0.01,
+        credits: None,
         metadata: None,
         metadata_agents: Some(vec!["codex"]),
         agent_breakdowns: None,
@@ -509,6 +520,7 @@ fn all_table_rows_match_main_agent_breakdown_display() {
         cache_read_tokens: 10,
         total_tokens: 130,
         total_cost: 0.01,
+        credits: None,
         metadata: None,
         metadata_agents: Some(vec!["codex"]),
         agent_breakdowns: Some(vec![AllRow {
@@ -521,6 +533,7 @@ fn all_table_rows_match_main_agent_breakdown_display() {
             cache_read_tokens: 10,
             total_tokens: 130,
             total_cost: 0.01,
+            credits: None,
             metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: None,
@@ -556,6 +569,7 @@ fn all_report_title_lists_detected_agents() {
         cache_read_tokens: 0,
         total_tokens: 0,
         total_cost: 0.0,
+        credits: None,
         metadata: None,
         metadata_agents: Some(vec!["claude", "codex"]),
         agent_breakdowns: None,
@@ -608,4 +622,451 @@ fn full_table_columns_include_cache_and_total_token_metrics() {
         ]
     );
     assert_eq!(headers.len(), aligns.len());
+}
+
+#[test]
+fn all_aggregator_sums_credits_across_agents_and_surfaces_them_in_json() {
+    // Regression: pre-fix, `daily --all --json` / `weekly --all --json` /
+    // `monthly --all --json` silently dropped Copilot credit-only AIU
+    // billing because the aggregator (`AllAccumulator`) had no credits
+    // field, and `report_json` only emitted `metadata.credits` from the
+    // per-row `summary_metadata` map (which `AllAccumulator::into_row`
+    // drops by setting `metadata: None` on the aggregated row). Direct
+    // `ccusage copilot ... --json` surfaced credits per entry; the
+    // `--all` aggregate did not. The fix promotes `credits` to a
+    // first-class field on `AllRow`, sums it in `AllAccumulator` + into
+    // the aggregated row, and `report::row_json` injects it into the
+    // emitted `metadata` object alongside `agents`. `totals_json` also
+    // sums credits into a `totals.credits` field, gated on at least
+    // one row reporting credits (to preserve backward-compatibility for
+    // agents that have never used the credits channel) and matching
+    // the direct-agent JSON key (`output.rs::totals_json`
+    // already emitted `totals.credits` — keeping the same key here
+    // means `jq .totals.credits` works against both direct and `--all`
+    // reports).
+
+    let copilot_day = AllRow {
+        period: "2026-05-15".to_string(),
+        agent: "copilot",
+        models_used: vec!["claude-opus-4.7-1m-internal".to_string()],
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 0,
+        total_cost: 1.54481,
+        credits: Some(154.481),
+        metadata: None,
+        metadata_agents: Some(vec!["copilot"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    };
+    let codex_day = AllRow {
+        period: "2026-05-15".to_string(),
+        agent: "codex",
+        models_used: vec!["gpt-5".to_string()],
+        input_tokens: 100,
+        output_tokens: 20,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 10,
+        total_tokens: 130,
+        total_cost: 0.01,
+        credits: None, // codex doesn't report credits
+        metadata: None,
+        metadata_agents: Some(vec!["codex"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    };
+
+    let aggregated = aggregate_rows(vec![copilot_day, codex_day], AgentReportKind::Daily);
+    assert_eq!(aggregated.len(), 1);
+    assert_eq!(aggregated[0].agent, "all");
+    assert_eq!(
+        aggregated[0].credits,
+        Some(154.481),
+        "aggregated `all` row must carry the summed credits across \
+         contributing agents; codex's `None` must not zero it"
+    );
+
+    let report = report_json(&aggregated, AgentReportKind::Daily);
+    let top_metadata = &report["daily"][0]["metadata"];
+    assert_eq!(
+        top_metadata["agents"],
+        serde_json::json!(["codex", "copilot"]),
+        "top-level `agents` metadata must still list both contributors",
+    );
+    assert!(
+        top_metadata["credits"].is_number(),
+        "top-level `metadata.credits` must surface the aggregated credits; \
+         got {top_metadata:?}",
+    );
+    assert!(
+        (top_metadata["credits"].as_f64().unwrap() - 154.481).abs() < 1e-9,
+        "expected metadata.credits == 154.481, got {}",
+        top_metadata["credits"],
+    );
+
+    let totals = &report["totals"];
+    assert!(
+        totals["credits"].is_number(),
+        "totals must include `credits` whenever any row reports credits \
+         (matching the direct-agent `output.rs::totals_json` key); \
+         got {totals:?}",
+    );
+    assert!(
+        (totals["credits"].as_f64().unwrap() - 154.481).abs() < 1e-9,
+        "expected totals.credits == 154.481, got {}",
+        totals["credits"],
+    );
+}
+
+#[test]
+fn all_aggregator_merges_same_agent_credits_across_multiple_days() {
+    // Same-agent merge path: `merge_agent_breakdown` must sum credits
+    // across days of the SAME agent. Pre-fix this discarded the
+    // metadata-side credits entirely (`merge_agent_breakdown` never
+    // touched `metadata`), so weekly/monthly aggregation of a credit-
+    // bearing agent (e.g. Copilot) showed only the FIRST day's credits
+    // on its breakdown — even though tokens and cost summed correctly.
+
+    let day1 = AllRow {
+        period: "2026-05-15".to_string(),
+        agent: "copilot",
+        models_used: vec!["claude-opus-4.7-1m-internal".to_string()],
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 0,
+        total_cost: 1.0,
+        credits: Some(100.0),
+        metadata: None,
+        metadata_agents: Some(vec!["copilot"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    };
+    let day2 = AllRow {
+        period: "2026-05-16".to_string(),
+        agent: "copilot",
+        models_used: vec!["claude-opus-4.7-1m-internal".to_string()],
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 0,
+        total_cost: 0.5,
+        credits: Some(50.0),
+        metadata: None,
+        metadata_agents: Some(vec!["copilot"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    };
+
+    // Monthly aggregation collapses both days into one period.
+    let aggregated = aggregate_rows(vec![day1, day2], AgentReportKind::Monthly);
+    assert_eq!(aggregated.len(), 1);
+    assert_eq!(
+        aggregated[0].credits,
+        Some(150.0),
+        "monthly `all` row must sum credits across days for the same agent"
+    );
+    let breakdowns = aggregated[0].agent_breakdowns.as_ref().unwrap();
+    assert_eq!(breakdowns.len(), 1);
+    assert_eq!(breakdowns[0].agent, "copilot");
+    assert_eq!(
+        breakdowns[0].credits,
+        Some(150.0),
+        "per-agent breakdown must also sum credits across same-agent days \
+         (pre-fix only the first day's credits survived `merge_agent_breakdown`)"
+    );
+}
+
+#[test]
+fn totals_json_omits_credits_when_no_row_reports_credits() {
+    // Backward-compatibility: agents that have never reported credits
+    // (Claude, Codex, Amp, …) must continue to see the same totals
+    // JSON shape they always have — no spurious `credits: 0` field.
+    // The gate fires only when the SUM is positive, matching the
+    // direct per-agent renderer (`output.rs::totals_json`,
+    // `if credits > 0.0`). This keeps the totals shape byte-identical
+    // across direct and `--all` reports for ALL inputs — including
+    // `Some(0.0)` (a Copilot post-cutover day whose `totalNanoAiu == 0`,
+    // pinned separately by
+    // `totals_json_omits_credits_when_all_credits_sum_to_zero`).
+
+    let credit_free = vec![AllRow {
+        period: "2026-05-15".to_string(),
+        agent: "all",
+        models_used: vec!["gpt-5".to_string()],
+        input_tokens: 100,
+        output_tokens: 20,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 10,
+        total_tokens: 130,
+        total_cost: 0.01,
+        credits: None,
+        metadata: None,
+        metadata_agents: Some(vec!["codex"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    }];
+
+    let report = report_json(&credit_free, AgentReportKind::Daily);
+    assert!(
+        report["totals"].get("credits").is_none(),
+        "totals.credits must be ABSENT (not zero) when no row reports credits; \
+         got totals = {}",
+        report["totals"],
+    );
+    // Sanity: existing fields preserved.
+    assert_eq!(report["totals"]["totalTokens"], 130);
+}
+
+#[test]
+fn totals_json_omits_credits_when_all_credits_sum_to_zero() {
+    // Cross-renderer parity: a Copilot row carrying `Some(0.0)` (e.g.
+    // a post-cutover day whose `totalNanoAiu == 0` because the user
+    // only ran free-tier sonnet/haiku) must produce IDENTICAL totals
+    // JSON shape between direct-agent (`output.rs::totals_json`,
+    // which omits credits via `if credits > 0.0`) and `--all`
+    // (`report::totals_json`, same gate). Pre-fix the `--all` path
+    // emitted `totals: {credits: 0}` while direct-agent omitted the
+    // key entirely, which broke any `jq` query that branched on the
+    // key's presence across both report kinds.
+
+    let zero_credit_day = vec![AllRow {
+        period: "2026-05-15".to_string(),
+        agent: "copilot",
+        models_used: vec!["claude-sonnet-4".to_string()],
+        input_tokens: 1_000,
+        output_tokens: 200,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 1_200,
+        total_cost: 0.0,
+        credits: Some(0.0), // explicit zero AIU charge for the day
+        metadata: None,
+        metadata_agents: Some(vec!["copilot"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    }];
+
+    let report = report_json(&zero_credit_day, AgentReportKind::Daily);
+    assert!(
+        report["totals"].get("credits").is_none(),
+        "totals.credits must be ABSENT (not 0) when the SUM of all \
+         credits is zero — matching the direct-agent renderer's \
+         `if credits > 0.0` gate. Got totals = {}",
+        report["totals"],
+    );
+    // Sanity: positive numeric fields still emit.
+    assert_eq!(report["totals"]["totalTokens"], 1_200);
+}
+
+#[test]
+fn totals_json_credits_uses_float_representation_matching_direct_renderer() {
+    // Cross-renderer byte parity for integer-valued credit sums.
+    // Both renderers must use raw `json!` (not `json_float`) so an
+    // integer-valued credits sum like 5.0 serializes as `5.0`, not
+    // `5`. Pre-fix `--all` used `json_float`, which collapses
+    // integer-valued floats to JSON integers (`5.0` → `5`),
+    // creating a raw-byte JSON diff against the direct-agent
+    // renderer (`output.rs::totals_json`,
+    // raw `json!`). Both representations are semantically
+    // identical to every JSON consumer, but a literal
+    // `diff <(ccusage copilot daily --json) <(ccusage daily --all --json)`
+    // would surface a spurious mismatch. This test pins the JSON
+    // serialized form, not just the numeric value, by snapshotting
+    // the serialized string for both per-row metadata.credits and
+    // totals.credits.
+
+    let copilot_day = vec![AllRow {
+        period: "2026-05-15".to_string(),
+        agent: "copilot",
+        models_used: vec!["claude-opus-4.7-1m-internal".to_string()],
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 0,
+        total_cost: 0.05,
+        credits: Some(5.0), // integer-valued: 5 AI Credits
+        metadata: None,
+        metadata_agents: Some(vec!["copilot"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    }];
+
+    let report = report_json(&copilot_day, AgentReportKind::Daily);
+    let serialized = serde_json::to_string(&report).unwrap();
+    assert!(
+        serialized.contains("\"credits\":5.0"),
+        "JSON serialization must include `\"credits\":5.0` (not \
+         `\"credits\":5`) so `--all` byte-matches direct-agent for \
+         integer-valued credit sums. Got serialized = {serialized}",
+    );
+    // Confirm both injection sites emit float-form (per-row metadata + totals).
+    let count = serialized.matches("\"credits\":5.0").count();
+    assert_eq!(
+        count, 2,
+        "expected 2 occurrences of `\"credits\":5.0` (one in \
+         daily[0].metadata.credits, one in totals.credits); got {count} \
+         in serialized = {serialized}",
+    );
+}
+
+#[test]
+fn build_row_metadata_does_not_inject_agents_for_session_mode_rows() {
+    // Regression: session-mode rows carry per-row metadata (lastActivity,
+    // projectPath) but `metadata_agents = None` (cleared by
+    // `finalize_session_mode_rows` when `kind == Session`). The
+    // renderer's `build_row_metadata` must NOT inject an "agents" key in
+    // that case; it should preserve only the existing metadata fields. A
+    // future refactor that re-enables `metadata_agents` for session mode
+    // would silently add an "agents" key to non-Copilot session
+    // --all --json output, which is a user-observable JSON-shape change.
+    let session_row = vec![AllRow {
+        period: "session-abc".to_string(),
+        agent: "claude",
+        models_used: Vec::new(),
+        input_tokens: 100,
+        output_tokens: 50,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 150,
+        total_cost: 0.123,
+        credits: None,
+        metadata: Some(json!({
+            "lastActivity": "2026-05-20T12:34:56.000Z",
+            "projectPath": "/home/user/proj",
+        })),
+        metadata_agents: None, // post-finalize_session_mode_rows clear
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    }];
+
+    let report = report_json(&session_row, AgentReportKind::Session);
+    let row = &report["session"][0];
+    let metadata = &row["metadata"];
+
+    assert!(
+        metadata["lastActivity"].is_string(),
+        "lastActivity must be preserved in session-mode metadata; got {metadata}",
+    );
+    assert!(
+        metadata["projectPath"].is_string(),
+        "projectPath must be preserved in session-mode metadata; got {metadata}",
+    );
+    assert!(
+        metadata.get("agents").is_none(),
+        "agents key must NOT be injected for session-mode rows (where \
+         metadata_agents is None); got {metadata}",
+    );
+}
+
+#[test]
+fn build_row_metadata_injects_agents_for_aggregated_all_rows() {
+    // Companion to the session-mode test above: aggregated `--all` rows
+    // come from `AllAccumulator::into_row` with `metadata: None` and
+    // `metadata_agents: Some(vec![...])`. `build_row_metadata` must
+    // inject the "agents" key in that case so `--all --json` continues
+    // to surface which adapters contributed to each aggregate row.
+    let aggregated_row = vec![AllRow {
+        period: "2026-05-20".to_string(),
+        agent: "all",
+        models_used: Vec::new(),
+        input_tokens: 100,
+        output_tokens: 50,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 150,
+        total_cost: 0.123,
+        credits: None,
+        metadata: None,
+        metadata_agents: Some(vec!["claude", "codex"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    }];
+
+    let report = report_json(&aggregated_row, AgentReportKind::Daily);
+    let row = &report["daily"][0];
+    let metadata = &row["metadata"];
+
+    assert_eq!(
+        metadata["agents"],
+        json!(["claude", "codex"]),
+        "agents key must be injected for aggregated rows where \
+         metadata_agents is Some; got {metadata}",
+    );
+}
+
+#[test]
+fn finalize_session_mode_rows_clears_metadata_agents() {
+    // Regression: the renderer-contract test above pins
+    // `build_row_metadata`'s `None → no agents` branch, but the actual
+    // production invariant (no `"agents"` key in session-mode --all --json
+    // output) depends on `load_rows` clearing `metadata_agents = None` for
+    // every row when `kind == Session`. This test pins THAT clear
+    // directly. Removing or breaking the clear must fail this assertion
+    // BEFORE the renderer-contract tests start emitting the wrong JSON
+    // for real session-mode user output.
+    let mut rows = vec![
+        AllRow {
+            period: "session-a".to_string(),
+            agent: "claude",
+            models_used: Vec::new(),
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 0,
+            total_tokens: 150,
+            total_cost: 0.123,
+            credits: None,
+            metadata: Some(json!({"lastActivity": "2026-05-20T12:00:00Z"})),
+            metadata_agents: Some(vec!["claude"]),
+            agent_breakdowns: None,
+            model_breakdowns: Vec::new(),
+        },
+        AllRow {
+            period: "session-b".to_string(),
+            agent: "copilot",
+            models_used: Vec::new(),
+            input_tokens: 200,
+            output_tokens: 100,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 0,
+            total_tokens: 300,
+            total_cost: 0.456,
+            credits: Some(2.5),
+            metadata: Some(json!({"projectPath": "/home/user/x"})),
+            metadata_agents: Some(vec!["copilot"]),
+            agent_breakdowns: None,
+            model_breakdowns: Vec::new(),
+        },
+    ];
+
+    finalize_session_mode_rows(&mut rows);
+
+    for (i, row) in rows.iter().enumerate() {
+        assert!(
+            row.metadata_agents.is_none(),
+            "row[{i}] (agent={}, period={}): metadata_agents must be \
+             None after finalize_session_mode_rows; got {:?}. Removing \
+             or breaking the clear at `load_rows` would make session \
+             --all --json emit an unintended `agents` JSON key.",
+            row.agent,
+            row.period,
+            row.metadata_agents,
+        );
+    }
+    // Sanity: existing metadata fields are preserved (the clear must
+    // not touch row.metadata).
+    assert_eq!(
+        rows[0].metadata.as_ref().unwrap()["lastActivity"],
+        json!("2026-05-20T12:00:00Z")
+    );
+    assert_eq!(
+        rows[1].metadata.as_ref().unwrap()["projectPath"],
+        json!("/home/user/x")
+    );
 }

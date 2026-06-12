@@ -19,7 +19,9 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 #[cfg(test)]
-use loader::{aggregate_rows, codex_group_row, load_agent_rows_parallel};
+use loader::{
+    aggregate_rows, codex_group_row, finalize_session_mode_rows, load_agent_rows_parallel,
+};
 #[cfg(test)]
 use report::{all_report_title, all_table_columns, all_table_row, report_json};
 #[cfg(test)]
