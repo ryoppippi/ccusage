@@ -25,23 +25,18 @@
 
 ## Major Sponsors
 
-<table>
-    <tr>
-        <td align="center" width="50%">
-            <a href="https://coderabbit.link/ryoppippi">
-                <picture>
-                    <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo-dark.svg">
-                    <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo.svg" alt="CodeRabbit" width="320">
-                </picture>
-            </a>
-        </td>
-        <td align="center" width="50%">
-            <a href="https://blacksmith.sh">
-                <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/blacksmith.png" alt="Blacksmith" width="320">
-            </a>
-        </td>
-    </tr>
-</table>
+<p align="center">
+    <a href="https://coderabbit.link/ryoppippi">
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo-dark.svg">
+            <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo.svg" alt="CodeRabbit" width="320">
+        </picture>
+    </a>
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <a href="https://blacksmith.sh">
+        <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/blacksmith.png" alt="Blacksmith" width="320">
+    </a>
+</p>
 
 ## Quick Start
 
