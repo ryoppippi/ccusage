@@ -643,7 +643,7 @@
 			"output": 25
 		},
 		"limit": {
-			"context": 200000
+			"context": 1000000
 		}
 	},
 	"anthropic/claude-opus-4-7": {
@@ -782,11 +782,13 @@
 	},
 	"anthropic/claude-opus-4.8": {
 		"cost": {
-			"input": 4.2929,
-			"output": 21.4646
+			"cache_read": 0.5,
+			"cache_write": 6.25,
+			"input": 5,
+			"output": 25
 		},
 		"limit": {
-			"context": 1048576
+			"context": 1000000
 		}
 	},
 	"anthropic/claude-opus-4.8-fast": {
@@ -880,7 +882,7 @@
 			"cache_read": 0.3,
 			"cache_write": 3.75,
 			"input": 3,
-			"output": 15.5
+			"output": 15
 		},
 		"limit": {
 			"context": 200000
@@ -921,6 +923,8 @@
 	},
 	"anthropic/claude-sonnet-4.6": {
 		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1015,6 +1019,8 @@
 	},
 	"claude-3-5-haiku-20241022": {
 		"cost": {
+			"cache_read": 0.08,
+			"cache_write": 1,
 			"input": 0.8,
 			"output": 4
 		},
@@ -1078,6 +1084,8 @@
 	},
 	"claude-3-7-sonnet-20250219": {
 		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1236,6 +1244,8 @@
 	},
 	"claude-haiku-4-5-20251001": {
 		"cost": {
+			"cache_read": 0.1,
+			"cache_write": 1.25,
 			"input": 1,
 			"output": 5
 		},
@@ -1310,6 +1320,8 @@
 	},
 	"claude-opus-4-1-20250805": {
 		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
 			"input": 15,
 			"output": 75
 		},
@@ -1384,6 +1396,8 @@
 	},
 	"claude-opus-4-20250514": {
 		"cost": {
+			"cache_read": 1.5,
+			"cache_write": 18.75,
 			"input": 15,
 			"output": 75
 		},
@@ -1404,6 +1418,8 @@
 	},
 	"claude-opus-4-5-20251101": {
 		"cost": {
+			"cache_read": 0.5,
+			"cache_write": 6.25,
 			"input": 5,
 			"output": 25
 		},
@@ -1734,6 +1750,8 @@
 	},
 	"claude-sonnet-4-20250514": {
 		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1754,6 +1772,8 @@
 	},
 	"claude-sonnet-4-5-20250929": {
 		"cost": {
+			"cache_read": 0.3,
+			"cache_write": 3.75,
 			"input": 3,
 			"output": 15
 		},
@@ -1763,11 +1783,11 @@
 	},
 	"claude-sonnet-4-5-20250929-thinking": {
 		"cost": {
-			"input": 2.992,
-			"output": 14.994
+			"input": 3,
+			"output": 15
 		},
 		"limit": {
-			"context": 1000000
+			"context": 200000
 		}
 	},
 	"claude-sonnet-4-5@20250929": {

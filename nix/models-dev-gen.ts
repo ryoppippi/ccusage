@@ -15,7 +15,9 @@
 import { generateCatalog } from './packages/core/src/generate.ts';
 import {
 	formatDuplicateModelsDevPricingKeyWarning,
+	type ModelsDevPricingCandidate,
 	selectModelsDevPricingKey,
+	shouldReplaceModelsDevPricingCandidate,
 } from './models-dev-compact.ts';
 
 /** Model ids/keys we keep; ccusage is Claude-first, so we embed Anthropic models. */
@@ -32,7 +34,7 @@ type ModelMetadata = {
 	id?: string;
 	release_date?: string;
 };
-type Provider = { models?: Record<string, Model> };
+type Provider = { id?: string; models?: Record<string, Model> };
 type EmbeddedModel = {
 	cost: Cost;
 	limit?: { context: number };
@@ -47,9 +49,9 @@ const { models, providers } = (await generateCatalog('.')) as {
 	providers: Record<string, Provider>;
 };
 
-const out: Record<string, EmbeddedModel> = {};
-for (const provider of Object.values(providers)) {
-	for (const [modelId, model] of Object.entries(provider.models ?? {})) {
+const selected: Record<string, { candidate: ModelsDevPricingCandidate; entry: EmbeddedModel }> = {};
+for (const [providerId, provider] of sortedEntries(providers)) {
+	for (const [modelId, model] of sortedEntries(provider.models ?? {})) {
 		// models.dev also exposes the canonical id under `id`; match either so
 		// provider-prefixed aliases (e.g. us.anthropic.*) are kept too.
 		if (!(KEEP.test(modelId) || KEEP.test(model.id ?? ''))) {
@@ -61,15 +63,6 @@ for (const provider of Object.values(providers)) {
 			continue;
 		}
 		const pricingKey = selectModelsDevPricingKey(modelId, model.id);
-		if (out[pricingKey] != null) {
-			console.warn(
-				formatDuplicateModelsDevPricingKeyWarning({
-					pricingKey,
-					sourceModelId: modelId,
-				}),
-			);
-			continue;
-		}
 		const entry: EmbeddedModel = {
 			cost: {
 				input: cost.input,
@@ -81,9 +74,33 @@ for (const provider of Object.values(providers)) {
 		if (model.limit?.context != null) {
 			entry.limit = { context: model.limit.context };
 		}
-		out[pricingKey] = entry;
+		const candidate: ModelsDevPricingCandidate = {
+			sourceProviderId: provider.id ?? providerId,
+			sourceModelId: modelId,
+			hasContextLimit: entry.limit != null,
+			hasExplicitCacheRead: cost.cache_read != null,
+			hasExplicitCacheWrite: cost.cache_write != null,
+		};
+		const existing = selected[pricingKey];
+		if (existing != null) {
+			const replacement = shouldReplaceModelsDevPricingCandidate(existing.candidate, candidate);
+			console.warn(
+				formatDuplicateModelsDevPricingKeyWarning({
+					pricingKey,
+					sourceModelId: replacement ? existing.candidate.sourceModelId : candidate.sourceModelId,
+				}),
+			);
+			if (!replacement) {
+				continue;
+			}
+		}
+		selected[pricingKey] = { candidate, entry };
 	}
 }
+
+const out = Object.fromEntries(
+	Object.entries(selected).map(([pricingKey, { entry }]) => [pricingKey, entry]),
+);
 
 // Stable key ordering keeps the committed snapshot's diffs minimal across regenerations.
 const sortObject = (value: unknown): unknown => {
@@ -99,6 +116,12 @@ const sortObject = (value: unknown): unknown => {
 	}
 	return value;
 };
+
+function sortedEntries<T>(value: Record<string, T>): Array<[string, T]> {
+	return Object.entries(value).sort(([left], [right]) =>
+		left < right ? -1 : left > right ? 1 : 0,
+	);
+}
 
 const outfile = process.env.OUTFILE;
 if (outfile == null || outfile.length === 0) {
