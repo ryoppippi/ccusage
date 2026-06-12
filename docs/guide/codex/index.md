@@ -60,7 +60,7 @@ These views support `--json`, `--compact`, `--offline`, and `--speed auto|standa
 | `CODEX_HOME` | Override the root directory, or comma-separated directories, containing Codex homes or saved `codex exec --json` JSONL files |
 | `LOG_LEVEL`  | Adjust log verbosity (0 silent … 5 trace)                                                                                    |
 
-When Codex emits a model alias, the CLI automatically resolves it through the LiteLLM pricing data when possible. For `codex-auto-review`, the CLI uses the newest known Codex/OpenAI model available on the log date. No manual override is needed.
+When Codex emits a model alias, the CLI automatically resolves it through the LiteLLM pricing data when possible. For `codex-auto-review`, the Codex parser maps the label to the newest known Codex/OpenAI model available on the log date before pricing uses the resolved model name. No manual override is needed.
 
 ## Speed Pricing
 

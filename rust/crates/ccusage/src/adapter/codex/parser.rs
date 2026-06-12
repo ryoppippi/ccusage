@@ -35,6 +35,7 @@ static THREAD_SPAWN_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(b"thread_spawn"));
 
 const CODEX_AUTO_REVIEW_MODEL: &str = "codex-auto-review";
+// New entries must be inserted in descending release-date order.
 const CODEX_AUTO_REVIEW_FALLBACK_MODELS: [(&str, &str); 7] = [
     ("2026-04-23", "gpt-5.5"),
     ("2026-03-05", "gpt-5.4"),
@@ -501,7 +502,7 @@ fn codex_log_model_fallback(model: &str, timestamp: &str) -> Option<&'static str
         return None;
     }
     let Some(date) = codex_timestamp_date(timestamp) else {
-        return Some("gpt-5.5");
+        return Some("gpt-5");
     };
     Some(
         CODEX_AUTO_REVIEW_FALLBACK_MODELS
