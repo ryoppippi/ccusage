@@ -31,7 +31,7 @@
 		"bench": "node scripts/bench.mjs",
 		"build": "tsdown && pnpm run ensure:native-binary",
 		"build:rust": "cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage",
-		"ensure:native-binary": "bun scripts/ensure-native-binary.ts",
+		"ensure:native-binary": "nu scripts/ensure-native-binary.nu",
 		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
 		"prepack": "pnpm run build && clean-pkg-json",
 		"start": "cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage --",
