@@ -943,7 +943,7 @@ def compare_runtime_diagnostic_section [options] {
 				})
 			}
 		})
-		$results = ($results | append (compare_runtime_diagnostic_command $command {
+		$results = ($results ++ (compare_runtime_diagnostic_command $command {
 			fixture_title: $options.title
 			runs: $options.runs
 			variants: $command_variants
@@ -957,7 +957,7 @@ def compare_runtime_diagnostic_section [options] {
 		description: $options.description
 		fixture_dir: $options.fixture_dir
 		fixture_stats: $fixture_stats
-		results: ($results | flatten)
+		results: $results
 		runs: $options.runs
 		title: $options.title
 		warmup: $options.warmup
