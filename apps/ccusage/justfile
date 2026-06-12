@@ -9,12 +9,12 @@ default:
 build: build-package
 
 build-package:
-    tsdown
+    pnpm exec tsdown
     just ensure-native-binary
 
 prepack:
     just build-package
-    clean-pkg-json
+    pnpm exec clean-pkg-json
 
 bench *args:
     node scripts/bench.mjs {{args}}

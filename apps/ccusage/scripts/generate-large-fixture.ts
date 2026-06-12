@@ -284,6 +284,41 @@ if (import.meta.vitest != null) {
 			expect(DEFAULT_CODEX_SIZE_MIB).toBe(1024);
 		});
 	});
+
+	describe('parseCliArgs', () => {
+		it('parses well-formed flag/value pairs', () => {
+			expect(
+				parseCliArgs([
+					'--output-dir',
+					'/tmp/claude',
+					'--codex-output-dir',
+					'/tmp/codex',
+					'--size-mib',
+					'8',
+					'--codex-size-mib',
+					'16',
+				]),
+			).toEqual({
+				codexOutputDir: '/tmp/codex',
+				codexSizeMib: 16,
+				outputDir: '/tmp/claude',
+				sizeMib: 8,
+			});
+		});
+
+		it('rejects a missing value when the flag is the last token', () => {
+			expect(() => parseCliArgs(['--output-dir'])).toThrow('--output-dir requires a value');
+		});
+
+		it('rejects a flag-shaped token instead of accepting it as the value', () => {
+			expect(() => parseCliArgs(['--output-dir', '--codex-output-dir', '/tmp/codex'])).toThrow(
+				'--output-dir requires a value',
+			);
+			expect(() => parseCliArgs(['--size-mib', '--codex-size-mib', '16'])).toThrow(
+				'--size-mib requires a value',
+			);
+		});
+	});
 }
 
 function parseCliArgs(args: string[]): {
@@ -301,11 +336,13 @@ function parseCliArgs(args: string[]): {
 		codexSizeMib: DEFAULT_CODEX_SIZE_MIB,
 		sizeMib: DEFAULT_SIZE_MIB,
 	};
+	const hasValue = (next: string | undefined): next is string =>
+		next != null && !next.startsWith('--');
 	for (let index = 0; index < args.length; index++) {
 		const flag = args[index];
 		const next = args[index + 1];
 		if (flag === '--output-dir') {
-			if (next == null) {
+			if (!hasValue(next)) {
 				throw new Error('--output-dir requires a value');
 			}
 			values.outputDir = next;
@@ -313,7 +350,7 @@ function parseCliArgs(args: string[]): {
 			continue;
 		}
 		if (flag === '--codex-output-dir') {
-			if (next == null) {
+			if (!hasValue(next)) {
 				throw new Error('--codex-output-dir requires a value');
 			}
 			values.codexOutputDir = next;
@@ -321,7 +358,7 @@ function parseCliArgs(args: string[]): {
 			continue;
 		}
 		if (flag === '--size-mib') {
-			if (next == null) {
+			if (!hasValue(next)) {
 				throw new Error('--size-mib requires a value');
 			}
 			values.sizeMib = Number(next);
@@ -329,7 +366,7 @@ function parseCliArgs(args: string[]): {
 			continue;
 		}
 		if (flag === '--codex-size-mib') {
-			if (next == null) {
+			if (!hasValue(next)) {
 				throw new Error('--codex-size-mib requires a value');
 			}
 			values.codexSizeMib = Number(next);
