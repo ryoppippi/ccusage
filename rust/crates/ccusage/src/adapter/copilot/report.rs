@@ -1,8 +1,9 @@
 use serde_json::Value;
 
 use crate::{
+    LoadedEntry, Result,
     cli::{AgentReportKind, WeekDay},
-    summarize_by_key, summarize_summaries_by_bucket, LoadedEntry, Result,
+    summarize_by_key, summarize_summaries_by_bucket,
 };
 
 pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {

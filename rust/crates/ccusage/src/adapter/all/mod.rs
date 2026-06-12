@@ -2,7 +2,7 @@ mod loader;
 mod report;
 mod types;
 
-use crate::{cli::AgentCommandArgs, print_json_or_jq, wants_json, Result};
+use crate::{Result, cli::AgentCommandArgs, print_json_or_jq, wants_json};
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let kind = args.kind;

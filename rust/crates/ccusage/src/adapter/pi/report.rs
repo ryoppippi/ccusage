@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
-    cli::AgentReportKind, cli::WeekDay, summarize_by_key, summarize_summaries_by_bucket,
-    totals_json, BucketKind, LoadedEntry, Result, SessionAccumulator,
+    BucketKind, LoadedEntry, Result, SessionAccumulator, cli::AgentReportKind, cli::WeekDay,
+    summarize_by_key, summarize_summaries_by_bucket, totals_json,
 };
 
 pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {

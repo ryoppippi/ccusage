@@ -11,7 +11,9 @@ use serde_json::json;
 
 use crate::pricing::PricingMap;
 use crate::{
-    block_json, calculate_burn_rate,
+    BucketKind, Color, Context, DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS,
+    MILLIS_PER_DAY, MILLIS_PER_MINUTE, Result, SessionAccumulator, TimestampMs, block_json,
+    calculate_burn_rate,
     cli::{
         BlocksArgs, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder, StatuslineArgs,
         VisualBurnRate, WeekDay, WeeklyArgs,
@@ -23,8 +25,7 @@ use crate::{
     load_daily_summaries, load_entries, print_active_block_detail, print_blocks_table,
     print_json_or_jq, print_usage_table, session_summary_json, sort_blocks, sort_summaries,
     summarize_by_key, summarize_summaries_by_bucket, summary_json, total_usage_tokens, totals_json,
-    utc_now, wants_json, BucketKind, Color, Context, Result, SessionAccumulator, TimestampMs,
-    DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS, MILLIS_PER_DAY, MILLIS_PER_MINUTE,
+    utc_now, wants_json,
 };
 
 pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
@@ -344,13 +345,12 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
         None
     };
 
-    if let Some(cache) = initial_cache.as_ref() {
-        if let Some(output) =
+    if let Some(cache) = initial_cache.as_ref()
+        && let Some(output) =
             cached_statusline_output(cache, current_mtime, now_millis(), args.refresh_interval)
-        {
-            println!("{output}");
-            return Ok(());
-        }
+    {
+        println!("{output}");
+        return Ok(());
     }
 
     if cache_enabled {
@@ -912,9 +912,11 @@ mod tests {
         assert_eq!(today_shared.since.as_deref(), Some("20260522"));
         assert_eq!(today_shared.until.as_deref(), Some("20260522"));
         assert_eq!(today_shared.timezone.as_deref(), Some("Asia/Tokyo"));
-        assert!(today_shared
-            .pricing_overrides
-            .contains_key("statusline-model"));
+        assert!(
+            today_shared
+                .pricing_overrides
+                .contains_key("statusline-model")
+        );
     }
 
     #[test]

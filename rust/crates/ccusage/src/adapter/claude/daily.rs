@@ -11,12 +11,11 @@ use memchr::memmem;
 use serde::Deserialize;
 
 use crate::{
-    calculate_cost_for_usage,
-    cli::{CostMode, SharedArgs},
-    fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
-    format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
     ModelBreakdown, PricingMap, Result, Speed, TimestampMs, TokenCounts, TokenUsageRaw,
-    UsageSummary,
+    UsageSummary, calculate_cost_for_usage,
+    cli::{CostMode, SharedArgs},
+    fast::{FxHashMap, SmallIndexVec, byte_lines, suffix_string},
+    format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
 };
 
 use super::{
@@ -60,10 +59,10 @@ pub(super) fn load_daily_summaries_inner(
     let mut deduped = Vec::with_capacity(loaded_files.iter().map(|file| file.entries.len()).sum());
     for loaded_file in loaded_files {
         for entry in loaded_file.entries {
-            if let Some(filter) = project_filter {
-                if entry.project.as_ref() != filter {
-                    continue;
-                }
+            if let Some(filter) = project_filter
+                && entry.project.as_ref() != filter
+            {
+                continue;
             }
             push_deduped_daily_entry(entry, &mut deduped_indexes, &mut deduped);
         }
@@ -513,7 +512,7 @@ impl DailyAccumulator {
 mod tests {
     use std::sync::Arc;
 
-    use super::{push_deduped_daily_entry, DailyLoadedEntry};
+    use super::{DailyLoadedEntry, push_deduped_daily_entry};
     use crate::TokenUsageRaw;
 
     #[test]

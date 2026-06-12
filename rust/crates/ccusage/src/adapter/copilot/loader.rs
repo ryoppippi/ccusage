@@ -3,12 +3,12 @@ use std::{path::Path, sync::Arc};
 use jiff::tz::TimeZone as JiffTimeZone;
 
 use super::{
-    parser::{parse_otel_file, CopilotUsageEntry},
+    parser::{CopilotUsageEntry, parse_otel_file},
     paths::paths,
 };
 use crate::{
-    calculate_cost_for_usage, cli::CostMode, format_date_tz, missing_pricing_model_for_usage,
-    parse_tz, LoadedEntry, Result, TokenUsageRaw, UsageEntry, UsageMessage,
+    LoadedEntry, Result, TokenUsageRaw, UsageEntry, UsageMessage, calculate_cost_for_usage,
+    cli::CostMode, format_date_tz, missing_pricing_model_for_usage, parse_tz,
 };
 
 pub(crate) fn load_entries(

@@ -1,12 +1,12 @@
 use std::{collections::BTreeSet, io::IsTerminal};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
+    Align, Color, ModelBreakdown, Result, SimpleTable, UsageSummary,
     cli::{AgentReportKind, SharedArgs, SortOrder},
     color, format_currency, format_models_multiline, format_number, json_float, print_box_title,
-    short_model_name, should_use_compact_layout, Align, Color, ModelBreakdown, Result, SimpleTable,
-    UsageSummary,
+    short_model_name, should_use_compact_layout,
 };
 
 use super::types::AllRow;

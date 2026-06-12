@@ -3,12 +3,12 @@ use std::{collections::HashSet, sync::Arc};
 use jiff::tz::TimeZone as JiffTimeZone;
 
 use super::{
-    parser::{calculate_droid_cost, load_settings_file, missing_droid_pricing, DroidEntry},
+    parser::{DroidEntry, calculate_droid_cost, load_settings_file, missing_droid_pricing},
     paths::discover_settings_files,
 };
 use crate::{
-    cli::SharedArgs, format_date_tz, parse_tz, LoadedEntry, PricingMap, Result, UsageEntry,
-    UsageMessage,
+    LoadedEntry, PricingMap, Result, UsageEntry, UsageMessage, cli::SharedArgs, format_date_tz,
+    parse_tz,
 };
 
 pub(crate) fn load_entries(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<LoadedEntry>> {
@@ -93,7 +93,7 @@ mod tests {
     };
     use super::*;
     use crate::{
-        cli::AgentReportKind, parse_ts_timestamp, TokenUsageRaw, UsageEntry, UsageMessage,
+        TokenUsageRaw, UsageEntry, UsageMessage, cli::AgentReportKind, parse_ts_timestamp,
     };
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -104,14 +104,14 @@ mod tests {
 
     impl EnvDirGuard {
         fn set(key: &'static str, dir: &Path) -> Self {
-            env::set_var(key, dir);
+            unsafe { env::set_var(key, dir) };
             Self { key }
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
-            env::remove_var(self.key);
+            unsafe { env::remove_var(self.key) };
         }
     }
 

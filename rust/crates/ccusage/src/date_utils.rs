@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use jiff::{tz::TimeZone as JiffTimeZone, Timestamp as JiffTimestamp};
+use jiff::{Timestamp as JiffTimestamp, tz::TimeZone as JiffTimeZone};
 
 pub(crate) const MILLIS_PER_SECOND: i64 = 1_000;
 pub(crate) const MILLIS_PER_MINUTE: i64 = 60 * MILLIS_PER_SECOND;
@@ -299,17 +299,9 @@ pub(crate) fn local_parts(timestamp: TimestampMs) -> UtcParts {
 
 pub(crate) fn hour_12(hour: u32) -> u32 {
     let hour = hour % 12;
-    if hour == 0 {
-        12
-    } else {
-        hour
-    }
+    if hour == 0 { 12 } else { hour }
 }
 
 pub(crate) fn am_pm(hour: u32) -> &'static str {
-    if hour < 12 {
-        "AM"
-    } else {
-        "PM"
-    }
+    if hour < 12 { "AM" } else { "PM" }
 }

@@ -1,7 +1,7 @@
 use std::{
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
     thread,
     time::{Duration, Instant},
@@ -11,8 +11,8 @@ use serde_json::json;
 
 use super::*;
 use crate::{
-    cli::{AgentReportKind, CodexSpeed},
     Align, CodexGroup, CodexModelUsage, ModelBreakdown, PricingMap,
+    cli::{AgentReportKind, CodexSpeed},
 };
 
 fn test_agent_rows(agent: &'static str) -> AgentRows {

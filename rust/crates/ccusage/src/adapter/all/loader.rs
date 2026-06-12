@@ -1,15 +1,15 @@
 use std::{collections::BTreeMap, sync::mpsc, thread};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
+    CodexGroup, LoadedEntry, ModelBreakdown, PricingMap, Result, SessionAccumulator, UsageSummary,
     adapter::{
         amp, claude, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
         opencode, pi, qwen,
     },
     cli::{AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
-    filter_loaded_entries_by_date, json_float, CodexGroup, LoadedEntry, ModelBreakdown, PricingMap,
-    Result, SessionAccumulator, UsageSummary,
+    filter_loaded_entries_by_date, json_float,
 };
 
 use super::{
@@ -559,10 +559,10 @@ fn summary_metadata(agent: &'static str, summary: &UsageSummary) -> Option<Value
         if let Some(last_activity) = summary.last_activity.as_ref() {
             metadata.insert("lastActivity".to_string(), json!(last_activity));
         }
-        if agent == "pi" {
-            if let Some(project_path) = summary.project_path.as_ref() {
-                metadata.insert("projectPath".to_string(), json!(project_path));
-            }
+        if agent == "pi"
+            && let Some(project_path) = summary.project_path.as_ref()
+        {
+            metadata.insert("projectPath".to_string(), json!(project_path));
         }
     }
     if metadata.is_empty() {

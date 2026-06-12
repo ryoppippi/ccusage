@@ -1,4 +1,4 @@
-use crate::{cli::SharedArgs, LoadedEntry, Result};
+use crate::{LoadedEntry, Result, cli::SharedArgs};
 
 use super::parser;
 

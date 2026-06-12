@@ -3,12 +3,12 @@ use std::{
     io::{self, BufWriter, IsTerminal, Write},
 };
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
+    Align, Color, Result, SimpleTable, USAGE_COMPACT_WIDTH_THRESHOLD, UsageSummary,
     cli::SharedArgs, cli_error, color, format_project_name, parse_project_aliases, print_box_title,
-    short_model_name, terminal_width, Align, Color, Result, SimpleTable, UsageSummary,
-    USAGE_COMPACT_WIDTH_THRESHOLD,
+    short_model_name, terminal_width,
 };
 
 pub(crate) fn wants_json(shared: &SharedArgs) -> bool {
@@ -212,20 +212,19 @@ pub(crate) fn print_usage_table(
     let aliases = parse_project_aliases(project_aliases);
     let mut current_project: Option<&str> = None;
     for row in rows {
-        if group_projects {
-            if let Some(project) = row.project.as_deref() {
-                if current_project != Some(project) {
-                    if current_project.is_some() {
-                        table.separator();
-                    }
-                    table.push(project_header_row(
-                        table.column_count(),
-                        &format_project_name(project, &aliases),
-                        shared,
-                    ));
-                    current_project = Some(project);
-                }
+        if group_projects
+            && let Some(project) = row.project.as_deref()
+            && current_project != Some(project)
+        {
+            if current_project.is_some() {
+                table.separator();
             }
+            table.push(project_header_row(
+                table.column_count(),
+                &format_project_name(project, &aliases),
+                shared,
+            ));
+            current_project = Some(project);
         }
         let label = row
             .date

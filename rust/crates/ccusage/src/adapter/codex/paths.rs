@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{cli_error, fast::FxHashSet, home, Result};
+use crate::{Result, cli_error, fast::FxHashSet, home};
 
 pub(super) fn codex_usage_sources() -> Result<Vec<CodexUsageSource>> {
     Ok(codex_usage_sources_from_homes(codex_home_paths()?))

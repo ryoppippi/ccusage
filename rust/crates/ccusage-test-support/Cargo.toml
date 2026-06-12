@@ -1,7 +1,7 @@
 [package]
 name = "ccusage-test-support"
 version = "20.0.11"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]

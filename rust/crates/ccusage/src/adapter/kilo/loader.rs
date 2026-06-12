@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::Path};
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
-use crate::{cli::SharedArgs, debug_log, parse_tz, LoadedEntry, PricingMap, Result};
+use crate::{LoadedEntry, PricingMap, Result, cli::SharedArgs, debug_log, parse_tz};
 
 use super::{
     parser::message_value_to_entry,
@@ -25,10 +25,10 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
             continue;
         };
         for entry in load_entries_from_database(&db_path, tz.as_ref(), shared, pricing) {
-            if let Some(id) = entry.data.message.id.as_deref() {
-                if !seen.insert(id.to_string()) {
-                    continue;
-                }
+            if let Some(id) = entry.data.message.id.as_deref()
+                && !seen.insert(id.to_string())
+            {
+                continue;
             }
             entries.push(entry);
         }
@@ -105,7 +105,7 @@ mod tests {
     use std::{env, path::Path, sync::Mutex};
 
     use super::*;
-    use crate::{cli::CostMode, PricingMap};
+    use crate::{PricingMap, cli::CostMode};
     use ccusage_test_support::fs_fixture;
 
     static KILO_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
@@ -133,14 +133,14 @@ mod tests {
             "session-a",
             r#"{"id":"msg-1","role":"assistant","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50,"reasoning":5,"cache":{"read":10,"write":20}},"cost":0.02,"agent":"build"}"#,
         );
-        env::set_var(super::super::paths::KILO_DATA_DIR_ENV, fixture.root());
+        unsafe { env::set_var(super::super::paths::KILO_DATA_DIR_ENV, fixture.root()) };
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
-        env::remove_var(super::super::paths::KILO_DATA_DIR_ENV);
+        unsafe { env::remove_var(super::super::paths::KILO_DATA_DIR_ENV) };
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].date, "2026-01-02");
@@ -170,10 +170,10 @@ mod tests {
             "session-a",
             r#"{"role":"assistant","providerID":"openai","modelID":"gpt-5","tokens":{"input":1,"output":1,"cache":{"read":0,"write":0}}}"#,
         );
-        env::set_var(super::super::paths::KILO_DATA_DIR_ENV, fixture.root());
+        unsafe { env::set_var(super::super::paths::KILO_DATA_DIR_ENV, fixture.root()) };
         let shared = SharedArgs::default();
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
-        env::remove_var(super::super::paths::KILO_DATA_DIR_ENV);
+        unsafe { env::remove_var(super::super::paths::KILO_DATA_DIR_ENV) };
 
         assert!(entries.is_empty());
     }
@@ -193,13 +193,15 @@ mod tests {
                 ),
             );
         }
-        env::set_var(
-            super::super::paths::KILO_DATA_DIR_ENV,
-            format!("{},{}", first.root().display(), second.root().display()),
-        );
+        unsafe {
+            env::set_var(
+                super::super::paths::KILO_DATA_DIR_ENV,
+                format!("{},{}", first.root().display(), second.root().display()),
+            )
+        };
         let shared = SharedArgs::default();
         let entries = load_entries(&shared, &PricingMap::load_embedded()).unwrap();
-        env::remove_var(super::super::paths::KILO_DATA_DIR_ENV);
+        unsafe { env::remove_var(super::super::paths::KILO_DATA_DIR_ENV) };
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.input_tokens, 10);

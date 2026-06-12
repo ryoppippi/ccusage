@@ -1001,23 +1001,22 @@ fn parse_litellm_pricing(value: Value) -> Option<LiteLlmPricing> {
     if value
         .as_object()
         .is_some_and(|entry| entry.contains_key("i") && entry.contains_key("o"))
+        && let Ok(compact) = serde_json::from_value::<CompactLiteLlmPricing>(value.clone())
     {
-        if let Ok(compact) = serde_json::from_value::<CompactLiteLlmPricing>(value.clone()) {
-            return Some(LiteLlmPricing {
-                input_cost_per_token: Some(compact.i),
-                output_cost_per_token: Some(compact.o),
-                cache_creation_input_token_cost: compact.cc,
-                cache_read_input_token_cost: compact.cr,
-                input_cost_per_token_above_200k_tokens: compact.ia,
-                output_cost_per_token_above_200k_tokens: compact.oa,
-                cache_creation_input_token_cost_above_200k_tokens: compact.cca,
-                cache_read_input_token_cost_above_200k_tokens: compact.cra,
-                max_input_tokens: compact.ctx,
-                provider_specific_entry: compact
-                    .fast
-                    .map(|fast| ProviderSpecificEntry { fast: Some(fast) }),
-            });
-        }
+        return Some(LiteLlmPricing {
+            input_cost_per_token: Some(compact.i),
+            output_cost_per_token: Some(compact.o),
+            cache_creation_input_token_cost: compact.cc,
+            cache_read_input_token_cost: compact.cr,
+            input_cost_per_token_above_200k_tokens: compact.ia,
+            output_cost_per_token_above_200k_tokens: compact.oa,
+            cache_creation_input_token_cost_above_200k_tokens: compact.cca,
+            cache_read_input_token_cost_above_200k_tokens: compact.cra,
+            max_input_tokens: compact.ctx,
+            provider_specific_entry: compact
+                .fast
+                .map(|fast| ProviderSpecificEntry { fast: Some(fast) }),
+        });
     }
     let pricing = serde_json::from_value::<LiteLlmPricing>(value).ok()?;
     pricing
@@ -1232,8 +1231,8 @@ fn fetch_json_url(url: &str) -> std::io::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        embedded_models_dev_pricing, Pricing, PricingMap, BUILD_TIME_MODELS_DEV_JSON,
-        BUILD_TIME_PRICING_JSON,
+        BUILD_TIME_MODELS_DEV_JSON, BUILD_TIME_PRICING_JSON, Pricing, PricingMap,
+        embedded_models_dev_pricing,
     };
     use ccusage_test_support::fs_fixture;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -1458,12 +1457,14 @@ mod tests {
     fn keeps_models_dev_fallback_disabled_for_embedded_and_offline_pricing() {
         use ccusage_cli::PricingOverride;
         assert!(!PricingMap::load_embedded().models_dev_fallback_enabled());
-        assert!(!PricingMap::load_with_overrides(
-            true,
-            false,
-            std::iter::empty::<(&String, &PricingOverride)>(),
-        )
-        .models_dev_fallback_enabled());
+        assert!(
+            !PricingMap::load_with_overrides(
+                true,
+                false,
+                std::iter::empty::<(&String, &PricingOverride)>(),
+            )
+            .models_dev_fallback_enabled()
+        );
     }
 
     #[test]
@@ -1699,9 +1700,10 @@ mod tests {
     #[test]
     fn embedded_models_dev_snapshot_is_parseable() {
         let mut map = PricingMap::default();
-        assert!(map
-            .load_models_dev_json_missing(BUILD_TIME_MODELS_DEV_JSON)
-            .is_some());
+        assert!(
+            map.load_models_dev_json_missing(BUILD_TIME_MODELS_DEV_JSON)
+                .is_some()
+        );
     }
 
     #[test]
@@ -2268,7 +2270,7 @@ mod tests {
             let entry = pricing.find("claude-model").unwrap();
             assert_eq!(entry.input, 2e-6);
             assert_eq!(entry.output, 15e-6); // unchanged
-                                             // cache_create: 3.75e-6 * (2/3) = 2.5e-6
+            // cache_create: 3.75e-6 * (2/3) = 2.5e-6
             assert!((entry.cache_create - 2.5e-6).abs() < 1e-15);
             // cache_read: 3e-7 * (2/3) = 2e-7
             assert!((entry.cache_read - 2e-7).abs() < 1e-15);
@@ -2337,7 +2339,7 @@ mod tests {
             let entry = pricing.find("model").unwrap();
             assert_eq!(entry.input, 2e-6);
             assert_eq!(entry.cache_read, 5e-7); // explicit value, not 2e-7
-                                                // cache_create still scaled since not explicitly provided
+            // cache_create still scaled since not explicitly provided
             assert!((entry.cache_create - 2.5e-6).abs() < 1e-15);
         }
     }

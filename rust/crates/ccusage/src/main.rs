@@ -41,16 +41,16 @@ pub(crate) use output::{
 };
 pub(crate) use project_names::{format_project_name, parse_project_aliases, short_model_name};
 pub(crate) use summary::{
-    filter_and_sort_summaries, sort_summaries, summarize_by_key, summarize_summaries_by_bucket,
-    week_start, BucketKind, SessionAccumulator,
+    BucketKind, SessionAccumulator, filter_and_sort_summaries, sort_summaries, summarize_by_key,
+    summarize_summaries_by_bucket, week_start,
 };
 pub(crate) use types::*;
 pub(crate) use utils::{
     apply_total_token_fallback, json_value_u64, non_empty_json_string, total_usage_tokens,
 };
 
-use ccusage_terminal::{terminal_width, TerminalStyle};
 pub(crate) use ccusage_terminal::{Align, Color, SimpleTable};
+use ccusage_terminal::{TerminalStyle, terminal_width};
 use cli::{AgentCommandArgs, AgentReportKind, Command};
 use pricing::PricingMap;
 
@@ -293,10 +293,10 @@ mod tests {
         .unwrap();
 
         assert_eq!(format_rfc3339_millis(timestamp), "2026-05-11T12:34:56.789Z");
-        assert!(adapter::claude::timestamp_from_line(
-            r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#
-        )
-        .is_none());
+        assert!(
+            adapter::claude::timestamp_from_line(r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#)
+                .is_none()
+        );
     }
 
     #[test]
@@ -311,16 +311,16 @@ mod tests {
         });
 
         let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        unsafe { env::set_var("CLAUDE_CONFIG_DIR", fixture.root()) };
         let shared = SharedArgs {
             mode: CostMode::Display,
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, None).unwrap();
         if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
+            unsafe { env::set_var("CLAUDE_CONFIG_DIR", previous) };
         } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
+            unsafe { env::remove_var("CLAUDE_CONFIG_DIR") };
         }
 
         assert_eq!(entries.len(), 1);
@@ -341,16 +341,16 @@ mod tests {
         });
 
         let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        unsafe { env::set_var("CLAUDE_CONFIG_DIR", fixture.root()) };
         let shared = SharedArgs {
             mode: CostMode::Display,
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, None).unwrap();
         if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
+            unsafe { env::set_var("CLAUDE_CONFIG_DIR", previous) };
         } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
+            unsafe { env::remove_var("CLAUDE_CONFIG_DIR") };
         }
 
         assert_eq!(entries.len(), 1);
@@ -366,16 +366,16 @@ mod tests {
         });
 
         let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.path("projects"));
+        unsafe { env::set_var("CLAUDE_CONFIG_DIR", fixture.path("projects")) };
         let shared = SharedArgs {
             mode: CostMode::Display,
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, None).unwrap();
         if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
+            unsafe { env::set_var("CLAUDE_CONFIG_DIR", previous) };
         } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
+            unsafe { env::remove_var("CLAUDE_CONFIG_DIR") };
         }
 
         assert_eq!(entries.len(), 1);
@@ -397,7 +397,7 @@ mod tests {
         });
 
         let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        unsafe { env::set_var("CLAUDE_CONFIG_DIR", fixture.root()) };
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -407,9 +407,9 @@ mod tests {
         let daily = load_daily_summaries(&shared, None, false).unwrap();
         let grouped_daily = load_daily_summaries(&shared, None, true).unwrap();
         if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
+            unsafe { env::set_var("CLAUDE_CONFIG_DIR", previous) };
         } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
+            unsafe { env::remove_var("CLAUDE_CONFIG_DIR") };
         }
 
         let expected_daily = summarize_by_key(
@@ -458,7 +458,7 @@ mod tests {
         });
 
         let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        unsafe { env::set_var("CLAUDE_CONFIG_DIR", fixture.root()) };
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -466,9 +466,9 @@ mod tests {
         };
         let daily = load_daily_summaries(&shared, None, false).unwrap();
         if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
+            unsafe { env::set_var("CLAUDE_CONFIG_DIR", previous) };
         } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
+            unsafe { env::remove_var("CLAUDE_CONFIG_DIR") };
         }
 
         assert_eq!(daily.len(), 1);
@@ -492,7 +492,7 @@ mod tests {
         });
 
         let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        unsafe { env::set_var("CLAUDE_CONFIG_DIR", fixture.root()) };
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -501,9 +501,9 @@ mod tests {
         let entries = load_entries(&shared, None).unwrap();
         let daily = load_daily_summaries(&shared, None, false).unwrap();
         if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
+            unsafe { env::set_var("CLAUDE_CONFIG_DIR", previous) };
         } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
+            unsafe { env::remove_var("CLAUDE_CONFIG_DIR") };
         }
 
         let expected_daily = summarize_by_key(
@@ -953,10 +953,12 @@ mod tests {
             "2025-01-10T10:00:00.000Z"
         );
         assert!(adapter::claude::usage_limit_reset_time_from_line(line, Some(false)).is_none());
-        assert!(adapter::claude::usage_limit_reset_time_from_line(
-            r#"{"message":{"content":[{"text":"Claude AI usage limit reached|0"}]}}"#,
-            Some(true)
-        )
-        .is_none());
+        assert!(
+            adapter::claude::usage_limit_reset_time_from_line(
+                r#"{"message":{"content":[{"text":"Claude AI usage limit reached|0"}]}}"#,
+                Some(true)
+            )
+            .is_none()
+        );
     }
 }

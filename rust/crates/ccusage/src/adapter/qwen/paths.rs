@@ -4,7 +4,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use crate::{collect_files_with_extension, Result};
+use crate::{Result, collect_files_with_extension};
 
 const QWEN_DATA_DIR_ENV: &str = "QWEN_DATA_DIR";
 
@@ -62,12 +62,16 @@ fn is_chat_file(projects: &Path, file: &Path) -> bool {
 pub(super) fn project_from_file(file: &Path) -> Option<String> {
     let parts = file.components().collect::<Vec<_>>();
     for window in parts.windows(4).rev() {
-        if let [Component::Normal(projects), Component::Normal(project), Component::Normal(chats), Component::Normal(_)] =
-            window
+        if let [
+            Component::Normal(projects),
+            Component::Normal(project),
+            Component::Normal(chats),
+            Component::Normal(_),
+        ] = window
+            && projects.to_str() == Some("projects")
+            && chats.to_str() == Some("chats")
         {
-            if projects.to_str() == Some("projects") && chats.to_str() == Some("chats") {
-                return Some(project.to_string_lossy().into_owned());
-            }
+            return Some(project.to_string_lossy().into_owned());
         }
     }
     None

@@ -4,8 +4,8 @@ use std::{
 };
 
 use assert_fs::{
-    fixture::{ChildPath, FileWriteStr, PathChild, PathCreateDir},
     TempDir,
+    fixture::{ChildPath, FileWriteStr, PathChild, PathCreateDir},
 };
 
 pub struct Fixture {
@@ -62,7 +62,7 @@ impl Default for Fixture {
 
 #[macro_export]
 macro_rules! fs_fixture {
-    ({ $($path:literal : $contents:expr),* $(,)? }) => {{
+    ({ $($path:literal : $contents:expr_2021),* $(,)? }) => {{
         let fixture = $crate::Fixture::new();
         $(
             let _ = fixture.write_file($path, $contents);
@@ -90,8 +90,10 @@ mod tests {
         let fixture = fs_fixture!({});
         let _ = fixture.write_file("projects/example/session/chat.jsonl", "{}\n");
 
-        assert!(fixture
-            .path("projects/example/session/chat.jsonl")
-            .is_file());
+        assert!(
+            fixture
+                .path("projects/example/session/chat.jsonl")
+                .is_file()
+        );
     }
 }

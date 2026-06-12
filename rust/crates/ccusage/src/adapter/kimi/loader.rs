@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{cli::SharedArgs, parse_tz, LoadedEntry, PricingMap, Result};
+use crate::{LoadedEntry, PricingMap, Result, cli::SharedArgs, parse_tz};
 
 use super::{
     parser::{kimi_entry_key, kimi_entry_to_loaded, read_wire_file},
@@ -46,14 +46,14 @@ mod tests {
 
     impl EnvDirGuard {
         fn set(dir: &Path) -> Self {
-            env::set_var(KIMI_DATA_DIR_ENV, dir);
+            unsafe { env::set_var(KIMI_DATA_DIR_ENV, dir) };
             Self
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
-            env::remove_var(KIMI_DATA_DIR_ENV);
+            unsafe { env::remove_var(KIMI_DATA_DIR_ENV) };
         }
     }
 

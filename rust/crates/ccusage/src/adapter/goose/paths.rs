@@ -11,10 +11,12 @@ pub(super) fn goose_db_paths() -> Result<Vec<PathBuf>> {
         if root.is_empty() {
             default_goose_db_candidates()?
         } else {
-            vec![PathBuf::from(root)
-                .join("data")
-                .join("sessions")
-                .join(GOOSE_DB_FILE_NAME)]
+            vec![
+                PathBuf::from(root)
+                    .join("data")
+                    .join("sessions")
+                    .join(GOOSE_DB_FILE_NAME),
+            ]
         }
     } else {
         default_goose_db_candidates()?
@@ -57,14 +59,14 @@ mod tests {
 
     impl EnvDirGuard {
         fn set(dir: &Path) -> Self {
-            env::set_var(GOOSE_PATH_ROOT_ENV, dir);
+            unsafe { env::set_var(GOOSE_PATH_ROOT_ENV, dir) };
             Self
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
-            env::remove_var(GOOSE_PATH_ROOT_ENV);
+            unsafe { env::remove_var(GOOSE_PATH_ROOT_ENV) };
         }
     }
 

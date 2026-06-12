@@ -4,7 +4,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use crate::{collect_files_with_extension, Result};
+use crate::{Result, collect_files_with_extension};
 
 pub(super) const KIMI_DATA_DIR_ENV: &str = "KIMI_DATA_DIR";
 pub(super) const KIMI_SESSIONS_DIR_NAME: &str = "sessions";
@@ -82,9 +82,9 @@ mod tests {
             "sessions/group/session/other.jsonl": "{}\n",
             "sessions/nested/path/session/wire.jsonl": "{}\n",
         });
-        env::set_var(KIMI_DATA_DIR_ENV, fixture.root());
+        unsafe { env::set_var(KIMI_DATA_DIR_ENV, fixture.root()) };
         let files = discover_wire_files().unwrap();
-        env::remove_var(KIMI_DATA_DIR_ENV);
+        unsafe { env::remove_var(KIMI_DATA_DIR_ENV) };
 
         assert_eq!(
             files,

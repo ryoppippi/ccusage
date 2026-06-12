@@ -130,10 +130,10 @@ fn generate_command_spec(
         let usage = string_field(page, "usage");
         let commands = optional_array_field(page, "commands");
         let option_set = optional_string_field(page, "options");
-        if let Some(option_set) = option_set.as_deref() {
-            if !rendered_options.contains_key(option_set) {
-                panic!("missing option set {option_set}");
-            }
+        if let Some(option_set) = option_set.as_deref()
+            && !rendered_options.contains_key(option_set)
+        {
+            panic!("missing option set {option_set}");
         }
         output.push_str("    HelpPage {\n");
         output.push_str("        path: &");

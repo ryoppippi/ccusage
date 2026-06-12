@@ -3,12 +3,12 @@ use std::{collections::HashMap, sync::Arc};
 use jiff::tz::TimeZone as JiffTimeZone;
 
 use super::{
-    parser::{calculate_codebuff_cost, load_chat_file, missing_codebuff_pricing, CodebuffEntry},
+    parser::{CodebuffEntry, calculate_codebuff_cost, load_chat_file, missing_codebuff_pricing},
     paths::discover_chat_files,
 };
 use crate::{
-    cli::SharedArgs, format_date_tz, parse_tz, LoadedEntry, PricingMap, Result, UsageEntry,
-    UsageMessage,
+    LoadedEntry, PricingMap, Result, UsageEntry, UsageMessage, cli::SharedArgs, format_date_tz,
+    parse_tz,
 };
 
 pub(crate) fn load_entries(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<LoadedEntry>> {
@@ -85,7 +85,7 @@ mod tests {
     use super::super::{parser::parse_usage_object, paths::CODEBUFF_DATA_DIR_ENV};
     use super::*;
     use crate::{
-        cli::AgentReportKind, parse_ts_timestamp, TokenUsageRaw, UsageEntry, UsageMessage,
+        TokenUsageRaw, UsageEntry, UsageMessage, cli::AgentReportKind, parse_ts_timestamp,
     };
     use ccusage_test_support::fs_fixture;
 
@@ -97,14 +97,14 @@ mod tests {
 
     impl EnvDirGuard {
         fn set(key: &'static str, dir: &Path) -> Self {
-            env::set_var(key, dir);
+            unsafe { env::set_var(key, dir) };
             Self { key }
         }
     }
 
     impl Drop for EnvDirGuard {
         fn drop(&mut self) {
-            env::remove_var(self.key);
+            unsafe { env::remove_var(self.key) };
         }
     }
 

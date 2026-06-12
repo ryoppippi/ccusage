@@ -1,17 +1,17 @@
 use std::io::IsTerminal;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
-    am_pm,
+    Align, BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_WARNING_THRESHOLD, BurnRate, Color, LoadedEntry,
+    MILLIS_PER_HOUR, MILLIS_PER_MINUTE, Projection, Result, SessionBlock, SimpleTable, TimestampMs,
+    TokenCounts, am_pm,
     cli::{SharedArgs, SortOrder},
     color,
     fast::FxHashSet,
     format_currency, format_date, format_models_multiline, format_number, format_rfc3339_millis,
     format_utc_second, hour_12, json_float, local_parts, print_box_title,
-    should_use_compact_layout, terminal_width, utc_now, Align, BurnRate, Color, LoadedEntry,
-    Projection, Result, SessionBlock, SimpleTable, TimestampMs, TokenCounts,
-    BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_WARNING_THRESHOLD, MILLIS_PER_HOUR, MILLIS_PER_MINUTE,
+    should_use_compact_layout, terminal_width, utc_now,
 };
 
 pub(crate) fn identify_session_blocks(
@@ -58,10 +58,10 @@ pub(crate) fn identify_session_blocks(
         current_entries.push(entry);
     }
 
-    if let Some(start) = current_start {
-        if !current_entries.is_empty() {
-            blocks.push(create_block(start, current_entries, now, session_duration));
-        }
+    if let Some(start) = current_start
+        && !current_entries.is_empty()
+    {
+        blocks.push(create_block(start, current_entries, now, session_duration));
     }
     blocks
 }
@@ -87,10 +87,10 @@ fn create_block(
     for entry in &entries {
         token_counts.add_usage(entry.data.message.usage);
         cost += entry.cost;
-        if let Some(model) = &entry.model {
-            if seen_models.insert(model.clone()) {
-                models.push(model.clone());
-            }
+        if let Some(model) = &entry.model
+            && seen_models.insert(model.clone())
+        {
+            models.push(model.clone());
         }
         usage_limit_reset_time = usage_limit_reset_time.or(entry.usage_limit_reset_time);
     }
@@ -227,7 +227,9 @@ fn format_block_time(block: &SessionBlock, compact: bool) -> String {
         let remaining_hours = remaining / 60;
         let remaining_minutes = remaining.rem_euclid(60);
         return if compact {
-            format!("{start}\n({elapsed_hours}h{elapsed_minutes}m/{remaining_hours}h{remaining_minutes}m)")
+            format!(
+                "{start}\n({elapsed_hours}h{elapsed_minutes}m/{remaining_hours}h{remaining_minutes}m)"
+            )
         } else {
             format!(
                 "{start} ({elapsed_hours}h {elapsed_minutes}m elapsed, {remaining_hours}h {remaining_minutes}m remaining)"

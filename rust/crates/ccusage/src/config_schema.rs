@@ -2,11 +2,11 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use serde_json::{json, Map, Value};
+use serde::de::DeserializeOwned;
+use serde_json::{Map, Value, json};
 
-use schemars::{r#gen::SchemaSettings, JsonSchema};
+use schemars::{JsonSchema, r#gen::SchemaSettings};
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -970,10 +970,10 @@ fn wrap_root_schema(schema: &mut Value) {
 mod tests {
     use std::collections::BTreeSet;
 
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
-    use super::generate_config_schema_json;
     use super::StatuslineSpecificOptions;
+    use super::generate_config_schema_json;
 
     #[test]
     fn schema_option_sets_expose_expected_keys() {

@@ -1,11 +1,11 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::IsTerminal;
 
 use crate::{
-    adapter::opencode, cli::AgentReportKind, cli::SharedArgs, cli::WeekDay, format_currency,
-    format_models_multiline, format_number, json_value_u64, print_box_title,
-    should_use_compact_layout, summarize_by_key, summarize_summaries_by_bucket, totals_json, Align,
-    BucketKind, Color, LoadedEntry, Result, SimpleTable,
+    Align, BucketKind, Color, LoadedEntry, Result, SimpleTable, adapter::opencode,
+    cli::AgentReportKind, cli::SharedArgs, cli::WeekDay, format_currency, format_models_multiline,
+    format_number, json_value_u64, print_box_title, should_use_compact_layout, summarize_by_key,
+    summarize_summaries_by_bucket, totals_json,
 };
 
 pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {

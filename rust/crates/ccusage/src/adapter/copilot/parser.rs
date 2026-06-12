@@ -6,7 +6,7 @@ use std::{
 
 use serde_json::{Map, Value};
 
-use crate::{apply_total_token_fallback, Result, TimestampMs, TokenUsageRaw};
+use crate::{Result, TimestampMs, TokenUsageRaw, apply_total_token_fallback};
 
 #[derive(Debug, Clone)]
 pub(super) struct CopilotUsageEntry {
@@ -103,11 +103,11 @@ fn collect_trace_contexts(records: &[Map<String, Value>]) -> HashMap<String, Tra
         if context.model.is_none() {
             context.model = first_non_empty_attr(attributes, MODEL_ATTRS);
         }
-        if let Some((session_id, priority)) = best_session_attr(attributes) {
-            if priority > context.session_id_priority {
-                context.session_id = Some(session_id);
-                context.session_id_priority = priority;
-            }
+        if let Some((session_id, priority)) = best_session_attr(attributes)
+            && priority > context.session_id_priority
+        {
+            context.session_id = Some(session_id);
+            context.session_id_priority = priority;
         }
     }
     contexts

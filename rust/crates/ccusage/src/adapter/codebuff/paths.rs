@@ -1,6 +1,6 @@
 use std::{collections::HashSet, env, path::PathBuf};
 
-use crate::{collect_files_with_extension, Result};
+use crate::{Result, collect_files_with_extension};
 
 pub(super) const CODEBUFF_DATA_DIR_ENV: &str = "CODEBUFF_DATA_DIR";
 const CHANNELS: &[&str] = &["manicode", "manicode-dev", "manicode-staging"];

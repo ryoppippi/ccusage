@@ -4,9 +4,9 @@ mod paths;
 mod report;
 
 use crate::{
+    Result,
     cli::{AgentCommandArgs, AgentReportKind, SharedArgs},
     filter_loaded_entries_by_date, print_json_or_jq, print_usage_table, sort_summaries, wants_json,
-    Result,
 };
 
 pub(crate) use loader::load_entries;
@@ -72,8 +72,8 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::cli::{CostMode, SharedArgs};
     use crate::UsageSummary;
+    use crate::cli::{CostMode, SharedArgs};
 
     static QWEN_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
 
@@ -84,7 +84,7 @@ mod tests {
     impl QwenDataDirGuard {
         fn set(path: &Path) -> Self {
             let previous = env::var_os("QWEN_DATA_DIR");
-            env::set_var("QWEN_DATA_DIR", path);
+            unsafe { env::set_var("QWEN_DATA_DIR", path) };
             Self { previous }
         }
     }
@@ -92,9 +92,9 @@ mod tests {
     impl Drop for QwenDataDirGuard {
         fn drop(&mut self) {
             if let Some(previous) = self.previous.take() {
-                env::set_var("QWEN_DATA_DIR", previous);
+                unsafe { env::set_var("QWEN_DATA_DIR", previous) };
             } else {
-                env::remove_var("QWEN_DATA_DIR");
+                unsafe { env::remove_var("QWEN_DATA_DIR") };
             }
         }
     }

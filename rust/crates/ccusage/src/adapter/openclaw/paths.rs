@@ -12,10 +12,10 @@ pub(super) fn paths(custom_path: Option<&str>) -> Vec<PathBuf> {
     if let Some(custom_path) = custom_path.filter(|path| !path.trim().is_empty()) {
         return existing_path_list(custom_path);
     }
-    if let Ok(env_paths) = env::var(OPENCLAW_DIR_ENV) {
-        if !env_paths.trim().is_empty() {
-            return existing_path_list(&env_paths);
-        }
+    if let Ok(env_paths) = env::var(OPENCLAW_DIR_ENV)
+        && !env_paths.trim().is_empty()
+    {
+        return existing_path_list(&env_paths);
     }
     let Some(home) = crate::home::home_dir() else {
         return Vec::new();
