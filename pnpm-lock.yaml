@@ -40,9 +40,6 @@ catalogs:
       specifier: ^0.0.75
       version: 0.0.75
   testing:
-    fs-fixture:
-      specifier: ^2.8.1
-      version: 2.8.1
     mitata:
       specifier: ^1.0.34
       version: 1.0.34
@@ -85,9 +82,6 @@ importers:
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
-      fs-fixture:
-        specifier: catalog:testing
-        version: 2.8.1
       mitata:
         specifier: catalog:testing
         version: 1.0.34
@@ -1328,10 +1322,6 @@ packages:
   format@0.2.2:
     resolution: {integrity: sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww==}
     engines: {node: '>=0.4.x'}
-
-  fs-fixture@2.8.1:
-    resolution: {integrity: sha512-C0xA7XvqZBbbOgitWcMDstfih8GaOPEyXfvNefmV7+1573TCnFQ6hAJEUEzH2LVrscONLh73rvayNfa/m9PMgw==}
-    engines: {node: '>=18.0.0'}
 
   fs-minipass@2.1.0:
     resolution: {integrity: sha512-V/JgOLFCS+R6Vcq0slCuaeWEdNC3ouDlJMNIsacH2VtALiu9mV4LPrHc5cDl8k5aw6J8jwgWWpiTo5RYhmIzvg==}
@@ -3268,8 +3258,6 @@ snapshots:
       tabbable: 6.4.0
 
   format@0.2.2: {}
-
-  fs-fixture@2.8.1: {}
 
   fs-minipass@2.1.0:
     dependencies:

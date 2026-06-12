@@ -44,7 +44,6 @@
 	"devDependencies": {
 		"@types/bun": "catalog:types",
 		"clean-pkg-json": "catalog:release",
-		"fs-fixture": "catalog:testing",
 		"mitata": "catalog:testing",
 		"publint": "catalog:lint",
 		"tsdown": "catalog:build",
