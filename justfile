@@ -56,7 +56,7 @@ update-litellm-pricing:
 
 # Regenerate committed models.dev snapshots from the pinned input
 gen-models-dev-pricing:
-    snapshots="$(nix build .#models-dev-pricing --no-link --print-out-paths)"; cp "$snapshots/models-dev-pricing.json" rust/crates/ccusage/src/models-dev-pricing.json; cp "$snapshots/codex-auto-review-fallbacks.json" rust/crates/ccusage/src/adapter/codex/codex-auto-review-fallbacks.json
+    snapshots="$(nix build .#models-dev-pricing --no-link --print-out-paths)" && cp "$snapshots/models-dev-pricing.json" rust/crates/ccusage/src/models-dev-pricing.json && cp "$snapshots/codex-auto-review-fallbacks.json" rust/crates/ccusage/src/adapter/codex/codex-auto-review-fallbacks.json
     chmod u+w rust/crates/ccusage/src/models-dev-pricing.json
     chmod u+w rust/crates/ccusage/src/adapter/codex/codex-auto-review-fallbacks.json
     nix fmt rust/crates/ccusage/src/models-dev-pricing.json
