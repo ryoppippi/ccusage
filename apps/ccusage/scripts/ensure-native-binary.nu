@@ -1,14 +1,5 @@
 #!/usr/bin/env nu
 
-const native_package_dirs = {
-	'darwin-arm64': 'ccusage-darwin-arm64',
-	'darwin-x64': 'ccusage-darwin-x64',
-	'linux-arm64': 'ccusage-linux-arm64',
-	'linux-x64': 'ccusage-linux-x64',
-	'win32-arm64': 'ccusage-win32-arm64',
-	'win32-x64': 'ccusage-win32-x64',
-}
-
 const system_dylib_prefixes = [
 	'/usr/lib/',
 	'/System/Library/',
@@ -18,14 +9,8 @@ def main [] {
 	let repo_root = ($env.CURRENT_FILE | path dirname | path join ../../.. | path expand)
 	let target_platform = (node_platform)
 	let target_arch = (node_arch)
-	let target_key = $"($target_platform)-($target_arch)"
-	let native_package_dir = ($native_package_dirs | get --optional $target_key)
 	let binary_name = if $target_platform == 'win32' { 'ccusage.exe' } else { 'ccusage' }
-	let native_package_root = if $native_package_dir == null {
-		null
-	} else {
-		$repo_root | path join packages $native_package_dir
-	}
+	let native_package_root = (matching_native_package_root $repo_root $target_platform $target_arch)
 	let native_binary = if $native_package_root == null {
 		null
 	} else {
@@ -68,6 +53,28 @@ def node_arch [] {
 		'x86_64' => 'x64',
 		$other => $other,
 	}
+}
+
+def matching_native_package_root [repo_root: path, target_platform: string, target_arch: string] {
+	let candidates = (
+		glob ($repo_root | path join packages 'ccusage-*' package.json)
+		| each {|package_json_path|
+			let package_json = (open $package_json_path)
+			let os = $package_json.os?
+			let cpu = $package_json.cpu?
+			if (list_contains $os $target_platform) and (list_contains $cpu $target_arch) {
+				$package_json_path | path dirname
+			} else {
+				null
+			}
+		}
+		| where {|package_root| $package_root != null }
+	)
+	$candidates | get --optional 0
+}
+
+def list_contains [value: any, needle: string] {
+	(($value | describe) =~ '^list') and ($value | any {|item| $item == $needle })
 }
 
 def expected_version [repo_root: path] {
