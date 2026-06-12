@@ -28,14 +28,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup-linux-nix-action-cache
+      - uses: ./.github/actions/setup-nix-cache
       - run: nix flake check --print-build-logs
-      # Pin even on failure so deps built during a failing run stay rooted and
-      # warm the next run; skip on cancel (nothing useful to pin).
-      - if: ${{ !cancelled() }}
-        uses: ./.github/actions/pin-nix-deps
-        with:
-          attr: .#ccusage.cargoArtifacts
       - run: nix develop --command just typecheck
 
   test:
@@ -52,7 +46,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: ./.github/actions/setup-linux-nix-action-cache
+      - uses: ./.github/actions/setup-nix-cache
       # Vitest needs the JS toolchain; the Rust tests run via `nix build`. Install
       # just pnpm/node/just instead of realizing the full dev shell, which drags
       # in every linter, formatter, and the pre-commit hook closure and dominated
@@ -68,12 +62,6 @@ jobs:
         run: just test-vitest
       - name: Run Rust tests
         run: nix build .#ccusage-tests --print-build-logs
-      # Pin even on failure so deps built during a failing run stay rooted and
-      # warm the next run; skip on cancel (nothing useful to pin).
-      - if: ${{ !cancelled() }}
-        uses: ./.github/actions/pin-nix-deps
-        with:
-          attr: .#ccusage.cargoArtifacts
 
   build-native-packages:
     needs: changes
@@ -122,11 +110,13 @@ jobs:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
           nix-github-token: ${{ github.event_name != 'pull_request' }}
+          cache-scope: ${{ matrix.name }}
       - uses: ./.github/actions/build-macos-nix-native-package
         if: matrix.platform == 'darwin'
         with:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
+          cache-scope: ${{ matrix.name }}
       - uses: ./.github/actions/build-windows-native-package
         if: matrix.platform == 'win32'
         with:
@@ -148,7 +138,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup-nix
+      - uses: ./.github/actions/setup-nix-cache
       # Packing only repackages the native binaries restored from the build
       # matrix below (no Rust build happens here), so the full `nix develop` dev
       # shell is unnecessary. The prepack scripts run tsdown (node) and
@@ -291,7 +281,7 @@ jobs:
           }
 
   ccusage-perf-comment:
-    name: ccusage perf comment
+    name: ccusage ${{ matrix.label }}
     if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
     needs:
       - changes
@@ -302,6 +292,20 @@ jobs:
       issues: write
     runs-on: blacksmith-32vcpu-ubuntu-2404-arm
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Same benchmark from two entry points, posted as two PR comments:
+          # the JS launcher (default runtime) and the bundled Rust native binary.
+          - runtime: js
+            label: perf comment
+            slug: perf-comment
+            head-runtime-arg: ''
+          - runtime: rust
+            label: rust perf comment
+            slug: rust-perf-comment
+            head-runtime-arg: --head-runtime rust
 
     steps:
       - name: Checkout PR
@@ -311,7 +315,10 @@ jobs:
           persist-credentials: false
 
       - name: Setup Nix
-        uses: ./.github/actions/setup-nix
+        uses: ./.github/actions/setup-nix-cache
+        with:
+          # js and rust legs share this job id, so scope the cache per runtime.
+          cache-scope: ${{ matrix.runtime }}
       # This job only benchmarks the prebuilt ccusage binary bundled in the
       # installed pkg.pr.new package (no Rust build happens here), so the full
       # `nix develop` dev shell is unnecessary. Install just the tools the perf
@@ -337,13 +344,14 @@ jobs:
             "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             1024
 
-      - name: Compare fixture performance
+      - name: Compare performance
         run: |
           pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
             --head-package-url "$CCUSAGE_PREVIEW_URL" \
+            ${{ matrix.head-runtime-arg }} \
             --fixture-dir apps/ccusage/test/fixtures/claude \
             --codex-fixture-dir apps/ccusage/test/fixtures/codex \
             --warmup 2 \
@@ -353,95 +361,16 @@ jobs:
             --large-warmup 0 \
             --large-runs 1 \
             --package-runner-timeout-ms 300000 \
-            --output "$RUNNER_TEMP/ccusage-perf-comment.md"
+            --output "$RUNNER_TEMP/ccusage-${{ matrix.slug }}.md"
 
       - name: Write job summary
-        run: cat "$RUNNER_TEMP/ccusage-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
+        run: cat "$RUNNER_TEMP/ccusage-${{ matrix.slug }}.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upsert PR comment
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          COMMENT_FILE: ${{ runner.temp }}/ccusage-perf-comment.md
-          COMMENT_MARKER: <!-- ccusage-perf-comment:${{ github.event.pull_request.head.sha }} -->
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: pnpm exec bun .github/scripts/upsert-pr-comment.ts
-
-  ccusage-rust-perf-comment:
-    name: ccusage rust perf comment
-    if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
-    needs:
-      - changes
-      - npm-publish-dry-run-and-upload-pkg-pr-now
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-    runs-on: blacksmith-32vcpu-ubuntu-2404-arm
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout PR
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-
-      - name: Setup Nix
-        uses: ./.github/actions/setup-nix
-      # This job only benchmarks the prebuilt ccusage binary bundled in the
-      # installed pkg.pr.new package (no Rust build happens here), so the full
-      # `nix develop` dev shell is unnecessary. Install just the tools the perf
-      # scripts invoke, pinned to the flake's nixpkgs via `--inputs-from .`.
-      - name: Install perf tooling
-        run: nix profile install --inputs-from . nixpkgs#pnpm nixpkgs#nodejs nixpkgs#bun nixpkgs#hyperfine nixpkgs#just
-      - run: pnpm install --frozen-lockfile
-
-      - name: Resolve PR preview package URL
-        env:
-          PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
-        run: |
-          preview_url="$(
-            # shellcheck disable=SC2016
-            node -e 'const urls = (process.env.PKG_PR_NEW_URLS ?? "").split(/\s+/).filter(Boolean); const url = urls.find((candidate) => /(?:^|\/)ccusage@/.test(candidate)); if (url == null) { throw new Error(`ccusage preview URL not found in: ${urls.join(", ")}`); } console.log(url);'
-          )"
-          echo "CCUSAGE_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
-
-      - name: Generate large ccusage fixture
-        run: |
-          just generate-large-fixture \
-            "$RUNNER_TEMP/ccusage-large-fixture" \
-            "$RUNNER_TEMP/ccusage-large-codex-fixture" \
-            1024
-
-      - name: Compare Rust performance
-        run: |
-          pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
-            --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
-            --base-sha "${{ github.event.pull_request.base.sha }}" \
-            --head-dir . \
-            --head-package-url "$CCUSAGE_PREVIEW_URL" \
-            --head-runtime rust \
-            --fixture-dir apps/ccusage/test/fixtures/claude \
-            --codex-fixture-dir apps/ccusage/test/fixtures/codex \
-            --warmup 2 \
-            --runs 7 \
-            --large-fixture-dir "$RUNNER_TEMP/ccusage-large-fixture" \
-            --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
-            --large-warmup 0 \
-            --large-runs 1 \
-            --package-runner-timeout-ms 300000 \
-            --output "$RUNNER_TEMP/ccusage-rust-perf-comment.md"
-
-      - name: Write job summary
-        run: cat "$RUNNER_TEMP/ccusage-rust-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upsert PR comment
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        env:
-          COMMENT_FILE: ${{ runner.temp }}/ccusage-rust-perf-comment.md
-          COMMENT_MARKER: <!-- ccusage-rust-perf-comment:${{ github.event.pull_request.head.sha }} -->
+          COMMENT_FILE: ${{ runner.temp }}/ccusage-${{ matrix.slug }}.md
+          COMMENT_MARKER: <!-- ccusage-${{ matrix.slug }}:${{ github.event.pull_request.head.sha }} -->
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -456,7 +385,6 @@ jobs:
       - npm-publish-dry-run-and-upload-pkg-pr-now
       - ccusage-preview-e2e
       - ccusage-perf-comment
-      - ccusage-rust-perf-comment
     if: ${{ always() }}
     runs-on: ubuntu-slim
     steps:

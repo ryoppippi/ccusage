@@ -1,0 +1,57 @@
+name: Setup Nix with action cache
+description: >
+  Install Nix and restore/save the store with cache-nix-action, shared by Linux
+  and macOS. cache-nix-action only caches non-substitutable paths (the crane
+  deps, not the cache.nixos.org toolchain), so the cache stays small (~900MB).
+  No gc-max-store-size: these runners are ephemeral (restore -> build -> save),
+  so the store never accumulates across runs the way a sticky disk did. Trimming
+  before save would only delete the unrooted crane deps and force a recompile, so
+  we let cache-nix-action save the whole non-substitutable set as-is and rely on
+  purge to roll off stale entries.
+inputs:
+  cache-scope:
+    description: >
+      Unique matrix-entry identifier (the matrix `name`) used to scope the cache
+      key. github.job is identical across matrix legs, so the scope is what keeps
+      each leg separate without leaning on runner.arch. Leave empty for
+      single-leg jobs, which github.job alone already distinguishes.
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Install Nix
+      uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      with:
+        github_access_token: ${{ github.token }}
+        nix_conf: |
+          access-tokens = github.com=${{ github.token }}
+
+    # github.workflow is included so workflows that share a job id (e.g.
+    # build-native-packages in both ci.yaml and release.yaml) do not collide on
+    # the same primary-key / purge-prefix and evict each other's entries.
+    - name: Cache Nix store
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        # The commit sha is appended so every commit writes a fresh entry:
+        # cache-nix-action skips saving on an exact primary-key hit, so a key that
+        # only depended on the deps hash would persist the first run's store
+        # forever. restore-prefixes-first-match (without the sha) then restores
+        # the newest prior entry to warm the deps. The cache backend is
+        # effectively unlimited, so one entry per commit is fine and `purge`
+        # rolls off the old ones.
+        primary-key: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}-${{ github.sha }}
+        restore-prefixes-first-match: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}-
+        purge: true
+        purge-prefixes: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
+        purge-created: 172800
+        purge-primary-key: never
+
+    - name: Fix single-user Nix store ownership
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        for path in /nix/var/log/nix /nix/var/nix; do
+          if [ -e "$path" ]; then
+            sudo chown -R "$USER:$(id -gn)" "$path"
+          fi
+        done

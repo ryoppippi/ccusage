@@ -7,14 +7,18 @@ inputs:
   binary:
     description: Path to the built ccusage binary
     required: true
+  cache-scope:
+    description: >
+      Unique matrix-entry identifier (the matrix `name`) used to scope the
+      macOS Nix cache. arm64 and x64 share the same arm64 runner, so without a
+      per-leg scope the two builds clobber one cache.
+    required: true
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-nix
+    - uses: ./.github/actions/setup-nix-cache
       with:
-        # arm64 and x64 both run on the same arm64 runner, so scope the macOS
-        # Nix cache by target arch to stop the two builds clobbering one store.
-        cache-key-suffix: ${{ inputs.arch }}
+        cache-scope: ${{ inputs.cache-scope }}
 
     - name: Build macOS binary
       shell: bash

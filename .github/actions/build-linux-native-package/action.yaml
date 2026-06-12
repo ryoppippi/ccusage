@@ -10,10 +10,17 @@ inputs:
   nix-github-token:
     description: Whether Nix builds may use the GitHub token from Nix config
     default: 'true'
+  cache-scope:
+    description: >
+      Unique matrix-entry identifier (the matrix `name`) used to scope the Nix
+      cache so the arm64 and x64 legs do not share one key.
+    required: true
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-linux-nix-action-cache
+    - uses: ./.github/actions/setup-nix-cache
+      with:
+        cache-scope: ${{ inputs.cache-scope }}
 
     - name: Build Linux static binary
       shell: bash
@@ -25,15 +32,6 @@ runs:
         else
           nix build .#ccusage-static --print-build-logs
         fi
-
-    # Root the deps so the cache-nix-action gc-max trim keeps them while
-    # dropping stale paths. On PR runs (nix-github-token == 'false') the pin's
-    # nix build / eval must disable access tokens too.
-    - uses: ./.github/actions/pin-nix-deps
-      env:
-        NIX_CONFIG: ${{ inputs.nix-github-token == 'false' && 'access-tokens =' || '' }}
-      with:
-        attr: .#ccusage-static.cargoArtifacts
 
     - name: Verify Linux binary is static
       shell: bash

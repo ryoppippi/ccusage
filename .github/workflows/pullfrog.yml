@@ -26,7 +26,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Setup Nix
-        uses: ./.github/actions/setup-nix
+        uses: ./.github/actions/setup-nix-cache
       - name: Run agent
         uses: pullfrog/pullfrog@27557aef1ccff9b9ea531324824daa1f86c066c4 # v0.1.29
         with:

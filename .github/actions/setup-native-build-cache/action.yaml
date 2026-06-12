@@ -15,7 +15,10 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           rust/target
-        key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        # The commit sha makes every commit write a fresh entry (actions/cache
+        # skips saving on an exact key hit); restore-keys warms from the newest
+        # prior entry.
+        key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
         restore-keys: |
           cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}-
           cargo-${{ runner.os }}-${{ runner.arch }}-
