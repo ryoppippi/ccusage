@@ -28,10 +28,19 @@ def main [] {
     if $existing == null {
         create_comment $repository $pr_number $body
     } else {
-        let updated = (try_update_comment $repository $existing.id $body)
-        if not $updated {
-            print --stderr 'Failed to update existing PR comment; creating a new comment instead.'
+        let update = (try_update_comment $repository $existing.id $body)
+        if $update.status == 'ok' {
+            return
+        }
+        if $update.status == 'missing' {
+            print --stderr 'Existing PR comment was missing; creating a new comment instead.'
             create_comment $repository $pr_number $body
+        } else if $update.status == 'auth' {
+            print --stderr $"Skipping PR comment because GitHub token cannot update comments: ($update.stderr | str trim)"
+        } else {
+            error make {
+                msg: (format_gh_error ['update comment'] $update.result)
+            }
         }
     }
 }
@@ -67,7 +76,16 @@ def create_comment [repository: string, pr_number: string, body: string] {
 }
 def try_update_comment [repository: string, comment_id: int, body: string] {
     let result = (gh_api_with_body 'PATCH' $"repos/($repository)/issues/comments/($comment_id)" $body)
-    $result.exit_code == 0
+    if $result.exit_code == 0 {
+        return { status: 'ok', result: $result, stderr: $result.stderr }
+    }
+    if ($result.stderr =~ 'HTTP 404') {
+        return { status: 'missing', result: $result, stderr: $result.stderr }
+    }
+    if (is_comment_write_auth_failure $result.stderr) {
+        return { status: 'auth', result: $result, stderr: $result.stderr }
+    }
+    { status: 'error', result: $result, stderr: $result.stderr }
 }
 def gh_api_with_body [method: string, endpoint: string, body: string] {
     let payload = (mktemp -t ccusage-pr-comment.XXXXXX | str trim)
