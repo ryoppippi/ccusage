@@ -34,6 +34,17 @@ static PROMPT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
 static THREAD_SPAWN_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(b"thread_spawn"));
 
+const CODEX_AUTO_REVIEW_MODEL: &str = "codex-auto-review";
+const CODEX_AUTO_REVIEW_FALLBACK_MODELS: [(&str, &str); 7] = [
+    ("2026-04-23", "gpt-5.5"),
+    ("2026-03-05", "gpt-5.4"),
+    ("2026-02-05", "gpt-5.3-codex"),
+    ("2025-12-11", "gpt-5.2-codex"),
+    ("2025-11-13", "gpt-5.1-codex"),
+    ("2025-09-15", "gpt-5-codex"),
+    ("2025-08-07", "gpt-5"),
+];
+
 #[derive(Clone, Copy)]
 enum CodexLineKind {
     Session,
@@ -267,20 +278,12 @@ fn visit_codex_session_entry(
 
     let parsed_model =
         codex_model_from_payload(payload).or_else(|| info.and_then(codex_model_from_info));
-    if let Some(model) = parsed_model.clone() {
-        *current_model = Some(model);
-        *current_model_is_fallback = false;
-    }
-    let mut is_fallback_model = false;
-    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
-        is_fallback_model = true;
-        *current_model_is_fallback = true;
-        *current_model = Some("gpt-5".to_string());
-        current_model.clone()
-    });
-    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
-        is_fallback_model = true;
-    }
+    let (model, is_fallback_model) = resolve_codex_usage_model(
+        parsed_model,
+        &timestamp,
+        current_model,
+        current_model_is_fallback,
+    );
 
     visit(CodexTokenUsageEvent {
         session_id: session_id.to_string(),
@@ -357,20 +360,12 @@ fn visit_codex_exec_usage_event(
     current_model_is_fallback: &mut bool,
     visit: &mut impl FnMut(CodexTokenUsageEvent) -> Result<()>,
 ) -> Result<()> {
-    if let Some(model) = parsed_model.clone() {
-        *current_model = Some(model);
-        *current_model_is_fallback = false;
-    }
-    let mut is_fallback_model = false;
-    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
-        is_fallback_model = true;
-        *current_model_is_fallback = true;
-        *current_model = Some("gpt-5".to_string());
-        current_model.clone()
-    });
-    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
-        is_fallback_model = true;
-    }
+    let (model, is_fallback_model) = resolve_codex_usage_model(
+        parsed_model,
+        &timestamp,
+        current_model,
+        current_model_is_fallback,
+    );
     visit(CodexTokenUsageEvent {
         session_id: session_id.to_string(),
         timestamp,
@@ -468,6 +463,64 @@ fn parsed_model_is_missing(
     current_model_is_fallback: bool,
 ) -> bool {
     model.is_some() && current_model.is_some() && current_model_is_fallback
+}
+
+fn resolve_codex_usage_model(
+    parsed_model: Option<String>,
+    timestamp: &str,
+    current_model: &mut Option<String>,
+    current_model_is_fallback: &mut bool,
+) -> (Option<String>, bool) {
+    if let Some(model) = parsed_model.as_ref() {
+        *current_model = Some(model.clone());
+        *current_model_is_fallback = false;
+    }
+    let mut is_fallback_model = false;
+    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
+        is_fallback_model = true;
+        *current_model_is_fallback = true;
+        *current_model = Some("gpt-5".to_string());
+        current_model.clone()
+    });
+    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
+        is_fallback_model = true;
+    }
+    let model = model.map(|model| {
+        codex_log_model_fallback(&model, timestamp)
+            .map(|fallback| {
+                is_fallback_model = true;
+                fallback.to_string()
+            })
+            .unwrap_or(model)
+    });
+    (model, is_fallback_model)
+}
+
+fn codex_log_model_fallback(model: &str, timestamp: &str) -> Option<&'static str> {
+    if model != CODEX_AUTO_REVIEW_MODEL {
+        return None;
+    }
+    let Some(date) = codex_timestamp_date(timestamp) else {
+        return Some("gpt-5.5");
+    };
+    Some(
+        CODEX_AUTO_REVIEW_FALLBACK_MODELS
+            .iter()
+            .find_map(|(released_on, fallback)| (date >= *released_on).then_some(*fallback))
+            .unwrap_or("gpt-5"),
+    )
+}
+
+fn codex_timestamp_date(timestamp: &str) -> Option<&str> {
+    let date = timestamp.get(..10)?;
+    let bytes = date.as_bytes();
+    (bytes.len() == 10
+        && bytes[0..4].iter().all(u8::is_ascii_digit)
+        && bytes[4] == b'-'
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[7] == b'-'
+        && bytes[8..10].iter().all(u8::is_ascii_digit))
+    .then_some(date)
 }
 
 fn codex_session_id(sessions_dir: &Path, path: &Path) -> String {

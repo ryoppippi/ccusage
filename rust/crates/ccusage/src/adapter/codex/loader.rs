@@ -531,6 +531,110 @@ mod tests {
     }
 
     #[test]
+    fn resolves_codex_auto_review_to_latest_model_for_event_date() {
+        let fixture = fs_fixture!({
+            "run.jsonl": [
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-02-05T00:00:00.000Z",
+                    "model": "codex-auto-review",
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                })
+                .to_string(),
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-03-05T00:00:00.000Z",
+                    "model": "codex-auto-review",
+                    "usage": {
+                        "input_tokens": 20,
+                        "output_tokens": 10,
+                        "total_tokens": 30,
+                    },
+                })
+                .to_string(),
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-04-23T00:00:00.000Z",
+                    "model": "codex-auto-review",
+                    "usage": {
+                        "input_tokens": 30,
+                        "output_tokens": 15,
+                        "total_tokens": 45,
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.3-codex"));
+        assert_eq!(events[1].model.as_deref(), Some("gpt-5.4"));
+        assert_eq!(events[2].model.as_deref(), Some("gpt-5.5"));
+        assert!(events.iter().all(|event| event.is_fallback_model));
+    }
+
+    #[test]
+    fn resolves_codex_auto_review_turn_context_for_each_event_date() {
+        let fixture = fs_fixture!({
+            "session.jsonl": [
+                json!({
+                    "timestamp": "2025-12-11T00:00:00.000Z",
+                    "type": "turn_context",
+                    "payload": {
+                        "model": "codex-auto-review",
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2025-12-11T00:01:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 10,
+                                "output_tokens": 5,
+                                "total_tokens": 15,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+                json!({
+                    "timestamp": "2026-04-23T00:01:00.000Z",
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "last_token_usage": {
+                                "input_tokens": 20,
+                                "output_tokens": 10,
+                                "total_tokens": 30,
+                            },
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[1].model.as_deref(), Some("gpt-5.5"));
+        assert!(events.iter().all(|event| event.is_fallback_model));
+    }
+
+    #[test]
     fn loads_headless_usage_with_token_count_text_content() {
         let fixture = fs_fixture!({
             "run.jsonl":
