@@ -23,6 +23,32 @@
 
 > Analyze coding (agent) CLI token usage and costs from local data.
 
+## Major Sponsors
+
+<table>
+    <tr>
+        <td align="center" width="50%">
+            <a href="https://coderabbit.link/ryoppippi">
+                <picture>
+                    <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo-dark.svg">
+                    <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo.svg" alt="CodeRabbit" width="320">
+                </picture>
+            </a>
+        </td>
+        <td align="center" width="50%">
+            <a href="https://blacksmith.sh">
+                <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/blacksmith.png" alt="Blacksmith" width="320">
+            </a>
+        </td>
+    </tr>
+</table>
+
+## Quick Start
+
+```bash
+npx ccusage@latest
+```
+
 ## Supported Sources
 
 ccusage reads local usage data from coding agent CLIs and turns it into daily, weekly, monthly, and session reports.
@@ -49,21 +75,21 @@ Use `ccusage daily`, `ccusage weekly`, `ccusage monthly`, or `ccusage session` t
 
 ## Installation
 
-### Quick Start (Recommended)
+### Package Runners
 
 You can run ccusage directly without a global installation:
 
 ```bash
-# Recommended
-bunx ccusage
+# npm
+npx ccusage@latest
 
 # Nix
 nix run github:ccusage/ccusage -- daily
 
 # Alternative package runners
+bunx ccusage
 pnpm dlx ccusage
 pnpx ccusage
-npx ccusage@latest
 
 # PR preview builds
 bunx -p https://pkg.pr.new/ccusage/ccusage@<pr-number> ccusage --offline
@@ -198,26 +224,7 @@ The scheduled `update pricing` workflow runs the same update and validation, the
 
 </details>
 
-## Sponsors
-
-<p align="center">
-    <strong>Sponsored by</strong>
-</p>
-
-<p align="center">
-    <a href="https://coderabbit.link/ryoppippi">
-        <picture>
-            <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo-dark.svg">
-            <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/coderabbit-logo.svg" alt="CodeRabbit" width="320">
-        </picture>
-    </a>
-</p>
-
-<p align="center">
-    <a href="https://blacksmith.sh">
-        <img src="https://cdn.jsdelivr.net/gh/ccusage/ccusage@main/docs/public/blacksmith.png" alt="Blacksmith" width="320">
-    </a>
-</p>
+## GitHub Sponsors
 
 <p align="center">
     <a href="https://github.com/sponsors/ryoppippi">
