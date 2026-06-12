@@ -582,7 +582,7 @@ mod tests {
 
     #[test]
     fn resolves_codex_auto_review_with_invalid_event_date_falls_back_to_file_mtime() {
-        // When the log's own timestamp fields are unparseable AND no alternate
+        // When the log's own timestamp fields are unparsable AND no alternate
         // timestamp fields are present, the parser falls back to the file's
         // modified time so the date-based fallback table still resolves to a
         // real model rather than locking in a misleading malformed string.
@@ -617,10 +617,10 @@ mod tests {
         // File mtime is "now" at fixture creation, which is on or after every
         // entry currently in the fallback table, so resolution lands on the
         // newest known model. The exact value updates when the table grows.
-        assert!(events
-            .iter()
-            .all(|event| event.model.as_deref().is_some_and(|model| model
-                .starts_with("gpt-5"))));
+        assert!(events.iter().all(|event| event
+            .model
+            .as_deref()
+            .is_some_and(|model| model.starts_with("gpt-5"))));
         assert!(events.iter().all(|event| event.is_fallback_model));
     }
 
