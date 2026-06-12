@@ -733,23 +733,23 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
-        self.entries.insert(
-            "gpt-5.5".to_string(),
-            Pricing {
-                input: 5e-6,
-                output: 30e-6,
-                cache_create: 5e-6,
-                cache_read: 0.5e-6,
-                cache_read_explicit: true,
-                input_above_200k: None,
-                output_above_200k: None,
-                cache_create_above_200k: None,
-                cache_read_above_200k: None,
-                fast_multiplier: fast_multiplier_overrides
-                    .multiplier_for("gpt-5.5")
-                    .unwrap_or(1.0),
-            },
-        );
+        let gpt_5_5_pricing = Pricing {
+            input: 5e-6,
+            output: 30e-6,
+            cache_create: 5e-6,
+            cache_read: 0.5e-6,
+            cache_read_explicit: true,
+            input_above_200k: None,
+            output_above_200k: None,
+            cache_create_above_200k: None,
+            cache_read_above_200k: None,
+            fast_multiplier: fast_multiplier_overrides
+                .multiplier_for("gpt-5.5")
+                .unwrap_or(1.0),
+        };
+        self.entries.insert("gpt-5.5".to_string(), gpt_5_5_pricing);
+        self.entries
+            .insert("codex-auto-review".to_string(), gpt_5_5_pricing);
         self.entries.insert(
             "grok-4.3".to_string(),
             Pricing {
@@ -826,15 +826,14 @@ impl PricingMap {
         };
         self.entries
             .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
-        self.entries.insert(
-            "gpt-5.3-codex".to_string(),
-            Pricing {
-                fast_multiplier: fast_multiplier_overrides
-                    .multiplier_for("gpt-5.3-codex")
-                    .unwrap_or(1.0),
-                ..gpt_5_codex_pricing
-            },
-        );
+        let gpt_5_3_codex_pricing = Pricing {
+            fast_multiplier: fast_multiplier_overrides
+                .multiplier_for("gpt-5.3-codex")
+                .unwrap_or(1.0),
+            ..gpt_5_codex_pricing
+        };
+        self.entries
+            .insert("gpt-5.3-codex".to_string(), gpt_5_3_codex_pricing);
         self.entries
             .insert("gpt-5.2".to_string(), gpt_5_codex_pricing);
         self.entries.insert(
@@ -1770,6 +1769,18 @@ mod tests {
         assert_eq!(pricing.find("gpt-5.5").unwrap().fast_multiplier, 2.5);
         assert_eq!(pricing.find("gpt-5.4").unwrap().fast_multiplier, 2.0);
         assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
+    }
+
+    #[test]
+    fn embedded_pricing_resolves_codex_auto_review_model() {
+        let pricing = PricingMap::load_embedded();
+        let auto_review = pricing.find("codex-auto-review").unwrap();
+        let latest_codex = pricing.find("gpt-5.5").unwrap();
+
+        assert_eq!(auto_review.input, latest_codex.input);
+        assert_eq!(auto_review.output, latest_codex.output);
+        assert_eq!(auto_review.cache_read, latest_codex.cache_read);
+        assert_eq!(auto_review.fast_multiplier, latest_codex.fast_multiplier);
     }
 
     #[test]
