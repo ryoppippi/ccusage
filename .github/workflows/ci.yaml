@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup-linux-nix-action-cache
+      - uses: ./.github/actions/setup-nix-cache
       - run: nix flake check --print-build-logs
       # Pin even on failure so deps built during a failing run stay rooted and
       # warm the next run; skip on cancel (nothing useful to pin).
@@ -52,7 +52,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: ./.github/actions/setup-linux-nix-action-cache
+      - uses: ./.github/actions/setup-nix-cache
       # Vitest needs the JS toolchain; the Rust tests run via `nix build`. Install
       # just pnpm/node/just instead of realizing the full dev shell, which drags
       # in every linter, formatter, and the pre-commit hook closure and dominated
@@ -122,6 +122,7 @@ jobs:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
           nix-github-token: ${{ github.event_name != 'pull_request' }}
+          cache-scope: ${{ matrix.name }}
       - uses: ./.github/actions/build-macos-nix-native-package
         if: matrix.platform == 'darwin'
         with:
@@ -149,7 +150,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: ./.github/actions/setup-nix
+      - uses: ./.github/actions/setup-nix-cache
       # Packing only repackages the native binaries restored from the build
       # matrix below (no Rust build happens here), so the full `nix develop` dev
       # shell is unnecessary. The prepack scripts run tsdown (node) and
@@ -312,7 +313,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Nix
-        uses: ./.github/actions/setup-nix
+        uses: ./.github/actions/setup-nix-cache
       # This job only benchmarks the prebuilt ccusage binary bundled in the
       # installed pkg.pr.new package (no Rust build happens here), so the full
       # `nix develop` dev shell is unnecessary. Install just the tools the perf
@@ -390,7 +391,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Nix
-        uses: ./.github/actions/setup-nix
+        uses: ./.github/actions/setup-nix-cache
       # This job only benchmarks the prebuilt ccusage binary bundled in the
       # installed pkg.pr.new package (no Rust build happens here), so the full
       # `nix develop` dev shell is unnecessary. Install just the tools the perf

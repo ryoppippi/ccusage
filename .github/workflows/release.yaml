@@ -55,6 +55,7 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
+          cache-scope: ${{ matrix.name }}
       - uses: ./.github/actions/build-macos-nix-native-package
         if: matrix.platform == 'darwin'
         with:
@@ -80,7 +81,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup-nix
+      - uses: ./.github/actions/setup-nix-cache
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           registry-url: 'https://registry.npmjs.org'
@@ -113,7 +114,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup-nix
+      - uses: ./.github/actions/setup-nix-cache
       - run: nix develop --command pnpm changelogithub
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

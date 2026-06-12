@@ -16,7 +16,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-nix
+    - uses: ./.github/actions/setup-nix-cache
       with:
         cache-scope: ${{ inputs.cache-scope }}
 

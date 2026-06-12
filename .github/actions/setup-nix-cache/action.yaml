@@ -1,0 +1,49 @@
+name: Setup Nix with action cache
+description: >
+  Install Nix and restore/save the store with cache-nix-action, shared by Linux
+  and macOS. cache-nix-action only caches non-substitutable paths (the crane
+  deps, not the cache.nixos.org toolchain), so the cache stays small (~900MB).
+  gc-max-store-size bounds it so old deps generations and stale build outputs do
+  not accumulate across runs; the deps profile pin keeps the current deps rooted
+  so the GC trims everything except what the next build reuses.
+inputs:
+  cache-scope:
+    description: >
+      Unique matrix-entry identifier (the matrix `name`) used to scope the cache
+      key. github.job is identical across matrix legs, so the scope is what keeps
+      each leg separate without leaning on runner.arch. Leave empty for
+      single-leg jobs, which github.job alone already distinguishes.
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Install Nix
+      uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      with:
+        github_access_token: ${{ github.token }}
+        nix_conf: |
+          access-tokens = github.com=${{ github.token }}
+
+    - name: Cache Nix store
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        primary-key: nix-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        restore-prefixes-first-match: nix-${{ github.job }}-${{ inputs.cache-scope }}-
+        # cache-nix-action applies the size limit matching the runner OS, so set
+        # both to keep this action cross-platform.
+        gc-max-store-size-linux: 2000000000
+        gc-max-store-size-macos: 3500000000
+        purge: true
+        purge-prefixes: nix-${{ github.job }}-${{ inputs.cache-scope }}-
+        purge-created: 172800
+        purge-primary-key: never
+
+    - name: Fix single-user Nix store ownership
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        for path in /nix/var/log/nix /nix/var/nix; do
+          if [ -e "$path" ]; then
+            sudo chown -R "$USER:$(id -gn)" "$path"
+          fi
+        done
