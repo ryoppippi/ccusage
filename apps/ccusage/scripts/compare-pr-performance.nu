@@ -527,31 +527,26 @@ def ccusage_benchmark_env [fixture_dir: string, codex_fixture_dir] {
 def ccusage_command_args [command: string] {
     $command | split row ' ' | where {|part| $part != '' }
 }
+def command_text_arg [value] {
+    let text = ($value | into string)
+    if $text =~ '^[A-Za-z0-9_@%+=:,./-]+$' {
+        $text
+    } else {
+        $text | to json --raw
+    }
+}
+def benchmark_command_text [command_env: record, args: list<string>] {
+    let env_args = ($command_env | transpose name value | each {|item| $"($item.name)=($item.value)" })
+    (
+        [env] | append $env_args | append $args | each {|arg| command_text_arg $arg } | str join ' '
+    )
+}
 def create_ccusage_command_from_bin [
     bin_entry: string
     fixture_dir: string
     codex_fixture_dir
     command: string
-] {
-    [
-        env
-        $"CLAUDE_CONFIG_DIR=($fixture_dir)"
-        ...(if $codex_fixture_dir == null { [] } else {
-            [
-                $"CODEX_HOME=($codex_fixture_dir)"
-            ]
-        })
-        'COLUMNS=200'
-        'LOG_LEVEL=0'
-        'NO_COLOR=1'
-        'TZ=UTC'
-        node
-        $bin_entry
-        $command
-        --offline
-        --json
-    ] | str join ' '
-}
+] { benchmark_command_text (ccusage_benchmark_env $fixture_dir $codex_fixture_dir) ([node, $bin_entry] | append (ccusage_command_args $command) | append [--offline, --json]) }
 def create_ccusage_benchmark_command_from_bin [
     bin_entry: string
     fixture_dir: string
@@ -567,25 +562,7 @@ def create_ccusage_command_from_rust_binary [
     fixture_dir: string
     codex_fixture_dir
     command: string
-] {
-    [
-        env
-        $"CLAUDE_CONFIG_DIR=($fixture_dir)"
-        ...(if $codex_fixture_dir == null { [] } else {
-            [
-                $"CODEX_HOME=($codex_fixture_dir)"
-            ]
-        })
-        'COLUMNS=200'
-        'LOG_LEVEL=0'
-        'NO_COLOR=1'
-        'TZ=UTC'
-        $bin_entry
-        $command
-        --offline
-        --json
-    ] | str join ' '
-}
+] { benchmark_command_text (ccusage_benchmark_env $fixture_dir $codex_fixture_dir) ([$bin_entry] | append (ccusage_command_args $command) | append [--offline, --json]) }
 def create_ccusage_benchmark_command_from_rust_binary [
     bin_entry: string
     fixture_dir: string
