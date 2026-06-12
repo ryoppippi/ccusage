@@ -23,7 +23,6 @@ in
             nodejs
             pnpm
             bun
-            nushell
 
             rustToolchain
             cargo-edit

@@ -1,4 +1,5 @@
-#!/usr/bin/env nu
+#!/usr/bin/env nix
+#! nix shell --inputs-from ../../.. nixpkgs#nushell --command nu
 
 const system_dylib_prefixes = [
 	'/usr/lib/',
