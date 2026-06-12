@@ -75,7 +75,6 @@ for (const [providerId, provider] of sortedEntries(providers)) {
 			entry.limit = { context: model.limit.context };
 		}
 		const candidate: ModelsDevPricingCandidate = {
-			pricingKey,
 			sourceProviderId: provider.id ?? providerId,
 			sourceModelId: modelId,
 			hasContextLimit: entry.limit != null,
@@ -119,7 +118,7 @@ const sortObject = (value: unknown): unknown => {
 };
 
 function sortedEntries<T>(value: Record<string, T>): Array<[string, T]> {
-	return Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
+	return Object.entries(value).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
 }
 
 const outfile = process.env.OUTFILE;

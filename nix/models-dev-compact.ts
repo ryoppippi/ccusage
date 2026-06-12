@@ -3,7 +3,6 @@ export function selectModelsDevPricingKey(modelId: string, catalogId: string | u
 }
 
 export type ModelsDevPricingCandidate = {
-	pricingKey: string;
 	sourceProviderId: string;
 	sourceModelId: string;
 	hasContextLimit: boolean;

@@ -37,7 +37,6 @@ it('prefers Anthropic provider pricing over duplicate aliases', () => {
 	expect(
 		shouldReplaceModelsDevPricingCandidate(
 			{
-				pricingKey: 'claude-sonnet-4-6',
 				sourceProviderId: 'github-copilot',
 				sourceModelId: 'claude-sonnet-4-6',
 				hasContextLimit: true,
@@ -45,7 +44,6 @@ it('prefers Anthropic provider pricing over duplicate aliases', () => {
 				hasExplicitCacheWrite: true,
 			},
 			{
-				pricingKey: 'claude-sonnet-4-6',
 				sourceProviderId: 'anthropic',
 				sourceModelId: 'claude-sonnet-4-6',
 				hasContextLimit: true,
@@ -60,7 +58,6 @@ it('uses a stable source ordering tie-break for duplicate aliases', () => {
 	expect(
 		shouldReplaceModelsDevPricingCandidate(
 			{
-				pricingKey: 'claude-sonnet-4',
 				sourceProviderId: 'nano-gpt',
 				sourceModelId: 'claude-sonnet-4',
 				hasContextLimit: true,
@@ -68,7 +65,6 @@ it('uses a stable source ordering tie-break for duplicate aliases', () => {
 				hasExplicitCacheWrite: true,
 			},
 			{
-				pricingKey: 'claude-sonnet-4',
 				sourceProviderId: 'github-copilot',
 				sourceModelId: 'claude-sonnet-4',
 				hasContextLimit: true,
