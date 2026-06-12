@@ -400,19 +400,25 @@ impl PricingMap {
     }
 
     pub(crate) fn context_limit(&self, model: &str) -> Option<u64> {
-        self.context_limit_entry(model)
+        self.context_limit_entry_or_alias(model)
             .or_else(|| {
                 self.enable_models_dev_fallback
                     .then(|| {
-                        models_dev_pricing().and_then(|pricing| pricing.context_limit_entry(model))
+                        models_dev_pricing()
+                            .and_then(|pricing| pricing.context_limit_entry_or_alias(model))
                     })
                     .flatten()
             })
             .or_else(|| {
                 self.enable_embedded_models_dev_fallback
-                    .then(|| embedded_models_dev_pricing().context_limit_entry(model))
+                    .then(|| embedded_models_dev_pricing().context_limit_entry_or_alias(model))
                     .flatten()
             })
+    }
+
+    fn context_limit_entry_or_alias(&self, model: &str) -> Option<u64> {
+        self.context_limit_entry(model)
+            .or_else(|| pricing_alias(model).and_then(|alias| self.context_limit_entry(alias)))
     }
 
     fn context_limit_entry(&self, model: &str) -> Option<u64> {
@@ -1125,6 +1131,8 @@ fn normalized_pricing_key(value: &str) -> Cow<'_, str> {
     }
 }
 
+/// Maps Codex log labels that upstream pricing sources do not publish to
+/// canonical pricing keys.
 fn pricing_alias(model: &str) -> Option<&'static str> {
     match model {
         "codex-auto-review" => Some("gpt-5.5"),
@@ -1790,20 +1798,32 @@ mod tests {
     #[test]
     fn embedded_pricing_resolves_codex_auto_review_model() {
         let pricing = PricingMap::load_embedded();
-        let auto_review = pricing.find("codex-auto-review").unwrap();
-        let latest_codex = pricing.find("gpt-5.5").unwrap();
+        let auto_review = pricing
+            .find("codex-auto-review")
+            .expect("codex-auto-review should resolve via model alias");
+        let latest_codex = pricing
+            .find("gpt-5.5")
+            .expect("canonical latest Codex pricing should exist");
 
         assert_eq!(auto_review.input, latest_codex.input);
         assert_eq!(auto_review.output, latest_codex.output);
         assert_eq!(auto_review.cache_read, latest_codex.cache_read);
         assert_eq!(auto_review.fast_multiplier, latest_codex.fast_multiplier);
+        assert_eq!(
+            pricing.context_limit("codex-auto-review"),
+            pricing.context_limit("gpt-5.5")
+        );
     }
 
     #[test]
-    fn embedded_pricing_resolves_codex_spark_short_model() {
+    fn embedded_pricing_resolves_codex_spark_short_model_alias() {
         let pricing = PricingMap::load_embedded();
-        let short_spark = pricing.find("gpt-5.3-spark").unwrap();
-        let codex_spark = pricing.find("gpt-5.3-codex-spark").unwrap();
+        let short_spark = pricing
+            .find("gpt-5.3-spark")
+            .expect("gpt-5.3-spark should resolve via model alias");
+        let codex_spark = pricing
+            .find("gpt-5.3-codex-spark")
+            .expect("canonical Codex Spark pricing should exist");
 
         assert_eq!(short_spark.input, codex_spark.input);
         assert_eq!(short_spark.output, codex_spark.output);
