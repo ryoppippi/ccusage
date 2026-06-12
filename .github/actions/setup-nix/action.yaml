@@ -1,5 +1,9 @@
 name: Setup Nix
 description: Install Nix with platform-specific cache setup
+inputs:
+  cache-key-suffix:
+    description: Extra suffix to scope the macOS Nix cache key (e.g. cross target arch)
+    default: ''
 runs:
   using: composite
   steps:
@@ -15,6 +19,8 @@ runs:
 
     - uses: ./.github/actions/setup-macos-nix-cache
       if: runner.os == 'macOS'
+      with:
+        key-suffix: ${{ inputs.cache-key-suffix }}
 
     - name: Fix single-user Nix store ownership
       if: runner.os != 'Windows'

@@ -11,6 +11,10 @@ runs:
   using: composite
   steps:
     - uses: ./.github/actions/setup-nix
+      with:
+        # arm64 and x64 both run on the same arm64 runner, so scope the macOS
+        # Nix cache by target arch to stop the two builds clobbering one store.
+        cache-key-suffix: ${{ inputs.arch }}
 
     - name: Build macOS binary
       shell: bash

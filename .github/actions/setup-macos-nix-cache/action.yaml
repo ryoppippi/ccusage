@@ -1,15 +1,22 @@
 name: Setup macOS Nix cache
 description: Restore and save the macOS Nix store with the original Nix cache action
+inputs:
+  key-suffix:
+    description: >
+      Extra suffix to scope the cache key. The arm64 and x64 macOS builds run on
+      the same arm64 runner (same runner.os/runner.arch), so without this they
+      would share one key and clobber each other's store.
+    default: ''
 runs:
   using: composite
   steps:
     - name: Cache macOS Nix store
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
-        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.key-suffix }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.key-suffix }}-
         gc-max-store-size-macos: 3500000000
         purge: true
-        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-
+        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.key-suffix }}-
         purge-created: 172800
         purge-primary-key: never
