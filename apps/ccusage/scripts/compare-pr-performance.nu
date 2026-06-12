@@ -118,7 +118,15 @@ def main [
 		head_native_bin_entry: $head_native_bin_entry
 		head_package_url: $values.head_package_url
 		head_runtime: $head_runtime
-		head_runtime_description: (if $head_runtime != 'package' or $head_package_install == null { null } else { 'PR runs the published `ccusage` package from `pkg.pr.new`, installed before measurement' })
+		head_runtime_description: (
+			if $head_runtime == 'rust' and $head_native_bin_entry != null {
+				'PR runs the published native `ccusage` binary from `pkg.pr.new`, installed before measurement'
+			} else if $head_runtime == 'package' and $head_package_install != null {
+				'PR runs the published `ccusage` package from `pkg.pr.new`, installed before measurement'
+			} else {
+				null
+			}
+		)
 		head_sha: (git_sha $head_dir)
 		memory_runs: $values.memory_runs
 		runs: $values.runs
@@ -659,12 +667,6 @@ def create_head_ccusage_benchmark_command [options] {
 	} else {
 		create_ccusage_benchmark_command_from_bin (package_bin_entry $options.head_dir) $options.fixture_dir $options.codex_fixture_dir $options.command
 	}
-}
-
-def run_command [command] {
-	let cmd = ($command.args | get 0)
-	let rest = ($command.args | skip 1)
-	with-env $command.env { run-external $cmd ...$rest | complete }
 }
 
 def measure_command_milliseconds [args: list<string>, command_env: record, label: string] {
