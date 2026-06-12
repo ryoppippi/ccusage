@@ -6,7 +6,7 @@ def main [] {
 	let pr_number = (required_env PR_NUMBER)
 	let marker = (required_env COMMENT_MARKER)
 	let body = (open --raw (required_env COMMENT_FILE))
-	let comments = (gh_api_json [$"repos/($repository)/issues/($pr_number)/comments?per_page=100"])
+	let comments = (gh_api_json [--paginate --slurp $"repos/($repository)/issues/($pr_number)/comments?per_page=100"] | flatten)
 	let existing = (
 		$comments
 		| where {|comment|
@@ -22,6 +22,8 @@ def main [] {
 			}
 			$login == 'github-actions[bot]' and ($comment_body | str contains $marker)
 		}
+		| sort-by created_at
+		| reverse
 		| get --optional 0
 	)
 
