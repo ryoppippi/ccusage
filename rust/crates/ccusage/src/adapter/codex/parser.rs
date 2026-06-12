@@ -839,7 +839,17 @@ fn raw_or_normalized_codex_timestamp(value: Option<&CodexTimestamp<'_>>) -> Opti
     match value? {
         CodexTimestamp::String(text) => {
             let text = text.trim();
-            (!text.is_empty()).then(|| text.to_string())
+            if text.is_empty() {
+                return None;
+            }
+            if codex_timestamp_date(text).is_some() {
+                return Some(text.to_string());
+            }
+            // Malformed string: try parsing-based normalization. If that also
+            // fails, return None so the caller's `or_else` chain can try the
+            // next available timestamp field instead of locking in a string
+            // that downstream date resolution will reject.
+            normalize_codex_timestamp(value)
         }
         CodexTimestamp::Number(_) => normalize_codex_timestamp(value),
     }
@@ -874,7 +884,14 @@ fn raw_or_normalized_value_timestamp(value: Option<&Value>) -> Option<String> {
         if text.is_empty() {
             return None;
         }
-        return Some(text.to_string());
+        if codex_timestamp_date(text).is_some() {
+            return Some(text.to_string());
+        }
+        // Malformed string: try parsing-based normalization. If that also
+        // fails, return None so the caller's `or_else` chain can try the
+        // next available timestamp field instead of locking in a string
+        // that downstream date resolution will reject.
+        return normalize_value_timestamp(Some(value));
     }
     normalize_value_timestamp(Some(value))
 }

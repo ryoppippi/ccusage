@@ -128,9 +128,19 @@ function generateCodexAutoReviewFallbacks(
 	);
 
 	return entries
-		.filter(([modelId]) => {
+		.filter(([modelId, model]) => {
 			const version = baseDecimalVersion(openAiModelName(modelId));
-			return version == null || !codexDecimalVersions.has(version);
+			if (version == null || !codexDecimalVersions.has(version)) {
+				return true;
+			}
+			// Drop the base entry only when a `-codex` variant shipped on the same
+			// date. If the codex variant ships later, keep the base so events in
+			// the gap still resolve to the most recent model available then.
+			return !entries.some(
+				([candidateId, candidateModel]) =>
+					codexDecimalVersion(openAiModelName(candidateId)) === version &&
+					candidateModel.release_date === model.release_date,
+			);
 		})
 		.map(([modelId, model]) => ({
 			releasedOn: model.release_date!,
