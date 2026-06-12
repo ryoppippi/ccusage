@@ -23,7 +23,7 @@ fn generate_option_functions(
 ) -> BTreeMap<String, String> {
     let mut rendered_options = BTreeMap::new();
     let mut option_sets = option_sets.iter().collect::<Vec<_>>();
-    option_sets.sort_by(|(left, _), (right, _)| left.cmp(right));
+    option_sets.sort_by_key(|(left, _)| *left);
     for (function_name, options) in option_sets {
         let rendered = render_options(options);
         rendered_options.insert(function_name.to_string(), rendered.clone());
@@ -32,7 +32,7 @@ fn generate_option_functions(
 
     let combined_options = object_field(command_spec, "combinedOptions");
     let mut combined_options = combined_options.iter().collect::<Vec<_>>();
-    combined_options.sort_by(|(left, _), (right, _)| left.cmp(right));
+    combined_options.sort_by_key(|(left, _)| *left);
     for (function_name, parts) in combined_options {
         let Value::Array(parts) = parts else {
             panic!("combined option parts must be an array");

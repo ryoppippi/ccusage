@@ -73,8 +73,6 @@ macro_rules! fs_fixture {
 
 #[cfg(test)]
 mod tests {
-    use crate::fs_fixture;
-
     #[test]
     fn creates_inline_fixture_tree() {
         let fixture = fs_fixture!({
