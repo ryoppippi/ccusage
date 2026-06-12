@@ -24,17 +24,20 @@ runs:
         nix_conf: |
           access-tokens = github.com=${{ github.token }}
 
+    # github.workflow is included so workflows that share a job id (e.g.
+    # build-native-packages in both ci.yaml and release.yaml) do not collide on
+    # the same primary-key / purge-prefix and evict each other's entries.
     - name: Cache Nix store
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
-        primary-key: nix-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        restore-prefixes-first-match: nix-${{ github.job }}-${{ inputs.cache-scope }}-
+        primary-key: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        restore-prefixes-first-match: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
         # cache-nix-action applies the size limit matching the runner OS, so set
         # both to keep this action cross-platform.
         gc-max-store-size-linux: 2000000000
         gc-max-store-size-macos: 3500000000
         purge: true
-        purge-prefixes: nix-${{ github.job }}-${{ inputs.cache-scope }}-
+        purge-prefixes: nix-${{ github.workflow }}-${{ github.job }}-${{ inputs.cache-scope }}-
         purge-created: 172800
         purge-primary-key: never
 
