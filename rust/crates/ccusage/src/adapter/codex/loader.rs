@@ -581,6 +581,42 @@ mod tests {
     }
 
     #[test]
+    fn resolves_codex_auto_review_with_invalid_event_date_to_conservative_model() {
+        let fixture = fs_fixture!({
+            "invalid-month.jsonl": json!({
+                "type": "turn.completed",
+                "timestamp": "2026-99-99T00:00:00.000Z",
+                "model": "codex-auto-review",
+                "usage": {
+                    "input_tokens": 10,
+                    "output_tokens": 5,
+                    "total_tokens": 15,
+                },
+            })
+            .to_string(),
+            "invalid-leap-day.jsonl": json!({
+                "type": "turn.completed",
+                "timestamp": "2026-02-29T00:00:00.000Z",
+                "model": "codex-auto-review",
+                "usage": {
+                    "input_tokens": 20,
+                    "output_tokens": 10,
+                    "total_tokens": 30,
+                },
+            })
+            .to_string(),
+        });
+
+        let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+
+        assert_eq!(events.len(), 2);
+        assert!(events
+            .iter()
+            .all(|event| event.model.as_deref() == Some("gpt-5")));
+        assert!(events.iter().all(|event| event.is_fallback_model));
+    }
+
+    #[test]
     fn resolves_codex_auto_review_turn_context_for_each_event_date() {
         let fixture = fs_fixture!({
             "session.jsonl": [
