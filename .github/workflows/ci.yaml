@@ -127,6 +127,7 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           binary: ${{ matrix.binary }}
+          cache-scope: ${{ matrix.name }}
       - uses: ./.github/actions/build-windows-native-package
         if: matrix.platform == 'win32'
         with:

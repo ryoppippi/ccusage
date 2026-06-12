@@ -1,22 +1,23 @@
 name: Setup macOS Nix cache
 description: Restore and save the macOS Nix store with the original Nix cache action
 inputs:
-  key-suffix:
+  cache-scope:
     description: >
-      Extra suffix to scope the cache key. The arm64 and x64 macOS builds run on
-      the same arm64 runner (same runner.os/runner.arch), so without this they
-      would share one key and clobber each other's store.
-    default: ''
+      Unique identifier for the matrix entry (e.g. the matrix `name`). github.job
+      alone is identical across every matrix leg, and the arm64 and x64 macOS
+      builds share one arm64 runner (same runner.os/runner.arch), so the scope is
+      what keeps each leg's store from clobbering the others'.
+    required: true
 runs:
   using: composite
   steps:
     - name: Cache macOS Nix store
       uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
       with:
-        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.key-suffix }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
-        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.key-suffix }}-
+        primary-key: nix-${{ github.job }}-${{ inputs.cache-scope }}-${{ hashFiles('flake.lock', 'flake.nix', 'default.nix', 'package.nix', 'package.json', 'nix/**/*.nix', 'rust-toolchain.toml', 'rust/Cargo.lock', 'rust/**/Cargo.toml') }}
+        restore-prefixes-first-match: nix-${{ github.job }}-${{ inputs.cache-scope }}-
         gc-max-store-size-macos: 3500000000
         purge: true
-        purge-prefixes: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.key-suffix }}-
+        purge-prefixes: nix-${{ github.job }}-${{ inputs.cache-scope }}-
         purge-created: 172800
         purge-primary-key: never
