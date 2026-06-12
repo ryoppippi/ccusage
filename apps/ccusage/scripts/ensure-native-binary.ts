@@ -8,6 +8,7 @@ const nativePackageDirs = new Map([
 	['darwin-x64', 'ccusage-darwin-x64'],
 	['linux-arm64', 'ccusage-linux-arm64'],
 	['linux-x64', 'ccusage-linux-x64'],
+	['android-arm64', 'ccusage-linux-arm64'],
 	['win32-arm64', 'ccusage-win32-arm64'],
 	['win32-x64', 'ccusage-win32-x64'],
 ]);
@@ -78,7 +79,7 @@ async function isPortableBinary(binary: string | undefined): Promise<boolean> {
 	if (binary == null) {
 		return false;
 	}
-	if (platform === 'linux') {
+	if (platform === 'linux' || platform === 'android') {
 		// ldd exits non-zero for static executables, so inspect the combined
 		// output instead of the exit code (mirrors the release CI check).
 		const result = await Bun.$`ldd ${binary}`.quiet().nothrow();

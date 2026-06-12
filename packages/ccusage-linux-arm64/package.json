@@ -12,7 +12,8 @@
 		"bin/ccusage"
 	],
 	"os": [
-		"linux"
+		"linux",
+		"android"
 	],
 	"cpu": [
 		"arm64"

@@ -41,7 +41,7 @@ function getNativePackageName(
 		return undefined;
 	}
 
-	if (platform === 'linux') {
+	if (platform === 'linux' || platform === 'android') {
 		if (arch === 'arm64') {
 			return '@ccusage/ccusage-linux-arm64';
 		}
