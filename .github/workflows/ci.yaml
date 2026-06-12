@@ -248,9 +248,15 @@ jobs:
           RUNNER_KIND: ${{ matrix.runner }}
           # pnpm 11 defaults minimumReleaseAge to 1440 (24h), which would reject
           # a pkg.pr.new preview published moments ago. Opt out via the config
-          # env var (cleaner than a --config flag, and only pnpm reads it).
+          # env var (only pnpm reads PNPM_CONFIG_*, so npm/bun ignore it).
           # https://pnpm.io/settings#minimumreleaseage
-          npm_config_minimum_release_age: '0'
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
+          # pnpm 11 also defaults blockExoticSubdeps to true, which rejects the
+          # URL-resolved native optional deps (e.g. @ccusage/ccusage-linux-x64)
+          # that pkg.pr.new injects into the published ccusage manifest. Allow
+          # them so `pnpm dlx <url>` can install the matching native binary.
+          # https://pnpm.io/settings#blockexoticsubdeps
+          PNPM_CONFIG_BLOCK_EXOTIC_SUBDEPS: 'false'
         run: |
           # pnpm dlx on Windows doesn't install optional native binaries into its
           # temporary store, so the CLI launcher fails with spawn ENOENT; skip
