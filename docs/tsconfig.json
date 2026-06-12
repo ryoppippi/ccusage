@@ -6,7 +6,7 @@
 		"module": "Preserve",
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
-		"types": ["bun"],
+		"types": ["node"],
 		"allowImportingTsExtensions": false,
 		"allowJs": true,
 		"strict": true,

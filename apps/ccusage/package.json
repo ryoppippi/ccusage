@@ -32,9 +32,8 @@
 		"prepack": "pnpm run build && clean-pkg-json"
 	},
 	"devDependencies": {
-		"@types/bun": "catalog:types",
+		"@types/node": "catalog:types",
 		"clean-pkg-json": "catalog:release",
-		"mitata": "catalog:testing",
 		"publint": "catalog:lint",
 		"tsdown": "catalog:build",
 		"vitest": "catalog:testing"

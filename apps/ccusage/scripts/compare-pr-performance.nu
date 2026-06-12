@@ -1,5 +1,5 @@
 #!/usr/bin/env nix
-#! nix shell --inputs-from ../../.. nixpkgs#nushell nixpkgs#bun nixpkgs#curl nixpkgs#git nixpkgs#hyperfine nixpkgs#just nixpkgs#pnpm --command nu
+#! nix shell --inputs-from ../../.. nixpkgs#nushell nixpkgs#bun nixpkgs#curl nixpkgs#git nixpkgs#hyperfine nixpkgs#just nixpkgs#nodejs nixpkgs#pnpm --command nu
 const head_runtime_choices = ['package', 'rust']
 def main [
     --base-dir: string
@@ -18,7 +18,6 @@ def main [
     --large-warmup: int = 0
     --memory-runs: int = 1
     --head-package-url: string
-    --package-runner-runs: int = 3
     --package-runner-timeout-ms: int = 120000
 ] {
     let values = {
@@ -36,7 +35,6 @@ def main [
         large_warmup: $large_warmup
         memory_runs: $memory_runs
         output: $output
-        package_runner_runs: $package_runner_runs
         package_runner_timeout_ms: $package_runner_timeout_ms
         runs: $runs
         warmup: $warmup
@@ -50,7 +48,6 @@ def main [
     }
     assert_sample_options $values.runs $values.warmup ''
     assert_sample_options $values.large_runs $values.large_warmup 'large-'
-    assert_sample_options $values.package_runner_runs 0 'package-runner-'
     if $values.memory_runs < 0 {
         error make {msg: '--memory-runs must be a non-negative integer'}
     }
@@ -147,42 +144,6 @@ def main [
 			warmup: $values.large_warmup
 		})))
     }
-    let base_bunx_cache_dir = ([$install_root, bunx-base-cache] | path join)
-    let head_bunx_cache_dir = ([$install_root, bunx-head-cache] | path join)
-    let package_runner = if $values.base_package_url == null and $values.head_package_url == null {
-        null
-    } else {
-        {
-            base: (if $values.base_package_url == null { null } else {
-                measure_package_runner_with_acquisition $base_package_install.acquisition? $base_bunx_cache_dir base $values.base_package_url $values.package_runner_runs $values.package_runner_timeout_ms
-            })
-            head: (if $values.head_package_url == null { null } else {
-                measure_package_runner_with_acquisition $head_package_install.acquisition? $head_bunx_cache_dir PR $values.head_package_url $values.package_runner_runs $values.package_runner_timeout_ms
-            })
-        }
-    }
-    let bunx_sections = if ($package_runner == null or $package_runner.base == null or $package_runner.head == null or $values.base_package_url == null or $values.head_package_url == null or $values.large_fixture_dir == null) {
-        []
-    } else {
-        [
-            (compare_bunx_fixture {
-                base_cache_dir: $base_bunx_cache_dir
-                base_package_url: $values.base_package_url
-                codex_fixture_dir: (if $values.large_codex_fixture_dir == null { $codex_fixture_dir } else {
-                    $values.large_codex_fixture_dir | path expand
-                })
-                commands: ['claude', 'codex']
-                description: 'Runs the same large fixture through `bunx -p <pkg.pr.new URL> ccusage` after the Bun install cache has already been populated by the startup measurement. This separates cached package-runner execution from first-fetch package materialization.'
-                fixture_dir: ($values.large_fixture_dir | path expand)
-                head_cache_dir: $head_bunx_cache_dir
-                head_package_url: $values.head_package_url
-                memory_runs: $values.memory_runs
-                runs: $values.large_runs
-                title: 'Cached bunx execution performance'
-                warmup: $values.large_warmup
-            })
-        ]
-    }
     let runtime_diagnostic_section = if $values.large_fixture_dir == null {
         null
     } else {
@@ -211,8 +172,6 @@ def main [
         head_rust_binary: (optional_file_size_bytes (rust_binary_entry $head_dir))
     }
     let markdown = (render_markdown $sections $sizes ($options | merge {
-		bunx_sections: $bunx_sections
-		package_runner: $package_runner
 		runtime_diagnostic_sections: $runtime_diagnostic_sections
 	}))
     write_output $values.output $markdown
@@ -249,9 +208,6 @@ def arch_name [] { match $nu.os-info.arch {
     x86_64 => 'x64'
     $other => $other
 } }
-def bun_path [] {
-    which bun | get 0.path
-}
 def package_bin_entry [repo_dir: string] {
     let package_dir = ([$repo_dir, apps, ccusage] | path join)
     let package_json = (open ([$package_dir, package.json] | path join))
@@ -589,8 +545,7 @@ def create_ccusage_command_from_bin [
         'LOG_LEVEL=0'
         'NO_COLOR=1'
         'TZ=UTC'
-        (bun_path)
-        -b
+        node
         $bin_entry
         $command
         --offline
@@ -603,11 +558,7 @@ def create_ccusage_benchmark_command_from_bin [
     codex_fixture_dir
     command: string
 ] { {
-    args: ([
-        (bun_path)
-        -b
-        $bin_entry
-    ] | append (ccusage_command_args $command) | append [--offline, --json])
+    args: ([node, $bin_entry] | append (ccusage_command_args $command) | append [--offline, --json])
     env: (ccusage_benchmark_env $fixture_dir $codex_fixture_dir)
     text: (create_ccusage_command_from_bin $bin_entry $fixture_dir $codex_fixture_dir $command)
 } }
@@ -645,61 +596,6 @@ def create_ccusage_benchmark_command_from_rust_binary [
     env: (ccusage_benchmark_env $fixture_dir $codex_fixture_dir)
     text: (create_ccusage_command_from_rust_binary $bin_entry $fixture_dir $codex_fixture_dir $command)
 } }
-def create_bunx_startup_command [package_url: string] { [
-    (bun_path)
-    x
-    -p
-    $package_url
-    ccusage
-    --version
-] }
-def create_ccusage_command_from_bunx_package [
-    package_url: string
-    cache_dir: string
-    fixture_dir: string
-    codex_fixture_dir
-    command: string
-] {
-    [
-        env
-        $"BUN_INSTALL_CACHE_DIR=($cache_dir)"
-        $"CLAUDE_CONFIG_DIR=($fixture_dir)"
-        ...(if $codex_fixture_dir == null { [] } else {
-            [
-                $"CODEX_HOME=($codex_fixture_dir)"
-            ]
-        })
-        'COLUMNS=200'
-        'LOG_LEVEL=0'
-        'NO_COLOR=1'
-        'TZ=UTC'
-        (bun_path)
-        x
-        -p
-        $package_url
-        ccusage
-        $command
-        --offline
-        --json
-    ] | str join ' '
-}
-def create_ccusage_benchmark_command_from_bunx_package [
-    package_url: string
-    cache_dir: string
-    fixture_dir: string
-    codex_fixture_dir
-    command: string
-] { {
-    args: ([
-        (bun_path)
-        x
-        -p
-        $package_url
-        ccusage
-    ] | append (ccusage_command_args $command) | append [--offline, --json])
-    env: ({BUN_INSTALL_CACHE_DIR: $cache_dir} | merge (ccusage_benchmark_env $fixture_dir $codex_fixture_dir))
-    text: (create_ccusage_command_from_bunx_package $package_url $cache_dir $fixture_dir $codex_fixture_dir $command)
-} }
 def create_head_ccusage_benchmark_command [options] {
     if $options.head_runtime == 'package' and $options.head_bin_entry != null {
         return (create_ccusage_benchmark_command_from_bin $options.head_bin_entry $options.fixture_dir $options.codex_fixture_dir $options.command)
@@ -725,45 +621,6 @@ def measure_command_milliseconds [args: list<string>, command_env: record, label
         }
     }
     $elapsed
-}
-def measure_package_runner_startup [
-    cache_dir: string
-    label: string
-    package_url: string
-    runs: int
-    timeout_ms: int
-] {
-    write_progress $"($label) bunx startup waiting for package URL"
-    if not (wait_for_package_url $package_url $timeout_ms) {
-        write_progress $"($label) bunx startup skipped because package URL was not ready"
-        return null
-    }
-    let args = (create_bunx_startup_command $package_url)
-    let command_env = {BUN_INSTALL_CACHE_DIR: $cache_dir}
-    write_progress $"($label) bunx cold startup started"
-    let cold = (measure_command_milliseconds $args $command_env $"($label) bunx cold startup")
-    mut warm_times = []
-    for _ in 0..<($runs) { $warm_times = ($warm_times | append (measure_command_milliseconds $args $command_env $"($label) bunx warm startup")) }
-    let warm = (measurement_from_milliseconds $warm_times)
-    write_progress $"($label) bunx startup done: cold (format_duration $cold), warm (format_duration $warm.median)"
-    {
-        cold: $cold
-        package_url: $package_url
-        warm: $warm
-    }
-}
-def measure_package_runner_with_acquisition [
-    acquisition
-    cache_dir: string
-    label: string
-    package_url: string
-    runs: int
-    timeout_ms: int
-] {
-    let startup = (measure_package_runner_startup $cache_dir $label $package_url $runs $timeout_ms)
-    if $startup == null { null } else {
-        $startup | upsert acquisition $acquisition
-    }
 }
 def parse_peak_rss_bytes [stderr: string] {
     let linux = ($stderr | parse --regex 'Maximum resident set size \(kbytes\):\s*(?P<kb>\d+)')
@@ -887,61 +744,6 @@ def compare_command [command: string, options] {
         head_memory: $head_memory
     }
 }
-def compare_bunx_command [command: string, options] {
-    write_progress $"($options.fixture_title) / bunx ($command) started"
-    let temp_dir = (mktemp -d -t ccusage-hyperfine.XXXXXX | str trim)
-    let export_path = ([$temp_dir, hyperfine.json] | path join)
-    let base_command = (create_ccusage_benchmark_command_from_bunx_package $options.base_package_url $options.base_cache_dir $options.fixture_dir $options.codex_fixture_dir $command)
-    let head_command = (create_ccusage_benchmark_command_from_bunx_package $options.head_package_url $options.head_cache_dir $options.fixture_dir $options.codex_fixture_dir $command)
-    let hyperfine_args = [
-        --shell
-        none
-        --warmup
-        ($options.warmup | into string)
-        --runs
-        ($options.runs | into string)
-        --export-json
-        $export_path
-        --style
-        basic
-        --output
-        pipe
-        --sort
-        command
-        --command-name
-        base
-        --command-name
-        PR
-        $base_command.text
-        $head_command.text
-    ]
-    let result = (run-external hyperfine ...$hyperfine_args | complete)
-    if $result.exit_code != 0 {
-        error make {
-            msg: $"hyperfine failed for ($options.fixture_title) / bunx ($command): exit ($result.exit_code)\n($result.stderr)"
-        }
-    }
-    let hyperfine_output = (open $export_path)
-    let base = (measurement_from_hyperfine ($hyperfine_output.results | get 0))
-    let head = (measurement_from_hyperfine ($hyperfine_output.results | get 1))
-    let base_memory = (measure_command_memory $base_command {
-        label: $"($options.fixture_title) / bunx ($command) base"
-        runs: $options.memory_runs
-    })
-    let head_memory = (measure_command_memory $head_command {
-        label: $"($options.fixture_title) / bunx ($command) PR"
-        runs: $options.memory_runs
-    })
-    write_progress $"($options.fixture_title) / bunx ($command) done: base (format_duration $base.median), PR (format_duration $head.median)"
-    rm -rf $temp_dir
-    {
-        base: $base
-        base_memory: $base_memory
-        command: $command
-        head: $head
-        head_memory: $head_memory
-    }
-}
 def compare_fixture [options] {
     write_progress $"($options.title) started"
     let fixture_stats = (summarize_directory $options.fixture_dir)
@@ -955,28 +757,6 @@ def compare_fixture [options] {
         description: $options.description
         fixture_dir: $options.fixture_dir
         fixture_stats: $fixture_stats
-        memory_runs: $options.memory_runs
-        results: $results
-        runs: $options.runs
-        title: $options.title
-        warmup: $options.warmup
-    }
-}
-def compare_bunx_fixture [options] {
-    write_progress $"($options.title) started"
-    let fixture_stats = (summarize_directory $options.fixture_dir)
-    let codex_fixture_stats = if $options.codex_fixture_dir == null { null } else { summarize_directory $options.codex_fixture_dir }
-    mut results = []
-    for command in $options.commands { $results = ($results | append (compare_bunx_command $command ($options | upsert fixture_title $options.title))) }
-    write_progress $"($options.title) finished"
-    {
-        base_package_url: $options.base_package_url
-        codex_fixture_dir: $options.codex_fixture_dir
-        codex_fixture_stats: $codex_fixture_stats
-        description: $options.description
-        fixture_dir: $options.fixture_dir
-        fixture_stats: $fixture_stats
-        head_package_url: $options.head_package_url
         memory_runs: $options.memory_runs
         results: $results
         runs: $options.runs
@@ -1113,14 +893,14 @@ def render_fixture_section [section, options] {
     let base_runtime_description = if $options.base_runtime_description? != null {
         $options.base_runtime_description
     } else {
-        'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`'
+        'Base runs the package `ccusage` bin from `apps/ccusage/package.json` with Node'
     }
     let head_runtime_description = if $options.head_runtime_description? != null {
         $options.head_runtime_description
     } else if $options.head_runtime == 'rust' {
         'PR runs `rust/target/release/ccusage` directly'
     } else {
-        'PR runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`'
+        'PR runs the package `ccusage` bin from `apps/ccusage/package.json` with Node'
     }
     let fixture_line = if $section.codex_fixture_dir == null {
         $"Fixture: `(format_fixture_path $options.head_dir $section.fixture_dir)` \((format_fixture_stats $section.fixture_stats))"
@@ -1196,88 +976,6 @@ def render_runtime_diagnostic_section [section, options] {
         (table_md $table_rows)
     ]
 }
-def render_bunx_fixture_section [section, options] {
-    let has_memory = ($section.results | any {|result| $result.base_memory != null or $result.head_memory != null })
-    let fixture_line = if $section.codex_fixture_dir == null {
-        $"Fixture: `(format_fixture_path $options.head_dir $section.fixture_dir)` \((format_fixture_stats $section.fixture_stats))"
-    } else {
-        $"Fixtures: Claude `(format_fixture_path $options.head_dir $section.fixture_dir)` \((format_fixture_stats $section.fixture_stats)), Codex `(format_fixture_path $options.head_dir $section.codex_fixture_dir)` \((format_fixture_stats (if $section.codex_fixture_stats == null { $section.fixture_stats } else { $section.codex_fixture_stats })))"
-    }
-    let table_rows = ($section.results | each {|result|
-		let speedup = ($result.base.median / $result.head.median)
-		let fixture_stats = (fixture_stats_for_command $section $result.command)
-		let common = {
-			Command: $"`bunx -p <pkg> ccusage ($result.command) --offline --json`"
-			Input: (format_data_size $fixture_stats.bytes)
-			'Base median': (format_duration $result.base.median)
-			'PR median': (format_duration $result.head.median)
-			'PR vs base': $"($speedup | into string --decimals 2)x"
-		}
-		if $has_memory {
-			$common | merge {
-				'Base peak RSS': (format_optional_memory $result.base_memory)
-				'PR peak RSS': (format_optional_memory $result.head_memory)
-				'PR/base RSS': (format_memory_ratio $result.base_memory $result.head_memory)
-				'Base throughput': (format_throughput $fixture_stats.bytes $result.base.median)
-				'PR throughput': (format_throughput $fixture_stats.bytes $result.head.median)
-			}
-		} else {
-			$common | merge {
-				'Base throughput': (format_throughput $fixture_stats.bytes $result.base.median)
-				'PR throughput': (format_throughput $fixture_stats.bytes $result.head.median)
-			}
-		}
-	})
-    [
-        $"## ($section.title)"
-        ''
-        $section.description
-        ''
-        $fixture_line
-        $"Base package: `(package_url_sha $section.base_package_url)`; PR package: `(package_url_sha $section.head_package_url)`. Both run through `bunx -p <pkg.pr.new URL> ccusage` using the warmed Bun install cache from package runner startup, measured by `hyperfine` with `($section.warmup)` warmups and `($section.runs)` runs."
-        ...(if $has_memory {
-            [
-                $"Peak RSS is measured separately with `/usr/bin/time` using `($section.memory_runs)` runs. Lower RSS ratios are better."
-            ]
-        } else { [] })
-        ''
-        (table_md $table_rows)
-    ]
-}
-def render_package_runner_comparison [package_runner] {
-    if $package_runner == null or ($package_runner.base == null and $package_runner.head == null) {
-        return []
-    }
-    mut rows = []
-    if $package_runner.base != null {
-        $rows = ($rows | append {
-			Package: 'Base pkg.pr.new'
-			SHA: $"`(package_url_sha $package_runner.base.package_url)`"
-			'Execution setup': (if $package_runner.base.acquisition == null { '-' } else { format_duration $package_runner.base.acquisition })
-			'Bunx temp cache': (format_duration $package_runner.base.cold)
-			'Bunx warm median': (format_duration $package_runner.base.warm.median)
-			'Warm samples': $package_runner.base.warm.samples
-		})
-    }
-    if $package_runner.head != null {
-        $rows = ($rows | append {
-			Package: 'PR pkg.pr.new'
-			SHA: $"`(package_url_sha $package_runner.head.package_url)`"
-			'Execution setup': (if $package_runner.head.acquisition == null { '-' } else { format_duration $package_runner.head.acquisition })
-			'Bunx temp cache': (format_duration $package_runner.head.cold)
-			'Bunx warm median': (format_duration $package_runner.head.warm.median)
-			'Warm samples': $package_runner.head.warm.samples
-		})
-    }
-    [
-        '## Package runner startup'
-        ''
-        'Execution setup measures any pre-benchmark package materialization used by the execution benchmark. Bunx temp cache measures one `bunx -p <url> ccusage --version` run with an empty Bun install cache. Warm reuses that cache and reports the median of repeated runs.'
-        ''
-        (table_md $rows)
-        ''
-    ]
-}
 def render_markdown [sections, sizes, options] {
     let marker_name = if $options.head_runtime == 'rust' { 'ccusage-rust-perf-comment' } else { 'ccusage-perf-comment' }
     mut lines = [
@@ -1300,8 +998,6 @@ def render_markdown [sections, sizes, options] {
         'This compares the PR package against the configured base package on the same CI runner.'
     }))
     $lines = ($lines | append '')
-    $lines = ($lines | append (render_package_runner_comparison $options.package_runner?))
-    for section in ($options.bunx_sections? | default []) { $lines = ($lines | append (render_bunx_fixture_section $section $options) | append '') }
     for section in ($options.runtime_diagnostic_sections? | default []) { $lines = ($lines | append (render_runtime_diagnostic_section $section $options) | append '') }
     for section in $sections { $lines = ($lines | append (render_fixture_section $section $options) | append '') }
     mut size_rows = [

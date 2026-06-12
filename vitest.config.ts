@@ -18,15 +18,6 @@ export default defineConfig({
 					globals: true,
 				},
 			},
-			{
-				test: {
-					name: 'github-scripts',
-					include: [],
-					includeSource: ['.github/scripts/upsert-pr-comment.ts'],
-					exclude: ['**/node_modules/**', '**/.git/**', '.direnv/**'],
-					globals: true,
-				},
-			},
 		],
 	},
 });

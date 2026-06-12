@@ -16,9 +16,6 @@ prepack:
     just build-package
     pnpm exec clean-pkg-json
 
-bench *args:
-    node scripts/bench.mjs {{args}}
-
 build-rust:
     cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage
 

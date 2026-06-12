@@ -22,7 +22,6 @@ in
           (with pkgs; [
             nodejs
             pnpm
-            bun
             nushell
 
             rustToolchain

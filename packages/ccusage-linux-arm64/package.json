@@ -22,7 +22,7 @@
 		"access": "public"
 	},
 	"scripts": {
-		"prepack": "node ../../apps/ccusage/scripts/verify-native-package.mjs && clean-pkg-json && publint"
+		"prepack": "../../apps/ccusage/scripts/verify-native-package.nu && clean-pkg-json && publint"
 	},
 	"devDependencies": {
 		"clean-pkg-json": "catalog:release",

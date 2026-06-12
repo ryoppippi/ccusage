@@ -10,7 +10,7 @@
 	},
 	"devDependencies": {
 		"@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
-		"@types/bun": "catalog:types",
+		"@types/node": "catalog:types",
 		"@types/react": "catalog:types",
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-group-icons": "catalog:docs",

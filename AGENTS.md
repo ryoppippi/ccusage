@@ -10,12 +10,11 @@ Use these skills before working in this repository:
 - `rust` - native Rust CLI implementation, parser/module layout, pricing embedding, and TypeScript parity checks.
 - `profile` - Rust and TypeScript performance profiling, branch-vs-main speed comparisons, profile reading, and optimization validation.
 - `testing` - Rust cargo tests, CLI snapshots, Claude model names, LiteLLM pricing tests, Vitest tests, and filesystem fixtures.
-- `typescript` - TypeScript package/tooling work, Bun scripts, package launchers, schema tooling, and typed fixtures.
+- `typescript` - TypeScript package/tooling work, package launchers, schema tooling, and typed fixtures.
 - `agent-sources` - agent adapter log locations, token mappings, cost rules, and CLI behavior.
 - `docs` - cross-repository documentation impact checks for README files, docs guides, VitePress navigation, screenshots, schema docs, and user-facing commands/options.
 - `skill-creator` - repo-local skill creation, SKILL.md frontmatter, description trigger quality, and reference layout.
 - `ast-grep` - structural code searches in Rust or TypeScript and AST-based migration verification with the dev-shell `ast-grep` CLI.
-- `bun-api-reference` - local Bun runtime API docs and type references under `node_modules/bun-types`.
 - `rust-binary-size` - Rust release profile, dependency feature, native packaging size, and executable bloat reduction guidance based on min-sized-rust.
 - `tdd` - Red-Green-Refactor workflow for logic changes.
 - `reduce-similarities` - AST-based duplicate Rust code detection with similarity-rs; TypeScript duplication checks use `typescript` and `ast-grep`.
