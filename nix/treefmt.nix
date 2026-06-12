@@ -121,6 +121,11 @@ in
             ];
             priority = 6;
           };
+          nufmt = {
+            command = lib.getExe pkgs.nufmt;
+            includes = [ "*.nu" ];
+            priority = 7;
+          };
           oxlint = {
             command = lib.getExe pkgs.oxlint;
             options = [ "--fix" ];
@@ -132,9 +137,9 @@ in
               "*.ts"
               "*.tsx"
             ];
-            priority = 7;
+            priority = 8;
           };
-          rustfmt.priority = 8;
+          rustfmt.priority = 9;
           schema-gen = {
             command = lib.getExe schemaGen;
             includes = [
@@ -142,7 +147,7 @@ in
               "rust/crates/ccusage/src/config_schema.rs"
               "rust/crates/ccusage/src/bin/generate_config_schema.rs"
             ];
-            priority = 9;
+            priority = 10;
           };
         };
       };
