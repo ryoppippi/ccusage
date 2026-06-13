@@ -60,6 +60,7 @@ impl UsageAccumulator {
             *self.message_count.get_or_insert(0) += message_count;
         }
         if let Some(model) = &entry.model {
+            let model = crate::model_aliases::resolve_model_name(model).into_owned();
             let index = if let Some(index) = self.breakdown_indexes.get(model.as_str()) {
                 *index
             } else {
@@ -583,6 +584,58 @@ mod tests {
 
         assert_eq!(row.model_breakdowns[0].model_name, "claude-opus-4-9");
         assert!(row.model_breakdowns[0].missing_pricing);
+    }
+
+    #[test]
+    fn applies_model_aliases_to_model_breakdowns() {
+        let _aliases = crate::model_aliases::set_model_aliases_for_tests([
+            ("private-alpha", "gpt-5.5"),
+            ("another-private-alpha", "gpt-5.5"),
+        ]);
+        let mut accumulator = SessionAccumulator::default();
+        accumulator.add_entry(&loaded_entry(LoadedEntryFixture {
+            date: "2026-01-02",
+            timestamp: 1_767_316_800_000,
+            session_id: "session-a",
+            project_path: "/workspace/project",
+            model: Some("private-alpha"),
+            input_tokens: 20,
+            output_tokens: 5,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 0,
+            extra_total_tokens: 0,
+            cost: 0.02,
+            credits: None,
+            message_count: Some(1),
+            version: Some("1.0.0"),
+            missing_pricing_model: None,
+        }));
+        accumulator.add_entry(&loaded_entry(LoadedEntryFixture {
+            date: "2026-01-02",
+            timestamp: 1_767_316_801_000,
+            session_id: "session-a",
+            project_path: "/workspace/project",
+            model: Some("another-private-alpha"),
+            input_tokens: 30,
+            output_tokens: 7,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 0,
+            extra_total_tokens: 0,
+            cost: 0.03,
+            credits: None,
+            message_count: Some(1),
+            version: Some("1.0.0"),
+            missing_pricing_model: None,
+        }));
+
+        let row = accumulator.into_summary().unwrap();
+
+        assert_eq!(row.models_used, vec!["gpt-5.5"]);
+        assert_eq!(row.model_breakdowns.len(), 1);
+        assert_eq!(row.model_breakdowns[0].model_name, "gpt-5.5");
+        assert_eq!(row.model_breakdowns[0].input_tokens, 50);
+        assert_eq!(row.model_breakdowns[0].output_tokens, 12);
+        assert_eq!(row.model_breakdowns[0].cost, 0.05);
     }
 
     struct LoadedEntryFixture {

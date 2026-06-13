@@ -297,7 +297,8 @@ fn add_deduped_event_to_groups(
         AgentReportKind::Session => event.session_id.clone(),
     };
     let group = groups.entry(period).or_default();
-    accumulate_codex_event_into_group(group, event, model);
+    let model = crate::model_aliases::resolve_model_name(model);
+    accumulate_codex_event_into_group(group, event, model.as_ref());
     Ok(())
 }
 
@@ -432,7 +433,8 @@ pub(crate) fn aggregate_events(
             AgentReportKind::Session => event.session_id.clone(),
         };
         let group = groups.entry(period).or_insert_with(CodexGroup::default);
-        accumulate_codex_event_into_group(group, event, model);
+        let model = crate::model_aliases::resolve_model_name(model);
+        accumulate_codex_event_into_group(group, event, model.as_ref());
     }
     Ok(groups)
 }

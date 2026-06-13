@@ -11,6 +11,7 @@ mod date_utils;
 mod fast;
 mod home;
 mod logger;
+mod model_aliases;
 mod output;
 mod pricing;
 mod progress;
