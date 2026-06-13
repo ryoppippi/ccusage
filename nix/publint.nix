@@ -61,7 +61,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     cp -R node_modules "$toolRoot/node_modules"
     cp -R apps/ccusage "$toolRoot/apps/ccusage"
     cp -R packages "$toolRoot/packages"
-    makeWrapper "$toolRoot/apps/ccusage/node_modules/.bin/publint" "$out/bin/publint"
+    makeWrapper "$toolRoot/apps/ccusage/node_modules/.bin/publint" "$out/bin/publint" \
+      --prefix PATH : ${lib.makeBinPath [ nodejs ]}
 
     runHook postInstall
   '';
