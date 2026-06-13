@@ -143,44 +143,35 @@ in
               const fs = require("node:fs");
               const path = require("node:path");
 
-              function touchPackageFile(packageDir, relativePath, executable = false) {
-                if (!relativePath || relativePath.includes("*")) {
-                  return;
-                }
+              const generatedArtifacts = new Map([
+                ["@ccusage/ccusage-darwin-arm64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-darwin-x64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-linux-arm64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-linux-x64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-win32-arm64", ["bin/ccusage.exe"]],
+                ["@ccusage/ccusage-win32-x64", ["bin/ccusage.exe"]],
+              ]);
 
-                const normalizedPath = relativePath.replace(/^\.\//, "");
-                const targetPath = path.join(packageDir, normalizedPath);
+              function touchGeneratedFile(packageDir, relativePath) {
+                const targetPath = path.join(packageDir, relativePath);
                 fs.mkdirSync(path.dirname(targetPath), { recursive: true });
                 if (!fs.existsSync(targetPath)) {
-                  fs.writeFileSync(targetPath, executable ? "#!/usr/bin/env node\n" : "");
+                  fs.writeFileSync(targetPath, "");
                 }
-                if (executable || normalizedPath.startsWith("bin/")) {
+                if (!relativePath.endsWith(".exe")) {
                   fs.chmodSync(targetPath, 0o755);
-                }
-              }
-
-              function touchBinEntries(packageDir, bin) {
-                if (typeof bin === "string") {
-                  touchPackageFile(packageDir, bin, true);
-                  return;
-                }
-                if (bin && typeof bin === "object") {
-                  for (const value of Object.values(bin)) {
-                    touchPackageFile(packageDir, value, true);
-                  }
                 }
               }
 
               for (const manifestPath of process.argv.slice(2)) {
                 const packageDir = path.dirname(manifestPath);
                 const packageJson = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-                if (Array.isArray(packageJson.files)) {
-                  for (const file of packageJson.files) {
-                    touchPackageFile(packageDir, file);
+                const files = new Set(packageJson.files ?? []);
+                for (const relativePath of generatedArtifacts.get(packageJson.name) ?? []) {
+                  if (files.has(relativePath)) {
+                    touchGeneratedFile(packageDir, relativePath);
                   }
                 }
-                touchBinEntries(packageDir, packageJson.bin);
-                touchBinEntries(packageDir, packageJson.publishConfig?.bin);
               }
               EOF
 

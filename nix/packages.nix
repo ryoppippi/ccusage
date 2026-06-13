@@ -33,9 +33,7 @@ in
       models-dev-pricing = pkgs.callPackage ../nix/models-dev-pricing.nix {
         modelsDevSrc = inputs.models-dev;
       };
-      publint = pkgs.callPackage ../nix/publint.nix {
-        inherit root;
-      };
+      publint = pkgs.callPackage ../nix/publint.nix { };
     in
     {
       apps = {
