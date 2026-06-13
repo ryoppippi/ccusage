@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
-import { ensureNativeBinaryExecutable, resolveCliRuntime, resolveNativeBinary } from './cli.ts';
+import {
+	ensureNativeBinaryExecutable,
+	isMainModule,
+	resolveCliRuntime,
+	resolveNativeBinary,
+} from './cli.ts';
 
 void describe(resolveCliRuntime.name, () => {
 	void it('resolves the native package binary for the current supported platform', () => {
@@ -103,5 +108,18 @@ void describe(resolveCliRuntime.name, () => {
 			undefined,
 		);
 		assert.equal(chmodPath.mock.callCount(), 0);
+	});
+
+	void it('treats package bin symlinks as the main module entry point', () => {
+		const actual = isMainModule({
+			argvEntry: '/project/node_modules/.bin/ccusage',
+			moduleUrl: 'file:///project/node_modules/ccusage/dist/cli.js',
+			realpathPath: (path) =>
+				path === '/project/node_modules/.bin/ccusage'
+					? '/project/node_modules/ccusage/dist/cli.js'
+					: path,
+		});
+
+		assert.equal(actual, true);
 	});
 });

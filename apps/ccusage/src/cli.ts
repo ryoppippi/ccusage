@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { chmodSync, statSync } from 'node:fs';
+import { chmodSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +27,12 @@ type NativeSpawnResult = {
 };
 
 type NativeSpawner = (command: string, args: string[]) => Promise<NativeSpawnResult>;
+
+type MainModuleOptions = {
+	argvEntry?: string;
+	moduleUrl: string;
+	realpathPath?: (path: string) => string;
+};
 
 function getNativePackageName(
 	platform: string = process.platform,
@@ -143,6 +149,23 @@ function ensureNativeBinaryExecutable({
 	}
 }
 
+function isMainModule({
+	argvEntry = process.argv[1],
+	moduleUrl,
+	realpathPath = realpathSync,
+}: MainModuleOptions): boolean {
+	if (argvEntry == null) {
+		return false;
+	}
+
+	const modulePath = fileURLToPath(moduleUrl);
+	try {
+		return realpathPath(modulePath) === realpathPath(argvEntry);
+	} catch {
+		return modulePath === argvEntry;
+	}
+}
+
 function createNativeSpawner(): NativeSpawner {
 	return async (command, args) =>
 		new Promise((resolve) => {
@@ -193,8 +216,8 @@ async function runCli(
 	return result.status ?? 1;
 }
 
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMainModule({ moduleUrl: import.meta.url })) {
 	process.exitCode = await runCli(process.argv.slice(2));
 }
 
-export { ensureNativeBinaryExecutable, resolveCliRuntime, resolveNativeBinary };
+export { ensureNativeBinaryExecutable, isMainModule, resolveCliRuntime, resolveNativeBinary };
