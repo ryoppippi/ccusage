@@ -10,11 +10,10 @@ build: build-package
 
 build-package:
     just ensure-native-binary
-    pnpm exec publint
+    publint
 
 prepack:
     just build-package
-    pnpm exec clean-pkg-json
 
 build-rust:
     cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage

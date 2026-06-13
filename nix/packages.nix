@@ -33,6 +33,7 @@ in
       models-dev-pricing = pkgs.callPackage ../nix/models-dev-pricing.nix {
         modelsDevSrc = inputs.models-dev;
       };
+      publint = pkgs.callPackage ../nix/publint.nix { };
     in
     {
       apps = {
@@ -48,7 +49,7 @@ in
 
       packages = {
         default = ccusage;
-        inherit ccusage models-dev-pricing;
+        inherit ccusage models-dev-pricing publint;
       };
     };
 }

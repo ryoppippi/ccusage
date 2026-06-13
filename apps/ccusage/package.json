@@ -24,11 +24,10 @@
 	"type": "module",
 	"scripts": {
 		"build": "scripts/ensure-native-binary.nu && publint",
-		"prepack": "pnpm run build && clean-pkg-json"
+		"prepack": "pnpm run build"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:types",
-		"clean-pkg-json": "catalog:release",
 		"publint": "catalog:lint"
 	},
 	"optionalDependencies": {

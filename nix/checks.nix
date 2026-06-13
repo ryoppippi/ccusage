@@ -129,6 +129,58 @@ in
         config-example = mkRepoCheck "config-example-check" [ pkgs.check-jsonschema ] ''
           check-jsonschema --schemafile apps/ccusage/config-schema.json ccusage.example.json
         '';
+        publint =
+          mkRepoCheck "publint-check"
+            [
+              config.packages.publint
+              pkgs.fd
+              pkgs.nodejs
+            ]
+            ''
+              mapfile -t packageManifests < <(fd --type f '^package\.json$' .)
+
+              node - "''${packageManifests[@]}" <<'EOF'
+              const fs = require("node:fs");
+              const path = require("node:path");
+
+              const generatedArtifacts = new Map([
+                ["@ccusage/ccusage-darwin-arm64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-darwin-x64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-linux-arm64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-linux-x64", ["bin/ccusage"]],
+                ["@ccusage/ccusage-win32-arm64", ["bin/ccusage.exe"]],
+                ["@ccusage/ccusage-win32-x64", ["bin/ccusage.exe"]],
+              ]);
+
+              function touchGeneratedFile(packageDir, relativePath) {
+                const targetPath = path.join(packageDir, relativePath);
+                fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+                if (!fs.existsSync(targetPath)) {
+                  fs.writeFileSync(targetPath, "");
+                }
+                if (!relativePath.endsWith(".exe")) {
+                  fs.chmodSync(targetPath, 0o755);
+                }
+              }
+
+              for (const manifestPath of process.argv.slice(2)) {
+                const packageDir = path.dirname(manifestPath);
+                const packageJson = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+                const files = new Set(packageJson.files ?? []);
+                for (const relativePath of generatedArtifacts.get(packageJson.name) ?? []) {
+                  if (files.has(relativePath)) {
+                    touchGeneratedFile(packageDir, relativePath);
+                  }
+                }
+              }
+              EOF
+
+              for packageJson in "''${packageManifests[@]}"; do
+                packageDir="$(dirname "$packageJson")"
+                echo "Running publint for $packageDir"
+                publint run "$packageDir" --pack false
+              done
+            '';
       };
     };
 }

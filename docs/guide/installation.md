@@ -93,7 +93,7 @@ cd ccusage
 direnv allow
 ```
 
-The Nix dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, and project utilities. Run project tasks with `just`:
+The Nix dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, package tooling, and project utilities. Run project tasks with `just`:
 
 ```bash
 # Format the tree

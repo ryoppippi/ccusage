@@ -23,6 +23,7 @@ in
             nodejs
             pnpm
             nushell
+            config.packages.publint
 
             rustToolchain
             cargo-edit
@@ -70,10 +71,6 @@ in
               *" -C link-arg=-fuse-ld=mold "*) ;;
               *) export RUSTFLAGS="''${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-fuse-ld=mold" ;;
             esac
-          fi
-          if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
-            echo "📦 Installing dependencies..."
-            pnpm install --frozen-lockfile
           fi
           ${lib.getExe config.packages.syncAgentSkills}
           ${config.pre-commit.shellHook}

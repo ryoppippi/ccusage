@@ -9,6 +9,7 @@ extend-ignore-re = [
 
 [default.extend-words]
 color = "color"
+sade = "sade"
 
 [files]
 ignore-hidden = false
