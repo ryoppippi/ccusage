@@ -42,8 +42,8 @@ generate-large-fixture output_dir codex_output_dir size_mib="1024":
 fmt:
     nix fmt
 
-# Run package typechecks and every flake check (treefmt, oxlint, clippy, schema drift, gitleaks, build)
-check: typecheck
+# Run every flake check (treefmt, oxlint, clippy, schema drift, gitleaks)
+check:
     nix flake check
 
 # Regenerate apps/ccusage/config-schema.json from the Rust source

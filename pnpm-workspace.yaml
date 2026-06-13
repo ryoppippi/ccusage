@@ -6,11 +6,6 @@ packages:
 catalogMode: strict
 
 catalogs:
-  build:
-    '@oxc-project/runtime': ^0.129.0
-    tsdown: ^0.22.0
-    unplugin-macros: ^0.19.2
-    unplugin-unused: ^0.5.7
   docs:
     '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.3
     vitepress: 2.0.0-alpha.17
