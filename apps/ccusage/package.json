@@ -15,27 +15,21 @@
 	},
 	"funding": "https://github.com/sponsors/ryoppippi",
 	"bin": {
-		"ccusage": "./src/cli.ts"
+		"ccusage": "./src/cli.js"
 	},
 	"files": [
 		"config-schema.json",
-		"dist/**/*.js"
+		"src/cli.js"
 	],
 	"type": "module",
-	"publishConfig": {
-		"bin": {
-			"ccusage": "./dist/cli.js"
-		}
-	},
 	"scripts": {
-		"build": "tsdown && scripts/ensure-native-binary.nu",
+		"build": "scripts/ensure-native-binary.nu && publint",
 		"prepack": "pnpm run build && clean-pkg-json"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:types",
 		"clean-pkg-json": "catalog:release",
-		"publint": "catalog:lint",
-		"tsdown": "catalog:build"
+		"publint": "catalog:lint"
 	},
 	"optionalDependencies": {
 		"@ccusage/ccusage-darwin-arm64": "workspace:*",

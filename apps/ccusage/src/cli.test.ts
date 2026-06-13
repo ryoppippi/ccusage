@@ -5,7 +5,7 @@ import {
 	isMainModule,
 	resolveCliRuntime,
 	resolveNativeBinary,
-} from './cli.ts';
+} from './cli.js';
 
 void describe(resolveCliRuntime.name, () => {
 	void it('resolves the native package binary for the current supported platform', () => {
@@ -113,10 +113,10 @@ void describe(resolveCliRuntime.name, () => {
 	void it('treats package bin symlinks as the main module entry point', () => {
 		const actual = isMainModule({
 			argvEntry: '/project/node_modules/.bin/ccusage',
-			moduleUrl: 'file:///project/node_modules/ccusage/dist/cli.js',
+			moduleUrl: 'file:///project/node_modules/ccusage/src/cli.js',
 			realpathPath: (path) =>
 				path === '/project/node_modules/.bin/ccusage'
-					? '/project/node_modules/ccusage/dist/cli.js'
+					? '/project/node_modules/ccusage/src/cli.js'
 					: path,
 		});
 

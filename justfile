@@ -5,7 +5,7 @@
 # Whole-repo jobs that the Nix flake owns (formatting, checks, schema) stay here.
 #
 # pnpm policy: repo-global tools provided by the Nix dev shell (cargo, oxlint, nix)
-# are called directly; package-scoped node binaries (vitepress, tsdown)
+# are called directly; package-scoped node binaries (vitepress)
 # go through pnpm; `build` is delegated with `pnpm run` because npm prepack
 # invokes that script by name.
 #
@@ -42,8 +42,8 @@ generate-large-fixture output_dir codex_output_dir size_mib="1024":
 fmt:
     nix fmt
 
-# Run package typechecks and every flake check (treefmt, oxlint, clippy, schema drift, gitleaks, build)
-check: typecheck
+# Run every flake check (treefmt, oxlint, clippy, schema drift, gitleaks)
+check:
     nix flake check
 
 # Regenerate apps/ccusage/config-schema.json from the Rust source
