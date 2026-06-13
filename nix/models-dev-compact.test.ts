@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { it } from 'node:test';
 import {
 	formatDuplicateModelsDevPricingKeyWarning,
+	shouldReplaceModelsDevPricingCandidate,
 	selectModelsDevPricingKey,
 } from './models-dev-compact.ts';
 
@@ -34,4 +35,46 @@ void it('formats duplicate pricing key warnings with the skipped source id', () 
 		}),
 		'models.dev pricing key "claude-sonnet-4" already exists; skipping duplicate source model "anthropic/claude-sonnet-4".',
 	);
+});
+
+it('prefers Anthropic provider pricing over duplicate aliases', () => {
+	expect(
+		shouldReplaceModelsDevPricingCandidate(
+			{
+				sourceProviderId: 'github-copilot',
+				sourceModelId: 'claude-sonnet-4-6',
+				hasContextLimit: true,
+				hasExplicitCacheRead: true,
+				hasExplicitCacheWrite: true,
+			},
+			{
+				sourceProviderId: 'anthropic',
+				sourceModelId: 'claude-sonnet-4-6',
+				hasContextLimit: true,
+				hasExplicitCacheRead: true,
+				hasExplicitCacheWrite: true,
+			},
+		),
+	).toBe(true);
+});
+
+it('uses a stable source ordering tie-break for duplicate aliases', () => {
+	expect(
+		shouldReplaceModelsDevPricingCandidate(
+			{
+				sourceProviderId: 'nano-gpt',
+				sourceModelId: 'claude-sonnet-4',
+				hasContextLimit: true,
+				hasExplicitCacheRead: true,
+				hasExplicitCacheWrite: true,
+			},
+			{
+				sourceProviderId: 'github-copilot',
+				sourceModelId: 'claude-sonnet-4',
+				hasContextLimit: true,
+				hasExplicitCacheRead: true,
+				hasExplicitCacheWrite: true,
+			},
+		),
+	).toBe(true);
 });

@@ -570,7 +570,7 @@ fn codex_days_in_month(year: u16, month: u16) -> Option<u16> {
 }
 
 fn codex_is_leap_year(year: u16) -> bool {
-    year % 4 == 0 && year % 100 != 0 || year % 400 == 0
+    year.is_multiple_of(4) && !year.is_multiple_of(100) || year.is_multiple_of(400)
 }
 
 fn codex_session_id(sessions_dir: &Path, path: &Path) -> String {
