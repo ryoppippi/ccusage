@@ -60,15 +60,16 @@ impl UsageAccumulator {
             *self.message_count.get_or_insert(0) += message_count;
         }
         if let Some(model) = &entry.model {
-            let model = crate::model_aliases::resolve_model_name(model).into_owned();
-            let index = if let Some(index) = self.breakdown_indexes.get(model.as_str()) {
+            let model = crate::model_aliases::resolve_model_name(model);
+            let index = if let Some(index) = self.breakdown_indexes.get(model.as_ref()) {
                 *index
             } else {
                 let index = self.breakdowns.len();
-                self.breakdown_indexes.insert(model.clone(), index);
-                self.models.push(model.clone());
+                let owned = model.into_owned();
+                self.breakdown_indexes.insert(owned.clone(), index);
+                self.models.push(owned.clone());
                 self.breakdowns.push(ModelBreakdown {
-                    model_name: model.clone(),
+                    model_name: owned,
                     ..ModelBreakdown::default()
                 });
                 index
