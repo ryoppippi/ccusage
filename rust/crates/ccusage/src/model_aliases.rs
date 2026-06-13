@@ -17,10 +17,10 @@ pub(crate) fn resolve_model_name(model: &str) -> Cow<'_, str> {
     if let Some(alias) = aliases.get(model).filter(|alias| !alias.is_empty()) {
         return Cow::Owned(alias.clone());
     }
-    if let Some(base_model) = model.strip_suffix("-fast") {
-        if let Some(alias) = aliases.get(base_model).filter(|alias| !alias.is_empty()) {
-            return Cow::Owned(format!("{alias}-fast"));
-        }
+    if let Some(base_model) = model.strip_suffix("-fast")
+        && let Some(alias) = aliases.get(base_model).filter(|alias| !alias.is_empty())
+    {
+        return Cow::Owned(format!("{alias}-fast"));
     }
     Cow::Borrowed(model)
 }
