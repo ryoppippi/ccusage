@@ -361,11 +361,13 @@ impl PricingMap {
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
-        self.find_entry_or_alias(model)
+        let model = crate::model_aliases::resolve_model_name(model);
+        self.find_entry_or_alias(model.as_ref())
             .or_else(|| {
                 self.enable_models_dev_fallback
                     .then(|| {
-                        models_dev_pricing().and_then(|pricing| pricing.find_entry_or_alias(model))
+                        models_dev_pricing()
+                            .and_then(|pricing| pricing.find_entry_or_alias(model.as_ref()))
                     })
                     .flatten()
             })
@@ -374,7 +376,7 @@ impl PricingMap {
             // fuzzy alias matching. It works offline, unlike the network source.
             .or_else(|| {
                 self.enable_embedded_models_dev_fallback
-                    .then(|| embedded_models_dev_pricing().find_entry_or_alias(model))
+                    .then(|| embedded_models_dev_pricing().find_entry_or_alias(model.as_ref()))
                     .flatten()
             })
     }
@@ -400,18 +402,22 @@ impl PricingMap {
     }
 
     pub(crate) fn context_limit(&self, model: &str) -> Option<u64> {
-        self.context_limit_entry_or_alias(model)
+        let model = crate::model_aliases::resolve_model_name(model);
+        self.context_limit_entry_or_alias(model.as_ref())
             .or_else(|| {
                 self.enable_models_dev_fallback
                     .then(|| {
-                        models_dev_pricing()
-                            .and_then(|pricing| pricing.context_limit_entry_or_alias(model))
+                        models_dev_pricing().and_then(|pricing| {
+                            pricing.context_limit_entry_or_alias(model.as_ref())
+                        })
                     })
                     .flatten()
             })
             .or_else(|| {
                 self.enable_embedded_models_dev_fallback
-                    .then(|| embedded_models_dev_pricing().context_limit_entry_or_alias(model))
+                    .then(|| {
+                        embedded_models_dev_pricing().context_limit_entry_or_alias(model.as_ref())
+                    })
                     .flatten()
             })
     }
@@ -1785,6 +1791,19 @@ mod tests {
         assert!(gpt_55.cache_read_explicit);
         assert_eq!(gpt_55.fast_multiplier, 2.5);
         assert_eq!(pricing.context_limit("gpt-5.5"), Some(1_050_000));
+    }
+
+    #[test]
+    fn pricing_lookup_resolves_model_aliases() {
+        let _aliases =
+            crate::model_aliases::set_model_aliases_for_tests([("private-gpt-55", "gpt-5.5")]);
+        let pricing = PricingMap::load_embedded();
+
+        assert_eq!(
+            pricing.find("private-gpt-55").unwrap().input,
+            pricing.find("gpt-5.5").unwrap().input
+        );
+        assert_eq!(pricing.context_limit("private-gpt-55"), Some(1_050_000));
     }
 
     #[test]

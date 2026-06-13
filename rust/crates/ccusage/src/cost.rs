@@ -59,7 +59,10 @@ pub(crate) fn missing_pricing_model_for_token_total(
     }
     let model = model?;
     let pricing = pricing?;
-    pricing.find(model).is_none().then(|| model.to_string())
+    pricing
+        .find(model)
+        .is_none()
+        .then(|| crate::model_aliases::resolve_model_name(model).into_owned())
 }
 
 pub(crate) fn missing_pricing_model_for_candidates(
@@ -75,7 +78,7 @@ pub(crate) fn missing_pricing_model_for_candidates(
     candidates
         .into_iter()
         .all(|candidate| pricing.find(&candidate).is_none())
-        .then(|| model.to_string())
+        .then(|| crate::model_aliases::resolve_model_name(model).into_owned())
 }
 
 fn calculate_cost_from_tokens(

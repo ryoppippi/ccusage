@@ -235,12 +235,13 @@ fn add_event_to_groups(
     let Some(model) = event.model.as_deref().filter(|model| !model.is_empty()) else {
         return Ok(());
     };
+    let model = crate::model_aliases::resolve_model_name(model);
     let timestamp = parse_ts_timestamp(&event.timestamp)
         .ok_or_else(|| crate::cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
-    if !insert_event_key(event, timestamp, model, kind, seen) {
+    if !insert_event_key(event, timestamp, model.as_ref(), kind, seen) {
         return Ok(());
     }
-    add_deduped_event_to_groups(event, model, timestamp, kind, timezone, shared, groups)
+    add_deduped_event_to_groups(event, model.as_ref(), timestamp, kind, timezone, shared, groups)
 }
 
 fn add_event_to_groups_local(
@@ -253,17 +254,18 @@ fn add_event_to_groups_local(
     let Some(model) = event.model.as_deref().filter(|model| !model.is_empty()) else {
         return Ok(());
     };
+    let model = crate::model_aliases::resolve_model_name(model);
     let timestamp = parse_ts_timestamp(&event.timestamp)
         .ok_or_else(|| crate::cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
     if !aggregation
         .seen
-        .insert(codex_event_key(event, timestamp, model, kind))
+        .insert(codex_event_key(event, timestamp, model.as_ref(), kind))
     {
         return Ok(());
     }
     add_deduped_event_to_groups(
         event,
-        model,
+        model.as_ref(),
         timestamp,
         kind,
         timezone,
@@ -432,7 +434,8 @@ pub(crate) fn aggregate_events(
             AgentReportKind::Session => event.session_id.clone(),
         };
         let group = groups.entry(period).or_insert_with(CodexGroup::default);
-        accumulate_codex_event_into_group(group, event, model);
+        let model = crate::model_aliases::resolve_model_name(model);
+        accumulate_codex_event_into_group(group, event, model.as_ref());
     }
     Ok(groups)
 }

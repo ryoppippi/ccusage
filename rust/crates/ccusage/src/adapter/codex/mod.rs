@@ -158,6 +158,54 @@ mod tests {
     }
 
     #[test]
+    fn reports_codex_model_aliases_without_raw_model_names() {
+        let _aliases = crate::model_aliases::set_model_aliases_for_tests([
+            ("private-codex-alpha", "gpt-5.5"),
+            ("private-codex-beta", "gpt-5.5"),
+        ]);
+        let pricing = PricingMap::default();
+        let report = report_json(
+            &[
+                CodexTokenUsageEvent {
+                    session_id: "session-1".to_string(),
+                    timestamp: "2026-01-02T00:00:00.000Z".to_string(),
+                    model: Some("private-codex-alpha".to_string()),
+                    input_tokens: 100,
+                    cached_input_tokens: 10,
+                    output_tokens: 5,
+                    reasoning_output_tokens: 0,
+                    total_tokens: 105,
+                    is_fallback_model: false,
+                },
+                CodexTokenUsageEvent {
+                    session_id: "session-1".to_string(),
+                    timestamp: "2026-01-02T00:00:01.000Z".to_string(),
+                    model: Some("private-codex-beta".to_string()),
+                    input_tokens: 50,
+                    cached_input_tokens: 5,
+                    output_tokens: 3,
+                    reasoning_output_tokens: 0,
+                    total_tokens: 53,
+                    is_fallback_model: false,
+                },
+            ],
+            AgentReportKind::Daily,
+            Some("UTC"),
+            &pricing,
+            CodexSpeed::Standard,
+        )
+        .unwrap();
+
+        let models = report["daily"][0]["models"].as_object().unwrap();
+        assert!(models.contains_key("gpt-5.5"));
+        assert!(!models.contains_key("private-codex-alpha"));
+        assert!(!models.contains_key("private-codex-beta"));
+        assert_eq!(models["gpt-5.5"]["inputTokens"], 135);
+        assert_eq!(models["gpt-5.5"]["cacheReadTokens"], 15);
+        assert_eq!(models["gpt-5.5"]["outputTokens"], 8);
+    }
+
+    #[test]
     fn charges_cached_input_at_input_rate_when_codex_pricing_omits_cache_read_rate() {
         let mut pricing = PricingMap::default();
         pricing.load_json(

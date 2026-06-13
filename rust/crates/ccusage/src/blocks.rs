@@ -87,10 +87,11 @@ fn create_block(
     for entry in &entries {
         token_counts.add_usage(entry.data.message.usage);
         cost += entry.cost;
-        if let Some(model) = &entry.model
-            && seen_models.insert(model.clone())
-        {
-            models.push(model.clone());
+        if let Some(model) = &entry.model {
+            let model = crate::model_aliases::resolve_model_name(model).into_owned();
+            if seen_models.insert(model.clone()) {
+                models.push(model);
+            }
         }
         usage_limit_reset_time = usage_limit_reset_time.or(entry.usage_limit_reset_time);
     }

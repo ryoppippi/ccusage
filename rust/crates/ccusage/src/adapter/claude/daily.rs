@@ -458,6 +458,7 @@ impl DailyAccumulator {
         self.counts.add_usage(entry.usage);
         self.cost += entry.cost;
         if let Some(model) = &entry.model {
+            let model = crate::model_aliases::resolve_model_name(model).into_owned();
             let index = if let Some(index) = self.breakdown_indexes.get(model.as_str()) {
                 *index
             } else {
