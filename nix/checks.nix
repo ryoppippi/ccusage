@@ -129,6 +129,67 @@ in
         config-example = mkRepoCheck "config-example-check" [ pkgs.check-jsonschema ] ''
           check-jsonschema --schemafile apps/ccusage/config-schema.json ccusage.example.json
         '';
+        publint =
+          mkRepoCheck "publint-check"
+            [
+              config.packages.publint
+              pkgs.fd
+              pkgs.nodejs
+            ]
+            ''
+              mapfile -t packageManifests < <(fd --type f '^package\.json$' .)
+
+              node - "''${packageManifests[@]}" <<'EOF'
+              const fs = require("node:fs");
+              const path = require("node:path");
+
+              function touchPackageFile(packageDir, relativePath, executable = false) {
+                if (!relativePath || relativePath.includes("*")) {
+                  return;
+                }
+
+                const normalizedPath = relativePath.replace(/^\.\//, "");
+                const targetPath = path.join(packageDir, normalizedPath);
+                fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+                if (!fs.existsSync(targetPath)) {
+                  fs.writeFileSync(targetPath, executable ? "#!/usr/bin/env node\n" : "");
+                }
+                if (executable || normalizedPath.startsWith("bin/")) {
+                  fs.chmodSync(targetPath, 0o755);
+                }
+              }
+
+              function touchBinEntries(packageDir, bin) {
+                if (typeof bin === "string") {
+                  touchPackageFile(packageDir, bin, true);
+                  return;
+                }
+                if (bin && typeof bin === "object") {
+                  for (const value of Object.values(bin)) {
+                    touchPackageFile(packageDir, value, true);
+                  }
+                }
+              }
+
+              for (const manifestPath of process.argv.slice(2)) {
+                const packageDir = path.dirname(manifestPath);
+                const packageJson = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+                if (Array.isArray(packageJson.files)) {
+                  for (const file of packageJson.files) {
+                    touchPackageFile(packageDir, file);
+                  }
+                }
+                touchBinEntries(packageDir, packageJson.bin);
+                touchBinEntries(packageDir, packageJson.publishConfig?.bin);
+              }
+              EOF
+
+              for packageJson in "''${packageManifests[@]}"; do
+                packageDir="$(dirname "$packageJson")"
+                echo "Running publint for $packageDir"
+                publint run "$packageDir" --pack false
+              done
+            '';
       };
     };
 }

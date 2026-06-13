@@ -4,9 +4,9 @@
 # recipes aggregate them (e.g. `typecheck` runs every package's typecheck).
 # Whole-repo jobs that the Nix flake owns (formatting, checks, schema) stay here.
 #
-# pnpm policy: repo-global tools provided by the Nix dev shell (cargo, oxlint, nix)
-# are called directly; package-scoped node binaries (vitepress, tsdown)
-# go through pnpm; `build` is delegated with `pnpm run` because npm prepack
+# pnpm policy: repo-global tools and pinned package tools provided by the Nix
+# dev shell are called directly; package-scoped tools that are not in Nix still
+# go through pnpm. `build` is delegated with `pnpm run` because npm prepack
 # invokes that script by name.
 #
 # Run `just --list` (or `just <module>::--list`) to see everything.

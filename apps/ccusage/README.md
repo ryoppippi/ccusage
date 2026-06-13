@@ -187,7 +187,7 @@ cd ccusage
 direnv allow
 ```
 
-The dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, generated local agent skills, and project utilities from `flake.nix`. It also installs package dependencies from `pnpm-lock.yaml` when needed.
+The dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, git hooks, generated local agent skills, package tooling, and project utilities from `flake.nix`. Run `pnpm install --frozen-lockfile` only when a task needs workspace `node_modules`.
 
 Run project tasks with `just` from inside the Nix environment (`just --list` shows every recipe):
 

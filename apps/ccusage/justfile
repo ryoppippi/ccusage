@@ -14,7 +14,7 @@ build-package:
 
 prepack:
     just build-package
-    pnpm exec clean-pkg-json
+    publint
 
 build-rust:
     cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage
