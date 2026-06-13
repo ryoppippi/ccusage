@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 import { spawn } from 'node:child_process';
 import { chmodSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -7,37 +8,20 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
-type CliRuntime =
-	| {
-			args: string[];
-			command: string;
-	  }
-	| {
-			errorMessage: string;
-	  };
+/**
+ * @typedef {{ args: string[]; command: string } | { errorMessage: string }} CliRuntime
+ * @typedef {{ mode: number }} FileMode
+ * @typedef {{ error?: Error; signal?: NodeJS.Signals | null; status: number | null }} NativeSpawnResult
+ * @typedef {(command: string, args: string[]) => Promise<NativeSpawnResult>} NativeSpawner
+ * @typedef {{ argvEntry?: string; moduleUrl: string; realpathPath?: (path: string) => string }} MainModuleOptions
+ */
 
-type FileMode = {
-	mode: number;
-};
-
-type NativeSpawnResult = {
-	error?: Error;
-	signal?: NodeJS.Signals | null;
-	status: number | null;
-};
-
-type NativeSpawner = (command: string, args: string[]) => Promise<NativeSpawnResult>;
-
-type MainModuleOptions = {
-	argvEntry?: string;
-	moduleUrl: string;
-	realpathPath?: (path: string) => string;
-};
-
-function getNativePackageName(
-	platform: string = process.platform,
-	arch: string = process.arch,
-): string | undefined {
+/**
+ * @param {string} [platform]
+ * @param {string} [arch]
+ * @returns {string | undefined}
+ */
+function getNativePackageName(platform = process.platform, arch = process.arch) {
 	if (platform === 'darwin') {
 		if (arch === 'arm64') {
 			return '@ccusage/ccusage-darwin-arm64';
@@ -70,19 +54,23 @@ function getNativePackageName(
 	return undefined;
 }
 
-function getNativeBinarySubpath(platform: string = process.platform): string {
+/**
+ * @param {string} [platform]
+ * @returns {string}
+ */
+function getNativeBinarySubpath(platform = process.platform) {
 	return platform === 'win32' ? 'bin/ccusage.exe' : 'bin/ccusage';
 }
 
+/**
+ * @param {{ arch?: string; platform?: string; resolvePath?: (id: string) => string }} [options]
+ * @returns {string | undefined}
+ */
 function resolveNativeBinary({
 	arch = process.arch,
 	platform = process.platform,
 	resolvePath = (id) => require.resolve(id),
-}: {
-	arch?: string;
-	platform?: string;
-	resolvePath?: (id: string) => string;
-} = {}): string | undefined {
+} = {}) {
 	const packageName = getNativePackageName(platform, arch);
 	if (packageName == null) {
 		return undefined;
@@ -95,17 +83,16 @@ function resolveNativeBinary({
 	}
 }
 
+/**
+ * @param {{ arch?: string; argv: string[]; nativeBinaryPath?: string | null; platform?: string }} options
+ * @returns {CliRuntime}
+ */
 function resolveCliRuntime({
 	argv,
 	arch = process.arch,
 	nativeBinaryPath = resolveNativeBinary(),
 	platform = process.platform,
-}: {
-	arch?: string;
-	argv: string[];
-	nativeBinaryPath?: string | null;
-	platform?: string;
-}): CliRuntime {
+}) {
 	if (nativeBinaryPath != null) {
 		return {
 			args: argv,
@@ -118,21 +105,24 @@ function resolveCliRuntime({
 	};
 }
 
-function errorMessage(error: unknown): string {
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorMessage(error) {
 	return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * @param {{ binaryPath: string; chmodPath?: (path: string, mode: number) => void; platform?: string; statPath?: (path: string) => FileMode }} options
+ * @returns {string | undefined}
+ */
 function ensureNativeBinaryExecutable({
 	binaryPath,
 	chmodPath = chmodSync,
 	platform = process.platform,
 	statPath = statSync,
-}: {
-	binaryPath: string;
-	chmodPath?: (path: string, mode: number) => void;
-	platform?: string;
-	statPath?: (path: string) => FileMode;
-}): string | undefined {
+}) {
 	if (platform === 'win32') {
 		return undefined;
 	}
@@ -149,11 +139,11 @@ function ensureNativeBinaryExecutable({
 	}
 }
 
-function isMainModule({
-	argvEntry = process.argv[1],
-	moduleUrl,
-	realpathPath = realpathSync,
-}: MainModuleOptions): boolean {
+/**
+ * @param {MainModuleOptions} options
+ * @returns {boolean}
+ */
+function isMainModule({ argvEntry = process.argv[1], moduleUrl, realpathPath = realpathSync }) {
 	if (argvEntry == null) {
 		return false;
 	}
@@ -166,7 +156,10 @@ function isMainModule({
 	}
 }
 
-function createNativeSpawner(): NativeSpawner {
+/**
+ * @returns {NativeSpawner}
+ */
+function createNativeSpawner() {
 	return async (command, args) =>
 		new Promise((resolve) => {
 			const child = spawn(command, args, { stdio: 'inherit' });
@@ -186,10 +179,12 @@ function createNativeSpawner(): NativeSpawner {
 		});
 }
 
-async function runCli(
-	argv: string[],
-	spawnNative: NativeSpawner = createNativeSpawner(),
-): Promise<number> {
+/**
+ * @param {string[]} argv
+ * @param {NativeSpawner} [spawnNative]
+ * @returns {Promise<number>}
+ */
+async function runCli(argv, spawnNative = createNativeSpawner()) {
 	const runtime = resolveCliRuntime({ argv });
 	if ('errorMessage' in runtime) {
 		process.stderr.write(runtime.errorMessage);

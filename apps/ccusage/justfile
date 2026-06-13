@@ -5,12 +5,12 @@
 default:
     @just --list
 
-# Build the package bundle and verify native binary glue.
+# Verify native binary glue for the published package.
 build: build-package
 
 build-package:
-    pnpm exec tsdown
     just ensure-native-binary
+    pnpm exec publint
 
 prepack:
     just build-package

@@ -5,7 +5,7 @@
 # Whole-repo jobs that the Nix flake owns (formatting, checks, schema) stay here.
 #
 # pnpm policy: repo-global tools provided by the Nix dev shell (cargo, oxlint, nix)
-# are called directly; package-scoped node binaries (vitepress, tsdown)
+# are called directly; package-scoped node binaries (vitepress)
 # go through pnpm; `build` is delegated with `pnpm run` because npm prepack
 # invokes that script by name.
 #
