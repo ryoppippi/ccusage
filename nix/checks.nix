@@ -67,7 +67,7 @@ in
       # Fail `nix flake check` when the committed config schema drifts from what
       # the Rust source generates. This catches PRs that add or change a config
       # field without regenerating the schema (run
-      # `pnpm --filter ccusage run generate:schema` to fix). Only the tracked
+      # `just ccusage::generate-schema` to fix). Only the tracked
       # apps/ccusage/config-schema.json is checked; docs/public/config-schema.json
       # is a gitignored build copy.
       config-schema =
@@ -90,7 +90,7 @@ in
 
             if ! diff -u apps/ccusage/config-schema.json generated.json; then
               echo "ERROR: apps/ccusage/config-schema.json is out of sync with the Rust schema source." >&2
-              echo "Run 'nix run .#generate-schema' (or 'pnpm --filter ccusage run generate:schema') and commit the result." >&2
+              echo "Run 'nix run .#generate-schema' (or 'just ccusage::generate-schema') and commit the result." >&2
               exit 1
             fi
 
@@ -121,7 +121,7 @@ in
       checks = {
         inherit ccusage-clippy ccusage-fmt config-schema;
         oxlint = mkRepoCheck "oxlint-check" [ pkgs.oxlint ] ''
-          oxlint .
+          oxlint --config nix/oxlint-check.json .
         '';
         gitleaks = mkRepoCheck "gitleaks-check" [ pkgs.gitleaks ] ''
           gitleaks detect --source . --config .gitleaks.toml --no-git

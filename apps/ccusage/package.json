@@ -28,28 +28,14 @@
 		}
 	},
 	"scripts": {
-		"bench": "node scripts/bench.mjs",
-		"build": "tsdown && pnpm run ensure:native-binary",
-		"build:rust": "cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage",
-		"ensure:native-binary": "bun scripts/ensure-native-binary.ts",
-		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
-		"prepack": "pnpm run build && clean-pkg-json",
-		"start": "cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage --",
-		"test:statusline": "cat test/statusline-test.json | cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline",
-		"test:statusline:all": "echo 'Testing Sonnet 4:' && pnpm run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && pnpm run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && pnpm run test:statusline:sonnet41",
-		"test:statusline:opus4": "cat test/statusline-test-opus4.json | cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline --offline",
-		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline --offline",
-		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline --offline"
+		"build": "tsdown && scripts/ensure-native-binary.nu",
+		"prepack": "pnpm run build && clean-pkg-json"
 	},
 	"devDependencies": {
-		"@types/bun": "catalog:types",
+		"@types/node": "catalog:types",
 		"clean-pkg-json": "catalog:release",
-		"fs-fixture": "catalog:testing",
-		"gunshi": "catalog:runtime",
-		"mitata": "catalog:testing",
 		"publint": "catalog:lint",
-		"tsdown": "catalog:build",
-		"vitest": "catalog:testing"
+		"tsdown": "catalog:build"
 	},
 	"optionalDependencies": {
 		"@ccusage/ccusage-darwin-arm64": "workspace:*",

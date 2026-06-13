@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { chmodSync, statSync } from 'node:fs';
+import { chmodSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
@@ -26,6 +27,12 @@ type NativeSpawnResult = {
 };
 
 type NativeSpawner = (command: string, args: string[]) => Promise<NativeSpawnResult>;
+
+type MainModuleOptions = {
+	argvEntry?: string;
+	moduleUrl: string;
+	realpathPath?: (path: string) => string;
+};
 
 function getNativePackageName(
 	platform: string = process.platform,
@@ -142,6 +149,23 @@ function ensureNativeBinaryExecutable({
 	}
 }
 
+function isMainModule({
+	argvEntry = process.argv[1],
+	moduleUrl,
+	realpathPath = realpathSync,
+}: MainModuleOptions): boolean {
+	if (argvEntry == null) {
+		return false;
+	}
+
+	const modulePath = fileURLToPath(moduleUrl);
+	try {
+		return realpathPath(modulePath) === realpathPath(argvEntry);
+	} catch {
+		return modulePath === argvEntry;
+	}
+}
+
 function createNativeSpawner(): NativeSpawner {
 	return async (command, args) =>
 		new Promise((resolve) => {
@@ -192,104 +216,8 @@ async function runCli(
 	return result.status ?? 1;
 }
 
-if (import.meta.vitest == null) {
+if (isMainModule({ moduleUrl: import.meta.url })) {
 	process.exitCode = await runCli(process.argv.slice(2));
 }
 
-if (import.meta.vitest != null) {
-	describe(resolveCliRuntime, () => {
-		it('resolves the native package binary for the current supported platform', () => {
-			expect(
-				resolveNativeBinary({
-					arch: 'arm64',
-					platform: 'darwin',
-					resolvePath: (id) => {
-						expect(id).toBe('@ccusage/ccusage-darwin-arm64/bin/ccusage');
-						return '/native/bin/ccusage';
-					},
-				}),
-			).toBe('/native/bin/ccusage');
-		});
-
-		it('resolves the Windows native package binary with the exe suffix', () => {
-			expect(
-				resolveNativeBinary({
-					arch: 'arm64',
-					platform: 'win32',
-					resolvePath: (id) => {
-						expect(id).toBe('@ccusage/ccusage-win32-arm64/bin/ccusage.exe');
-						return 'C:\\native\\bin\\ccusage.exe';
-					},
-				}),
-			).toBe('C:\\native\\bin\\ccusage.exe');
-		});
-
-		it('prefers the matching native package binary when it is available', () => {
-			expect(
-				resolveCliRuntime({
-					argv: ['daily'],
-					nativeBinaryPath: '/app/node_modules/@ccusage/ccusage-darwin-arm64/bin/ccusage',
-				}),
-			).toEqual({
-				args: ['daily'],
-				command: '/app/node_modules/@ccusage/ccusage-darwin-arm64/bin/ccusage',
-			});
-		});
-
-		it('fails when the native package binary is unavailable', () => {
-			expect(
-				resolveCliRuntime({
-					arch: 'arm64',
-					argv: ['daily'],
-					nativeBinaryPath: null,
-					platform: 'darwin',
-				}),
-			).toEqual({
-				errorMessage:
-					'ccusage native binary is not available for darwin-arm64. Reinstall ccusage so optional native dependencies are installed.\n',
-			});
-		});
-
-		it('repairs a native binary that was extracted without executable bits', () => {
-			const chmodPath = vi.fn();
-
-			expect(
-				ensureNativeBinaryExecutable({
-					binaryPath: '/native/bin/ccusage',
-					chmodPath,
-					platform: 'linux',
-					statPath: () => ({ mode: 0o644 }),
-				}),
-			).toBeUndefined();
-			expect(chmodPath).toHaveBeenCalledWith('/native/bin/ccusage', 0o755);
-		});
-
-		it('does not chmod an already executable native binary', () => {
-			const chmodPath = vi.fn();
-
-			expect(
-				ensureNativeBinaryExecutable({
-					binaryPath: '/native/bin/ccusage',
-					chmodPath,
-					platform: 'darwin',
-					statPath: () => ({ mode: 0o755 }),
-				}),
-			).toBeUndefined();
-			expect(chmodPath).not.toHaveBeenCalled();
-		});
-
-		it('does not chmod Windows native binaries', () => {
-			const chmodPath = vi.fn();
-
-			expect(
-				ensureNativeBinaryExecutable({
-					binaryPath: 'C:\\native\\bin\\ccusage.exe',
-					chmodPath,
-					platform: 'win32',
-					statPath: () => ({ mode: 0o644 }),
-				}),
-			).toBeUndefined();
-			expect(chmodPath).not.toHaveBeenCalled();
-		});
-	});
-}
+export { ensureNativeBinaryExecutable, isMainModule, resolveCliRuntime, resolveNativeBinary };

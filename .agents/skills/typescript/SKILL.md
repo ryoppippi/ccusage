@@ -1,6 +1,6 @@
 ---
 name: typescript
-description: Guides ccusage TypeScript and JavaScript work. Use before reading or editing .ts, .tsx, .js, or .jsx files, including package launchers, Vitest tests, Bun scripts, schemas, mocks, and typed fixtures.
+description: Guides ccusage TypeScript and JavaScript work. Use before reading or editing .ts, .tsx, .js, or .jsx files, including package launchers, Node tests, schemas, mocks, and typed fixtures.
 paths:
   - '**/*.ts'
   - '**/*.tsx'
@@ -15,7 +15,7 @@ Use this skill for the remaining TypeScript and JavaScript package surface:
 
 - `apps/ccusage/src/cli.ts` native binary launcher.
 - `apps/ccusage/scripts/**` package, schema, benchmark, and native staging scripts.
-- Vitest coverage for TypeScript package/tooling behavior.
+- Node test coverage for TypeScript package/tooling behavior.
 - VitePress and root TypeScript configuration or scripts when the change is not docs-content-only.
 
 Runtime CLI behavior belongs in Rust under `rust/crates/ccusage`. Do not add new
@@ -32,19 +32,15 @@ repo:
 - Use `.ts` extensions for local imports.
 - Use Node path utilities for file paths.
 - Use `logger.ts` instead of `console.log` in package code.
-- Do not use dynamic imports, especially in Vitest blocks.
+- Do not use dynamic imports.
 - Keep exports limited to values used outside the module.
 
-## Vitest
+## Node Tests
 
-Use `testing` and read `testing/references/vitest.md` for ccusage-specific
-Vitest patterns. Prefer Rust tests for production CLI runtime behavior.
+Use `testing` and read `testing/references/node-test.md` for ccusage-specific
+Node test patterns. Prefer Rust tests for production CLI runtime behavior.
 
-## Bun And Package Scripts
-
-Use `bun-api-reference` before changing Bun runtime APIs such as `Bun.$`,
-`Bun.file()`, `Bun.write()`, `Bun.spawn()`, `Bun.argv`, `Bun.stdout`,
-`Bun.stderr`, or `Bun.stringWidth()`.
+## Package Scripts
 
 Use `profile` for TypeScript launcher, benchmark, packaging script, or native
 CLI performance work.
@@ -59,7 +55,7 @@ Run focused checks during iteration, then the normal root workflow before
 finishing:
 
 ```sh
-just test-vitest
+just test-node
 just fmt
 just typecheck
 just test

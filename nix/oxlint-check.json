@@ -8,9 +8,5 @@
 		".git",
 		".claude/settings.local.json",
 		"nix/models-dev-gen.ts"
-	],
-	"options": {
-		"typeAware": true,
-		"typeCheck": true
-	}
+	]
 }

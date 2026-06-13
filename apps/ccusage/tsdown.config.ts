@@ -35,7 +35,4 @@ export default defineConfig({
 		},
 	},
 	nodeProtocol: true,
-	define: {
-		'import.meta.vitest': 'undefined',
-	},
 });

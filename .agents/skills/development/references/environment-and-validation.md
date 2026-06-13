@@ -3,7 +3,7 @@
 ## Environment
 
 This repo requires the Nix flake development environment with nix-direnv for
-contributor setup. Use the activated direnv shell so the pinned Rust, Bun, pnpm,
+contributor setup. Use the activated direnv shell so the pinned Rust, pnpm,
 git hooks, agent skills, and repository CLIs are all on `PATH`.
 
 Use the activated `direnv` environment for normal work. For non-interactive

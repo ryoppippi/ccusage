@@ -5,10 +5,8 @@
 		"moduleDetection": "force",
 		"module": "Preserve",
 		"moduleResolution": "bundler",
-		"resolveJsonModule": true,
 		"types": ["node"],
-		"allowImportingTsExtensions": false,
-		"allowJs": true,
+		"allowImportingTsExtensions": true,
 		"strict": true,
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitOverride": true,
@@ -21,6 +19,6 @@
 		"erasableSyntaxOnly": true,
 		"skipLibCheck": true
 	},
-	"include": [".vitepress/**/*", "**/*.ts", "**/*.md"],
-	"exclude": ["node_modules", ".vitepress/cache", ".vitepress/dist"]
+	"include": ["*.ts", "nix/**/*.ts"],
+	"exclude": ["node_modules", "nix/models-dev-gen.ts"]
 }

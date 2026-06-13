@@ -22,7 +22,7 @@ in
           (with pkgs; [
             nodejs
             pnpm
-            bun
+            nushell
 
             rustToolchain
             cargo-edit
@@ -44,7 +44,6 @@ in
             prek
             gitleaks
             renovate
-            typescript-go
             jq
             git
             gh

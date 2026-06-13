@@ -23,7 +23,9 @@ runs:
       env:
         ARCH: ${{ inputs.arch }}
         BINARY: ${{ inputs.binary }}
-      run: node apps/ccusage/scripts/stage-native-package.mjs --platform win32 --arch "$ARCH" --binary "$BINARY"
+      run: |
+        mkdir -p "packages/ccusage-win32-$ARCH/bin"
+        cp "$BINARY" "packages/ccusage-win32-$ARCH/bin/ccusage.exe"
 
     - name: Archive native package binary
       shell: bash

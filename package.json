@@ -13,10 +13,10 @@
 	},
 	"dependencies": {},
 	"devDependencies": {
+		"@types/node": "catalog:types",
 		"bumpp": "catalog:release",
 		"changelogithub": "catalog:release",
-		"pkg-pr-new": "catalog:release",
-		"vitest": "catalog:testing"
+		"pkg-pr-new": "catalog:release"
 	},
 	"packageManager": "pnpm@11.1.1"
 }

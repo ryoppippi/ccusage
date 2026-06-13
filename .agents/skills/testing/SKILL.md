@@ -1,13 +1,13 @@
 ---
 name: testing
-description: Guides ccusage Rust and Vitest tests. Use when adding or fixing cargo tests, CLI snapshots, Claude model pricing, LiteLLM compatibility, Vitest tests, or fixture-backed tests.
+description: Guides ccusage Rust and Node tests. Use when adding or fixing cargo tests, Node test files, CLI snapshots, Claude model pricing, LiteLLM compatibility, or fixture-backed tests.
 ---
 
 # ccusage Testing
 
 Use the `tdd` skill for logic changes, Red-Green-Refactor workflow, focused
 runner commands, Rust test syntax, and general test readability rules. This
-skill owns ccusage-specific Rust and Vitest test rules: fixtures, adapter
+skill owns ccusage-specific Rust and Node test rules: fixtures, adapter
 coverage, pricing/model behavior, CLI output, schema artifacts, and package
 tooling.
 
@@ -27,7 +27,7 @@ tooling.
 
 ## Rust Tests
 
-For repo-wide validation, prefer the `just` recipe because it runs Vitest and Rust tests together:
+For repo-wide validation, prefer the `just` recipe because it runs Node and Rust tests together:
 
 ```sh
 direnv exec . just test
@@ -42,7 +42,7 @@ loading, dedupe, aggregation, pricing, CLI output parity, model, and readability
 rules. For focused cargo commands, Red-Green-Refactor examples, Rust test
 attributes, and syntax examples, read `../tdd/references/rust.md`.
 
-## Vitest Tests
+## Node Tests
 
-Read `references/vitest.md` for TypeScript package launcher, schema artifact,
-benchmark script, docs/package tooling, and `fs-fixture` test rules.
+Read `references/node-test.md` for TypeScript package launcher, schema artifact,
+benchmark script, docs/package tooling, and filesystem fixture rules.

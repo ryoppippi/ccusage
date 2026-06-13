@@ -12,7 +12,7 @@ Example prompts:
 
 You are following strict t-wada style Test-Driven Development. All code changes that involve logic (bug fixes, new features, refactors) **must** follow Red-Green-Refactor. No exceptions.
 
-**Project test environment:** ccusage uses Vitest for TypeScript/package
+**Project test environment:** ccusage uses Node's built-in test runner for TypeScript/package
 tooling tests and `cargo test` for Rust CLI tests. Use the `testing` skill for
 ccusage-specific fixture, adapter, pricing, model, schema, and CLI-output test
 rules.
@@ -39,7 +39,7 @@ Repeat until the feature or fix is complete.
 
 ## Workflow
 
-1. **Sketch behaviors** — Before writing any code, list the behaviors to implement as placeholder tests, such as `it.todo(...)` in Vitest or `#[ignore]` in Rust.
+1. **Sketch behaviors** — Before writing any code, list the behaviors to implement as placeholder tests, such as `it.todo(...)` in Node test or `#[ignore]` in Rust.
 2. **Pick one behavior** — Start with the simplest or most fundamental one.
 3. **Red** — Write the test. Run it. Confirm it fails for the right reason.
 4. **Green** — Write the minimum code to pass. Run the test. Confirm it passes.
@@ -52,7 +52,7 @@ Prefer running only the tests affected by your changes during the Red-Green-Refa
 
 **Runner-specific guidance** — Read the relevant example file alongside this skill for detailed test modifiers, idioms, and runner-specific tips:
 
-- **Vitest**: See `references/vitest.md` for focused commands, modifiers, a
+- **Node test**: See `references/node-test.md` for focused commands, modifiers, a
   compact Red-Green-Refactor example, and assertion/readability examples.
 - **Rust (cargo test)**: See `references/rust.md` for focused cargo commands,
   attributes, Result tests, doc tests, and a compact Red-Green-Refactor example.
