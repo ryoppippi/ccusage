@@ -44,7 +44,6 @@ in
             prek
             gitleaks
             renovate
-            typescript-go
             jq
             git
             gh

@@ -47,7 +47,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-nix-cache
-      # Vitest needs the JS toolchain; the Rust tests run via `nix build`. Install
+      # Node tests need the JS toolchain; the Rust tests run via `nix build`. Install
       # just pnpm/node/just instead of realizing the full dev shell, which drags
       # in every linter, formatter, and the pre-commit hook closure and dominated
       # this job's wall time.
@@ -58,8 +58,8 @@ jobs:
         run: |
           mkdir -p "$HOME/.claude/projects"
           mkdir -p "$HOME/.config/claude/projects"
-      - name: Run Vitest tests
-        run: just test-vitest
+      - name: Run Node tests
+        run: just test-node
       - name: Run Rust tests
         run: nix build .#ccusage-tests --print-build-logs
 

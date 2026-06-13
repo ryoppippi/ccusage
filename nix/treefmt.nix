@@ -128,7 +128,11 @@ in
           };
           oxlint = {
             command = lib.getExe pkgs.oxlint;
-            options = [ "--fix" ];
+            options = [
+              "--fix"
+              "--config"
+              "nix/oxlint-check.json"
+            ];
             includes = [
               "*.cjs"
               "*.js"

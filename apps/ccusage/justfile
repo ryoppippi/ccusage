@@ -53,6 +53,6 @@ test-statusline-sonnet41:
 test-statusline-file file *args:
     cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline {{args}} < {{file}}
 
-# Type-check the package (tsgo comes from the Nix dev shell, so call it directly)
+# Type-check the package through the root oxlint type-aware checker.
 typecheck:
-    tsgo --noEmit
+    just --justfile ../../justfile typecheck

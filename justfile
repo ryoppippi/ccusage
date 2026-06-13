@@ -4,8 +4,8 @@
 # recipes aggregate them (e.g. `typecheck` runs every package's typecheck).
 # Whole-repo jobs that the Nix flake owns (formatting, checks, schema) stay here.
 #
-# pnpm policy: repo-global tools provided by the Nix dev shell (cargo, tsgo, nix)
-# are called directly; package-scoped node binaries (vitest, vitepress, tsdown)
+# pnpm policy: repo-global tools provided by the Nix dev shell (cargo, oxlint, nix)
+# are called directly; package-scoped node binaries (vitepress, tsdown)
 # go through pnpm; `build` is delegated with `pnpm run` because npm prepack
 # invokes that script by name.
 #
@@ -22,16 +22,17 @@ default:
 # Build every workspace package
 build: ccusage::build docs::build
 
-# Type-check every workspace package
-typecheck: ccusage::typecheck docs::typecheck
+# Type-check and lint TypeScript with oxlint's type-aware checker
+typecheck:
+    oxlint .
 
-# Run the full test suite (Rust workspace + Vitest) in parallel
+# Run the full test suite (Rust workspace + Node test) in parallel
 [parallel]
-test: rust::test test-vitest
+test: rust::test test-node
 
-# Run Vitest once at the repo root (its config aggregates every package project)
-test-vitest:
-    TZ=UTC pnpm exec vitest run
+# Run Node's built-in test runner for TypeScript package and tooling tests
+test-node:
+    TZ=UTC node --test apps/ccusage/src/cli.test.ts nix/models-dev-compact.test.ts
 
 # Generate a large benchmark fixture for PR performance comparisons
 generate-large-fixture output_dir codex_output_dir size_mib="1024":

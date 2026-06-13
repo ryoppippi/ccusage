@@ -35,8 +35,7 @@
 		"@types/node": "catalog:types",
 		"clean-pkg-json": "catalog:release",
 		"publint": "catalog:lint",
-		"tsdown": "catalog:build",
-		"vitest": "catalog:testing"
+		"tsdown": "catalog:build"
 	},
 	"optionalDependencies": {
 		"@ccusage/ccusage-darwin-arm64": "workspace:*",

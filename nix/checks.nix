@@ -121,7 +121,7 @@ in
       checks = {
         inherit ccusage-clippy ccusage-fmt config-schema;
         oxlint = mkRepoCheck "oxlint-check" [ pkgs.oxlint ] ''
-          oxlint .
+          oxlint --config nix/oxlint-check.json .
         '';
         gitleaks = mkRepoCheck "gitleaks-check" [ pkgs.gitleaks ] ''
           gitleaks detect --source . --config .gitleaks.toml --no-git

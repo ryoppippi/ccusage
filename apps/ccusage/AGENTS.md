@@ -5,7 +5,7 @@ This is the published `ccusage` npm package. The CLI implementation lives in Rus
 ## Skills
 
 - Use `development` for commands, bundled CLI dependency policy, style, exports, and validation.
-- Use `testing` for Rust cargo tests, snapshots, fixtures, Claude models, LiteLLM pricing tests, and Vitest tests.
+- Use `testing` for Rust cargo tests, Node tests, snapshots, fixtures, Claude models, and LiteLLM pricing tests.
 - Use `agent-sources` for Claude Code data directories, JSONL structure, session naming, cost modes, and report behavior.
 - Use `typescript` before reading or editing TypeScript or JavaScript package code.
 

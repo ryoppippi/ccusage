@@ -101,11 +101,12 @@ in
               stages = [ "pre-push" ];
               priority = 0;
             };
-            vitest-related = {
+            node-test = {
               enable = true;
-              name = "vitest related";
-              entry = "${lib.getExe pkgs.pnpm_11} vitest related --run";
+              name = "node test";
+              entry = "${lib.getExe pkgs.nodejs} --test apps/ccusage/src/cli.test.ts nix/models-dev-compact.test.ts";
               files = "\\.(ts|tsx|js|jsx|mjs|cjs)$";
+              pass_filenames = false;
               stages = [ "pre-push" ];
               priority = 10;
             };

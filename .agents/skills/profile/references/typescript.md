@@ -1,30 +1,29 @@
-# TypeScript And Bun Profiling
+# TypeScript And Script Profiling
 
 Use this reference for TypeScript launcher, benchmark, and packaging script
 performance. The production CLI is Rust-first, so native command performance
 work should use `references/rust.md`.
 
-## Bun Profiler Commands
+## Node Profiler Commands
 
-Use Bun's markdown CPU profile first because it is grep-friendly and compact
-enough for agent analysis. Generate `.cpuprofile` as well when a flamegraph or
-Chrome DevTools / VS Code inspection is useful. Inspect script options with
-`--help`, but do not treat help output as a profiling workload.
+Use Node's CPU profiler when launcher startup or package tooling is in scope.
+Inspect script options with `--help`, but do not treat help output as a
+profiling workload.
 
 ```sh
-pnpm exec bun --cpu-prof --cpu-prof-md --cpu-prof-dir ./profiles <script> <args>
+node --cpu-prof --cpu-prof-dir ./profiles apps/ccusage/dist/cli.js <args>
 ```
 
 For package scripts, inject profiler flags without rewriting the command:
 
 ```sh
-BUN_OPTIONS="--cpu-prof --cpu-prof-md --cpu-prof-dir ./profiles" pnpm <script>
+NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profiles" pnpm <script>
 ```
 
 Keep benchmark runs quiet and deterministic:
 
 ```sh
-LOG_LEVEL=0 COLUMNS=200 pnpm exec bun --cpu-prof-md <script> <args>
+LOG_LEVEL=0 COLUMNS=200 node --cpu-prof apps/ccusage/dist/cli.js <args>
 ```
 
 ## Branch Comparison
@@ -89,35 +88,6 @@ rg -n "Map#set|JSON.parse|Intl|postMessage|write|data-loader|table" profiles/*.m
 For `.cpuprofile`, open Chrome DevTools Performance tab or VS Code's CPU
 profiler and inspect both bottom-up self time and call tree context.
 
-## Bun References
-
-Use Bun's local agent-readable docs before web docs. In this repo, the useful
-Bun docs live in `node_modules/bun-types`.
-
-Read this first for profiling flags and benchmarking guidance:
-
-```sh
-sed -n '1,280p' node_modules/bun-types/docs/project/benchmarking.mdx
-```
-
-Use the type files for runtime APIs used in this repo, such as `Bun.$`,
-`Bun.file()`, `Bun.write()`, `Bun.spawn()`, `Bun.argv`, `Bun.deepEquals()`,
-`Bun.file().writer()`, `Bun.stdout`, `Bun.stderr`, and `Bun.stringWidth()`:
-
-```sh
-rg -n "cpu-prof|cpu-prof-md|Bun\\.\\$|function file|function write|function spawn|argv|deepEquals|stringWidth" \
-	node_modules/bun-types
-```
-
-Relevant local docs are usually under:
-
-- `node_modules/bun-types/README.md`
-- `node_modules/.pnpm/bun-types*/node_modules/bun-types/docs/project/benchmarking.mdx`
-- `node_modules/.pnpm/bun-types*/node_modules/bun-types/bun.d.ts`
-
-If local docs are unavailable, use Bun's benchmarking docs:
-`https://bun.com/docs/project/benchmarking`.
-
 ## ccusage Lessons
 
 - Past ccusage performance work found wins by profiling the real bundled CLI on
@@ -130,9 +100,9 @@ If local docs are unavailable, use Bun's benchmarking docs:
   `blocks` JSON when changing aggregation order.
 - Replace hot exact-key `Map` indexes with null-prototype object indexes only
   when keys are plain strings and inherited keys are covered.
-- Pipe large JSON output through `jq -e .` because Bun CLIs can expose stdout
-  flushing bugs under benchmark-style piping.
+- Pipe large JSON output through `jq -e .` so benchmark-style piping still
+  verifies JSON parity.
 
 Use microbenchmarks for isolated language/runtime questions, not as proof of CLI
-wins. Prefer `mitata` for JavaScript microbenchmarks. Confirm any
-microbenchmark-driven change with the full CLI profile and hyperfine A/B run.
+wins. Confirm any microbenchmark-driven change with the full CLI profile and
+hyperfine A/B run.
