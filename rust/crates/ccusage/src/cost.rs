@@ -136,10 +136,10 @@ pub(crate) fn tiered_cost(tokens: u64, base: f64, above: Option<f64>) -> f64 {
     if tokens == 0 {
         return 0.0;
     }
-    if let Some(above) = above {
-        if tokens > THRESHOLD {
-            return (THRESHOLD as f64 * base) + ((tokens - THRESHOLD) as f64 * above);
-        }
+    if let Some(above) = above
+        && tokens > THRESHOLD
+    {
+        return (THRESHOLD as f64 * base) + ((tokens - THRESHOLD) as f64 * above);
     }
     tokens as f64 * base
 }

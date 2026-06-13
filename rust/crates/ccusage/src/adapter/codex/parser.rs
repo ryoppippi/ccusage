@@ -170,35 +170,34 @@ pub(super) fn visit_codex_session_file(
                 let Ok(value) = serde_json::from_slice::<CodexSessionLogEntry<'_>>(&line) else {
                     continue;
                 };
-                if let Some(ref replay_ts) = replay_second {
-                    if skip_replay
-                        && value.entry_type.as_deref() == Some("event_msg")
-                        && value
+                if let Some(ref replay_ts) = replay_second
+                    && skip_replay
+                    && value.entry_type.as_deref() == Some("event_msg")
+                    && value
+                        .payload
+                        .as_ref()
+                        .is_some_and(|p| p.payload_type.as_deref() == Some("token_count"))
+                {
+                    let Some(ts) = codex_session_timestamp(value.timestamp.as_ref()) else {
+                        continue;
+                    };
+                    let matches_replay = ts
+                        .as_bytes()
+                        .get(0..19)
+                        .is_some_and(|sec| sec.len() == 19 && sec == replay_ts.as_slice());
+                    if matches_replay {
+                        if let Some(total_usage) = value
                             .payload
                             .as_ref()
-                            .is_some_and(|p| p.payload_type.as_deref() == Some("token_count"))
-                    {
-                        let Some(ts) = codex_session_timestamp(value.timestamp.as_ref()) else {
-                            continue;
-                        };
-                        let matches_replay = ts
-                            .as_bytes()
-                            .get(0..19)
-                            .is_some_and(|sec| sec.len() == 19 && sec == replay_ts.as_slice());
-                        if matches_replay {
-                            if let Some(total_usage) = value
-                                .payload
-                                .as_ref()
-                                .and_then(|payload| payload.info.as_ref())
-                                .and_then(|info| info.total_token_usage.as_ref())
-                                .copied()
-                            {
-                                previous_totals.replace(total_usage);
-                            }
-                            continue;
+                            .and_then(|payload| payload.info.as_ref())
+                            .and_then(|info| info.total_token_usage.as_ref())
+                            .copied()
+                        {
+                            previous_totals.replace(total_usage);
                         }
-                        skip_replay = false;
+                        continue;
                     }
+                    skip_replay = false;
                 }
                 visit_codex_session_entry(
                     &session_id,
@@ -991,8 +990,10 @@ mod tests {
         assert_eq!(fallbacks[0].model, "gpt-5.5");
         assert_eq!(fallbacks[6].released_on, "2025-08-07");
         assert_eq!(fallbacks[6].model, "gpt-5");
-        assert!(fallbacks
-            .windows(2)
-            .all(|window| window[0].released_on > window[1].released_on));
+        assert!(
+            fallbacks
+                .windows(2)
+                .all(|window| window[0].released_on > window[1].released_on)
+        );
     }
 }

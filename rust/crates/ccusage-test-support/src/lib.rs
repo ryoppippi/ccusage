@@ -1,12 +1,48 @@
 use std::{
+    ffi::{OsStr, OsString},
     fs,
     path::{Path, PathBuf},
+    sync::{Mutex, MutexGuard},
 };
 
 use assert_fs::{
-    fixture::{ChildPath, FileWriteStr, PathChild, PathCreateDir},
     TempDir,
+    fixture::{ChildPath, FileWriteStr, PathChild, PathCreateDir},
 };
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+fn env_lock() -> MutexGuard<'static, ()> {
+    ENV_LOCK.lock().unwrap()
+}
+
+pub struct EnvVarGuard {
+    key: &'static str,
+    previous: Option<OsString>,
+    _guard: MutexGuard<'static, ()>,
+}
+
+impl EnvVarGuard {
+    pub fn set(key: &'static str, value: impl AsRef<OsStr>) -> Self {
+        let guard = env_lock();
+        let previous = std::env::var_os(key);
+        unsafe { std::env::set_var(key, value) };
+        Self {
+            key,
+            previous,
+            _guard: guard,
+        }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
 
 pub struct Fixture {
     dir: TempDir,
@@ -62,7 +98,7 @@ impl Default for Fixture {
 
 #[macro_export]
 macro_rules! fs_fixture {
-    ({ $($path:literal : $contents:expr),* $(,)? }) => {{
+    ({ $($path:literal : $contents:expr_2021),* $(,)? }) => {{
         let fixture = $crate::Fixture::new();
         $(
             let _ = fixture.write_file($path, $contents);
@@ -90,8 +126,10 @@ mod tests {
         let fixture = fs_fixture!({});
         let _ = fixture.write_file("projects/example/session/chat.jsonl", "{}\n");
 
-        assert!(fixture
-            .path("projects/example/session/chat.jsonl")
-            .is_file());
+        assert!(
+            fixture
+                .path("projects/example/session/chat.jsonl")
+                .is_file()
+        );
     }
 }

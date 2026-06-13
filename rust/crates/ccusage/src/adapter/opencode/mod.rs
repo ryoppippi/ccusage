@@ -8,8 +8,8 @@ pub(crate) use report::{
 };
 
 use crate::{
-    cli::AgentCommandArgs, filter_loaded_entries_by_date, print_json_or_jq, print_usage_table,
-    sort_summaries, wants_json, Result,
+    Result, cli::AgentCommandArgs, filter_loaded_entries_by_date, print_json_or_jq,
+    print_usage_table, sort_summaries, wants_json,
 };
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {

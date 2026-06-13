@@ -1,5 +1,5 @@
 use crate::{
-    style::{color, Color, TerminalStyle},
+    style::{Color, TerminalStyle, color},
     width::visible_width,
 };
 
@@ -57,12 +57,16 @@ mod tests {
             },
         );
 
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("Coding (Agent) CLI Usage Report - Daily")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("Detected: Claude, Codex")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("Coding (Agent) CLI Usage Report - Daily"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("Detected: Claude, Codex"))
+        );
         assert_eq!(lines.iter().filter(|line| line.starts_with('╭')).count(), 1);
         assert_eq!(lines.iter().filter(|line| line.starts_with('╰')).count(), 1);
     }

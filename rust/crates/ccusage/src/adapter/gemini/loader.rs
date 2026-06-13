@@ -1,4 +1,4 @@
-use crate::{cli::SharedArgs, parse_tz, LoadedEntry, PricingMap, Result};
+use crate::{LoadedEntry, PricingMap, Result, cli::SharedArgs, parse_tz};
 
 use super::{
     parser::{event_to_loaded, parse_json_file, parse_jsonl_file},
@@ -35,7 +35,6 @@ mod tests {
 
     #[test]
     fn loads_jsonl_token_events_and_separates_cached_input() {
-        let _guard = super::super::GEMINI_DATA_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "project/chats/session-a.jsonl": [
                 r#"{"sessionId":"session-a","projectHash":"project-a","startTime":"2026-05-17T11:07:00.000Z"}"#,

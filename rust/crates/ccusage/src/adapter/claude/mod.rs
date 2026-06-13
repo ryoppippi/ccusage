@@ -14,13 +14,13 @@ use memchr::memmem;
 use rustc_hash::FxHasher;
 
 use crate::{
+    LoadedEntry, LoadedFile, PricingMap, Result, Speed, TimestampMs, UsageEntry, UsageSummary,
     calculate_cost,
     cli::{CostMode, SharedArgs},
     debug_log,
-    fast::{byte_lines, suffix_string, FxHashMap, SmallIndexVec},
+    fast::{FxHashMap, SmallIndexVec, byte_lines, suffix_string},
     format_date_tz, log_level, missing_pricing_model_for_usage, parse_ts_timestamp, parse_tz,
-    progress, LoadedEntry, LoadedFile, PricingMap, Result, Speed, TimestampMs, UsageEntry,
-    UsageSummary,
+    progress,
 };
 
 #[cfg(test)]
@@ -107,10 +107,10 @@ fn load_entries_inner(
         Vec::with_capacity(loaded_files.iter().map(|file| file.entries.len()).sum());
     for loaded_file in loaded_files {
         for entry in loaded_file.entries {
-            if let Some(filter) = project_filter {
-                if entry.project.as_ref() != filter {
-                    continue;
-                }
+            if let Some(filter) = project_filter
+                && entry.project.as_ref() != filter
+            {
+                continue;
             }
             push_deduped_entry(entry, &mut deduped_indexes, &mut deduped);
         }

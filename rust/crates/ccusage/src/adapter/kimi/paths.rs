@@ -4,7 +4,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use crate::{collect_files_with_extension, Result};
+use crate::{Result, collect_files_with_extension};
 
 pub(super) const KIMI_DATA_DIR_ENV: &str = "KIMI_DATA_DIR";
 pub(super) const KIMI_SESSIONS_DIR_NAME: &str = "sessions";
@@ -69,22 +69,18 @@ fn is_kimi_wire_file(sessions_path: &Path, file_path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use super::*;
-    use ccusage_test_support::fs_fixture;
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
 
     #[test]
     fn discovers_wire_jsonl_files_under_sessions_group_session() {
-        let _guard = super::super::KIMI_DATA_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "sessions/group/session/wire.jsonl": "{}\n",
             "sessions/group/session/other.jsonl": "{}\n",
             "sessions/nested/path/session/wire.jsonl": "{}\n",
         });
-        env::set_var(KIMI_DATA_DIR_ENV, fixture.root());
+        let _cleanup = EnvVarGuard::set(KIMI_DATA_DIR_ENV, fixture.root());
         let files = discover_wire_files().unwrap();
-        env::remove_var(KIMI_DATA_DIR_ENV);
 
         assert_eq!(
             files,

@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
+    Align, CodexGroup, CodexModelUsage, Color, PricingMap, Result, SimpleTable,
     cli::{AgentReportKind, CodexSpeed, SharedArgs},
     color, format_currency, format_models_multiline, format_number, json_float,
     missing_pricing_model_for_token_total, print_box_title,
-    print_missing_pricing_warnings_for_models, Align, CodexGroup, CodexModelUsage, Color,
-    PricingMap, Result, SimpleTable,
+    print_missing_pricing_warnings_for_models,
 };
 
 pub(super) fn report_from_groups(

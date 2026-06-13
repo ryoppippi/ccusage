@@ -4,9 +4,9 @@ mod paths;
 mod report;
 
 use crate::{
+    Result,
     cli::{AgentCommandArgs, AgentReportKind, SharedArgs},
     filter_loaded_entries_by_date, print_json_or_jq, print_usage_table, sort_summaries, wants_json,
-    Result,
 };
 
 pub(crate) use loader::load_entries;
@@ -66,38 +66,12 @@ pub(crate) fn has_data() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, ffi::OsString, path::Path, sync::Mutex};
-
-    use ccusage_test_support::fs_fixture;
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
     use serde_json::json;
 
     use super::*;
-    use crate::cli::{CostMode, SharedArgs};
     use crate::UsageSummary;
-
-    static QWEN_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
-
-    struct QwenDataDirGuard {
-        previous: Option<OsString>,
-    }
-
-    impl QwenDataDirGuard {
-        fn set(path: &Path) -> Self {
-            let previous = env::var_os("QWEN_DATA_DIR");
-            env::set_var("QWEN_DATA_DIR", path);
-            Self { previous }
-        }
-    }
-
-    impl Drop for QwenDataDirGuard {
-        fn drop(&mut self) {
-            if let Some(previous) = self.previous.take() {
-                env::set_var("QWEN_DATA_DIR", previous);
-            } else {
-                env::remove_var("QWEN_DATA_DIR");
-            }
-        }
-    }
+    use crate::cli::{CostMode, SharedArgs};
 
     #[test]
     fn loads_qwen_jsonl_usage_entries() {
@@ -114,8 +88,7 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
-        let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
-        let _guard = QwenDataDirGuard::set(fixture.root());
+        let _guard = EnvVarGuard::set("QWEN_DATA_DIR", fixture.root());
         let entries = load_entries(&shared).unwrap();
 
         assert_eq!(entries.len(), 1);
@@ -140,8 +113,7 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
-        let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
-        let _guard = QwenDataDirGuard::set(fixture.root());
+        let _guard = EnvVarGuard::set("QWEN_DATA_DIR", fixture.root());
         let entries = load_entries(&shared).unwrap();
         let rows = summarize_entries(&entries, AgentReportKind::Daily).unwrap();
         let report = report_from_rows(&rows, AgentReportKind::Daily);

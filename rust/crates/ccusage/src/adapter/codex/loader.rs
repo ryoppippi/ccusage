@@ -6,15 +6,15 @@ use std::{
 use compact_str::CompactString;
 
 use crate::{
-    chunk_file_indexes_by_size, cli::SharedArgs, fast::FxHashSet, progress, CodexTokenUsageEvent,
-    Result,
+    CodexTokenUsageEvent, Result, chunk_file_indexes_by_size, cli::SharedArgs, fast::FxHashSet,
+    progress,
 };
 
 use super::{
     parser::visit_codex_session_file,
     paths::{
-        codex_usage_sources, collect_codex_usage_files, collect_deduped_codex_usage_files,
-        CodexUsageSource,
+        CodexUsageSource, codex_usage_sources, collect_codex_usage_files,
+        collect_deduped_codex_usage_files,
     },
 };
 
@@ -617,10 +617,12 @@ mod tests {
         // File mtime is "now" at fixture creation, which is on or after every
         // entry currently in the fallback table, so resolution lands on the
         // newest known model. The exact value updates when the table grows.
-        assert!(events.iter().all(|event| event
-            .model
-            .as_deref()
-            .is_some_and(|model| model.starts_with("gpt-5"))));
+        assert!(events.iter().all(|event| {
+            event
+                .model
+                .as_deref()
+                .is_some_and(|model| model.starts_with("gpt-5"))
+        }));
         assert!(events.iter().all(|event| event.is_fallback_model));
     }
 

@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use crate::{
-    style::{color, Color, TerminalStyle},
+    style::{Color, TerminalStyle, color},
     terminal::DEFAULT_TERMINAL_WIDTH,
     width::{char_display_width, contains_ansi, visible_width, visible_width_max_line},
 };
@@ -139,10 +139,10 @@ impl SimpleTable {
             return row.to_vec();
         }
         let mut row = row.to_vec();
-        if let Some(first) = row.first_mut() {
-            if let Some(compact) = compact_date_cell(first) {
-                *first = compact;
-            }
+        if let Some(first) = row.first_mut()
+            && let Some(compact) = compact_date_cell(first)
+        {
+            *first = compact;
         }
         row
     }

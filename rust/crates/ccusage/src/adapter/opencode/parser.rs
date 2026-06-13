@@ -4,9 +4,9 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
 use crate::{
-    apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
-    json_value_u64, missing_pricing_model_for_candidates, non_empty_json_string, LoadedEntry,
-    PricingMap, TokenUsageRaw, UsageEntry, UsageMessage,
+    LoadedEntry, PricingMap, TokenUsageRaw, UsageEntry, UsageMessage, apply_total_token_fallback,
+    calculate_cost_for_usage, cli::CostMode, format_date_tz, json_value_u64,
+    missing_pricing_model_for_candidates, non_empty_json_string,
 };
 
 pub(crate) fn message_value_to_entry(
@@ -162,21 +162,21 @@ fn resolve_open_code_model_name(model: &str) -> String {
 fn normalize_open_code_model_name(model: &str) -> String {
     for family in ["claude-haiku-", "claude-opus-", "claude-sonnet-"] {
         if let Some(rest) = model.strip_prefix(family) {
-            if let Some((major, minor_and_suffix)) = rest.split_once('.') {
-                if major.chars().all(|ch| ch.is_ascii_digit())
-                    && minor_and_suffix
-                        .chars()
-                        .next()
-                        .is_some_and(|ch| ch.is_ascii_digit())
-                {
-                    return format!("{family}{major}-{minor_and_suffix}");
-                }
+            if let Some((major, minor_and_suffix)) = rest.split_once('.')
+                && major.chars().all(|ch| ch.is_ascii_digit())
+                && minor_and_suffix
+                    .chars()
+                    .next()
+                    .is_some_and(|ch| ch.is_ascii_digit())
+            {
+                return format!("{family}{major}-{minor_and_suffix}");
             }
             let mut chars = rest.chars();
-            if let (Some(major), Some(minor)) = (chars.next(), chars.next()) {
-                if major.is_ascii_digit() && minor.is_ascii_digit() {
-                    return format!("{family}{major}-{minor}{}", chars.collect::<String>());
-                }
+            if let (Some(major), Some(minor)) = (chars.next(), chars.next())
+                && major.is_ascii_digit()
+                && minor.is_ascii_digit()
+            {
+                return format!("{family}{major}-{minor}{}", chars.collect::<String>());
             }
         }
     }
@@ -188,7 +188,7 @@ mod tests {
     use serde_json::json;
 
     use super::{message_value_to_entry, open_code_model_candidates};
-    use crate::{cli::CostMode, LoadedEntry, PricingMap};
+    use crate::{LoadedEntry, PricingMap, cli::CostMode};
 
     fn entry_snapshot(entry: &LoadedEntry) -> serde_json::Value {
         json!({

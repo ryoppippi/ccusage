@@ -4,11 +4,11 @@ use std::{
 };
 
 use crate::{
+    LoadedEntry, ModelBreakdown, Result, TimestampMs, TokenCounts, UsageSummary,
     cli::{SharedArgs, SortOrder, WeekDay},
     cli_error,
     fast::{FxHashMap, FxHashSet},
-    format_naive_date, format_rfc3339_millis, parse_iso_date, LoadedEntry, ModelBreakdown, Result,
-    TimestampMs, TokenCounts, UsageSummary,
+    format_naive_date, format_rfc3339_millis, parse_iso_date,
 };
 
 pub(crate) fn summarize_by_key<F, M>(
@@ -314,8 +314,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        cli::{normalize_date_bound, SharedArgs, SortOrder},
-        format_rfc3339_millis, ModelBreakdown, TokenUsageRaw, UsageEntry, UsageMessage,
+        ModelBreakdown, TokenUsageRaw, UsageEntry, UsageMessage,
+        cli::{SharedArgs, SortOrder, normalize_date_bound},
+        format_rfc3339_millis,
     };
 
     #[test]

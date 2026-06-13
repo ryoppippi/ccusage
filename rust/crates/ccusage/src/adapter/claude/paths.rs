@@ -6,9 +6,9 @@ use std::{
 #[cfg(test)]
 use memchr::memmem;
 
-use crate::{cli_error, fast::FxHashSet, home, Result};
+use crate::{Result, cli_error, fast::FxHashSet, home};
 #[cfg(test)]
-use crate::{parse_ts_timestamp, TimestampMs};
+use crate::{TimestampMs, parse_ts_timestamp};
 
 pub(crate) fn claude_paths() -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
@@ -53,15 +53,15 @@ fn normalize_claude_config_path(raw: &str) -> PathBuf {
 }
 
 fn expand_home_path(raw: &str) -> PathBuf {
-    if raw == "~" {
-        if let Some(home) = home::home_dir() {
-            return home;
-        }
+    if raw == "~"
+        && let Some(home) = home::home_dir()
+    {
+        return home;
     }
-    if let Some(rest) = raw.strip_prefix("~/") {
-        if let Some(home) = home::home_dir() {
-            return home.join(rest);
-        }
+    if let Some(rest) = raw.strip_prefix("~/")
+        && let Some(home) = home::home_dir()
+    {
+        return home.join(rest);
     }
     PathBuf::from(raw)
 }
@@ -160,10 +160,10 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
         .last()
         .and_then(|file_name| file_name.strip_suffix(".jsonl"))
         .filter(|session_id| !session_id.is_empty());
-    if relative.len() == 2 {
-        if let Some(session_id) = file_session_id {
-            return (session_id.to_string(), relative[0].to_string());
-        }
+    if relative.len() == 2
+        && let Some(session_id) = file_session_id
+    {
+        return (session_id.to_string(), relative[0].to_string());
     }
     if relative.len() >= 4 && relative.get(relative.len() - 2) == Some(&"subagents") {
         let session_id = relative[relative.len() - 3].to_string();

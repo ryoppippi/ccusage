@@ -156,24 +156,26 @@ impl UsageLoadProgress {
         let running = Arc::new((Mutex::new(true), Condvar::new()));
         let worker = {
             let running = Arc::clone(&running);
-            Some(thread::spawn(move || loop {
-                if let Ok(mut state) = state.lock() {
-                    if state.has_content() {
+            Some(thread::spawn(move || {
+                loop {
+                    if let Ok(mut state) = state.lock()
+                        && state.has_content()
+                    {
                         state.render();
                     }
-                }
-                let (lock, cvar) = &*running;
-                let Ok(guard) = lock.lock() else {
-                    break;
-                };
-                if !*guard {
-                    break;
-                }
-                let Ok((guard, _)) = cvar.wait_timeout(guard, SPINNER_INTERVAL) else {
-                    break;
-                };
-                if !*guard {
-                    break;
+                    let (lock, cvar) = &*running;
+                    let Ok(guard) = lock.lock() else {
+                        break;
+                    };
+                    if !*guard {
+                        break;
+                    }
+                    let Ok((guard, _)) = cvar.wait_timeout(guard, SPINNER_INTERVAL) else {
+                        break;
+                    };
+                    if !*guard {
+                        break;
+                    }
                 }
             }))
         };
@@ -220,15 +222,15 @@ impl UsageLoadProgress {
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }
-        if let Some(controller) = self.controller.as_ref() {
-            if let Ok(mut state) = controller.state.lock() {
-                if state.rendered {
-                    let _ = write!(io::stderr(), "\r\x1b[K\x1b[?25h");
-                    let _ = io::stderr().flush();
-                }
-                state.status = None;
-                state.states.clear();
+        if let Some(controller) = self.controller.as_ref()
+            && let Ok(mut state) = controller.state.lock()
+        {
+            if state.rendered {
+                let _ = write!(io::stderr(), "\r\x1b[K\x1b[?25h");
+                let _ = io::stderr().flush();
             }
+            state.status = None;
+            state.states.clear();
         }
         ACTIVE_PROGRESS.with(|active| {
             *active.borrow_mut() = None;

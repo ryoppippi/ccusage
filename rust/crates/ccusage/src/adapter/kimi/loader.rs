@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{cli::SharedArgs, parse_tz, LoadedEntry, PricingMap, Result};
+use crate::{LoadedEntry, PricingMap, Result, cli::SharedArgs, parse_tz};
 
 use super::{
     parser::{kimi_entry_key, kimi_entry_to_loaded, read_wire_file},
@@ -36,30 +36,12 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
 
 #[cfg(test)]
 mod tests {
-    use std::{env, path::Path};
-
     use super::super::paths::KIMI_DATA_DIR_ENV;
     use super::*;
-    use ccusage_test_support::fs_fixture;
-
-    struct EnvDirGuard;
-
-    impl EnvDirGuard {
-        fn set(dir: &Path) -> Self {
-            env::set_var(KIMI_DATA_DIR_ENV, dir);
-            Self
-        }
-    }
-
-    impl Drop for EnvDirGuard {
-        fn drop(&mut self) {
-            env::remove_var(KIMI_DATA_DIR_ENV);
-        }
-    }
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
 
     #[test]
     fn loads_status_update_token_usage_from_wire_files() {
-        let _guard = super::super::KIMI_DATA_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "config.json": r#"{"model":"kimi-k2"}"#,
             "sessions/group/session-a/wire.jsonl": [
@@ -69,7 +51,7 @@ mod tests {
             ]
             .join("\n"),
         });
-        let _cleanup = EnvDirGuard::set(fixture.root());
+        let _cleanup = EnvVarGuard::set(KIMI_DATA_DIR_ENV, fixture.root());
         let shared = SharedArgs {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
@@ -91,7 +73,6 @@ mod tests {
 
     #[test]
     fn skips_malformed_and_zero_token_wire_lines() {
-        let _guard = super::super::KIMI_DATA_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "sessions/group/session-a/wire.jsonl": [
                 "not json",
@@ -99,7 +80,7 @@ mod tests {
             ]
             .join("\n"),
         });
-        let _cleanup = EnvDirGuard::set(fixture.root());
+        let _cleanup = EnvVarGuard::set(KIMI_DATA_DIR_ENV, fixture.root());
         let entries = load_entries(&SharedArgs::default(), &PricingMap::load_embedded()).unwrap();
 
         assert!(entries.is_empty());

@@ -3,12 +3,12 @@ use std::{collections::HashSet, sync::Arc};
 use jiff::tz::TimeZone as JiffTimeZone;
 
 use super::{
-    parser::{calculate_droid_cost, load_settings_file, missing_droid_pricing, DroidEntry},
+    parser::{DroidEntry, calculate_droid_cost, load_settings_file, missing_droid_pricing},
     paths::discover_settings_files,
 };
 use crate::{
-    cli::SharedArgs, format_date_tz, parse_tz, LoadedEntry, PricingMap, Result, UsageEntry,
-    UsageMessage,
+    LoadedEntry, PricingMap, Result, UsageEntry, UsageMessage, cli::SharedArgs, format_date_tz,
+    parse_tz,
 };
 
 pub(crate) fn load_entries(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<LoadedEntry>> {
@@ -82,9 +82,7 @@ use super::report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
 mod tests {
-    use std::{env, path::Path, sync::Mutex};
-
-    use ccusage_test_support::fs_fixture;
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
     use serde_json::json;
 
     use super::super::{
@@ -93,28 +91,8 @@ mod tests {
     };
     use super::*;
     use crate::{
-        cli::AgentReportKind, parse_ts_timestamp, TokenUsageRaw, UsageEntry, UsageMessage,
+        TokenUsageRaw, UsageEntry, UsageMessage, cli::AgentReportKind, parse_ts_timestamp,
     };
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-    struct EnvDirGuard {
-        key: &'static str,
-    }
-
-    impl EnvDirGuard {
-        fn set(key: &'static str, dir: &Path) -> Self {
-            env::set_var(key, dir);
-            Self { key }
-        }
-    }
-
-    impl Drop for EnvDirGuard {
-        fn drop(&mut self) {
-            env::remove_var(self.key);
-        }
-    }
-
     #[test]
     fn normalizes_droid_model_names() {
         assert_eq!(
@@ -144,7 +122,6 @@ mod tests {
 
     #[test]
     fn loads_usage_from_droid_settings_files() {
-        let _guard = ENV_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "session-a.settings.json": r#"{
                 "model": "Claude-Sonnet-4-[Anthropic]",
@@ -160,7 +137,7 @@ mod tests {
             }"#,
             "zero.settings.json": r#"{"model":"gpt-5","tokenUsage":{"inputTokens":0}}"#,
         });
-        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
+        let _cleanup = EnvVarGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let shared = SharedArgs {
@@ -185,7 +162,6 @@ mod tests {
 
     #[test]
     fn falls_back_to_sidecar_jsonl_model() {
-        let _guard = ENV_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "session-b.settings.json": r#"{
                 "providerLock": "anthropic",
@@ -194,7 +170,7 @@ mod tests {
             }"#,
             "session-b.jsonl": r#"{"content":"Model: Claude Opus 4.5 Thinking [Anthropic]"}"#,
         });
-        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
+        let _cleanup = EnvVarGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();
@@ -208,7 +184,6 @@ mod tests {
 
     #[test]
     fn keeps_latest_snapshot_for_duplicate_session_ids() {
-        let _guard = ENV_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "archive/session-c.settings.json": r#"{
                 "model": "gpt-5",
@@ -223,7 +198,7 @@ mod tests {
                 "tokenUsage": {"inputTokens": 100, "outputTokens": 200}
             }"#,
         });
-        let _cleanup = EnvDirGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
+        let _cleanup = EnvVarGuard::set(DROID_SESSIONS_DIR_ENV, fixture.root());
 
         let pricing = PricingMap::load_embedded();
         let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();

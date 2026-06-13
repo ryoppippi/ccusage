@@ -9,8 +9,9 @@ use serde_json::Value;
 
 use super::{parser::message_value_to_entry, paths::paths};
 use crate::{
+    LoadedEntry, PricingMap, Result,
     cli::{CostMode, SharedArgs},
-    collect_files_with_extension, debug_log, parse_tz, LoadedEntry, PricingMap, Result,
+    collect_files_with_extension, debug_log, parse_tz,
 };
 
 pub(crate) fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
@@ -26,10 +27,10 @@ fn load_entries_inner(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
     let mut seen = HashSet::new();
     for path in paths()? {
         for entry in load_entries_from_directory(&path, shared)? {
-            if let Some(id) = entry_id(&entry) {
-                if !seen.insert(id.to_string()) {
-                    continue;
-                }
+            if let Some(id) = entry_id(&entry)
+                && !seen.insert(id.to_string())
+            {
+                continue;
             }
             entries.push(entry);
         }
@@ -58,10 +59,10 @@ pub(crate) fn load_entries_from_directory(
         for entry in
             load_entries_from_database(&db_path, tz.as_ref(), shared.mode, pricing.as_ref(), shared)
         {
-            if let Some(id) = entry_id(&entry) {
-                if !seen.insert(id.to_string()) {
-                    continue;
-                }
+            if let Some(id) = entry_id(&entry)
+                && !seen.insert(id.to_string())
+            {
+                continue;
             }
             entries.push(entry);
         }
@@ -72,10 +73,10 @@ pub(crate) fn load_entries_from_directory(
     collect_files_with_extension(&messages_dir, "json", &mut files);
     for file in files {
         if let Some(entry) = read_message_file(&file, tz.as_ref(), shared.mode, pricing.as_ref())? {
-            if let Some(id) = entry_id(&entry) {
-                if !seen.insert(id.to_string()) {
-                    continue;
-                }
+            if let Some(id) = entry_id(&entry)
+                && !seen.insert(id.to_string())
+            {
+                continue;
             }
             entries.push(entry);
         }

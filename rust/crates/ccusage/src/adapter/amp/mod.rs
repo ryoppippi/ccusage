@@ -4,8 +4,8 @@ mod paths;
 mod report;
 
 use crate::{
-    adapter::opencode, cli::AgentCommandArgs, filter_loaded_entries_by_date, print_json_or_jq,
-    sort_summaries, wants_json, PricingMap, Result,
+    PricingMap, Result, adapter::opencode, cli::AgentCommandArgs, filter_loaded_entries_by_date,
+    print_json_or_jq, sort_summaries, wants_json,
 };
 
 pub(crate) use loader::load_entries;

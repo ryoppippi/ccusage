@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use serde_json::Value;
 
-use crate::{fast::FxHashMap, ModelBreakdown};
+use crate::{ModelBreakdown, fast::FxHashMap};
 
 #[derive(Debug, Clone)]
 pub(super) struct AllRow {

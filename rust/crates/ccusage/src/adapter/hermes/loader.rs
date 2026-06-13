@@ -1,9 +1,9 @@
 use std::{collections::HashSet, path::Path};
 
-use crate::{cli::SharedArgs, LoadedEntry, PricingMap, Result};
+use crate::{LoadedEntry, PricingMap, Result, cli::SharedArgs};
 
 use super::{
-    parser::{read_session_row, to_loaded_entry, HermesEntry},
+    parser::{HermesEntry, read_session_row, to_loaded_entry},
     paths::hermes_state_db_paths,
 };
 

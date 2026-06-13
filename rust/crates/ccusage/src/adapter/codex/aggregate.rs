@@ -10,10 +10,10 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use rustc_hash::FxHasher;
 
 use crate::{
+    CodexGroup, CodexTokenUsageEvent, Result,
     cli::{AgentReportKind, SharedArgs, WeekDay},
     fast::FxHashSet,
-    format_date_tz, parse_ts_timestamp, parse_tz, wants_json, week_start, CodexGroup,
-    CodexTokenUsageEvent, Result,
+    format_date_tz, parse_ts_timestamp, parse_tz, wants_json, week_start,
 };
 
 use super::{parser, paths};

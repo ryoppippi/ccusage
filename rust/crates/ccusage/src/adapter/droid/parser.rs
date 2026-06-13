@@ -3,9 +3,9 @@ use std::{collections::HashSet, fs, io, path::Path};
 use serde_json::Value;
 
 use crate::{
-    apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_rfc3339_millis,
-    json_value_u64, missing_pricing_model_for_candidates, parse_ts_timestamp, PricingMap, Result,
-    TokenUsageRaw,
+    PricingMap, Result, TokenUsageRaw, apply_total_token_fallback, calculate_cost_for_usage,
+    cli::CostMode, format_rfc3339_millis, json_value_u64, missing_pricing_model_for_candidates,
+    parse_ts_timestamp,
 };
 
 #[derive(Clone)]
@@ -124,10 +124,10 @@ fn settings_timestamp(
     settings: &serde_json::Map<String, Value>,
     path: &Path,
 ) -> Option<(crate::TimestampMs, String)> {
-    if let Some(timestamp_text) = string_field(settings, "providerLockTimestamp") {
-        if let Some(timestamp) = parse_ts_timestamp(&timestamp_text) {
-            return Some((timestamp, format_rfc3339_millis(timestamp)));
-        }
+    if let Some(timestamp_text) = string_field(settings, "providerLockTimestamp")
+        && let Some(timestamp) = parse_ts_timestamp(&timestamp_text)
+    {
+        return Some((timestamp, format_rfc3339_millis(timestamp)));
     }
     let modified = fs::metadata(path).ok()?.modified().ok()?;
     let millis = modified

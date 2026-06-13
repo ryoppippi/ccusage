@@ -8,9 +8,8 @@ use serde_json::{Map, Value};
 
 use crate::{
     cli::{
-        normalize_date_bound, BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs,
-        PricingOverride, SharedArgs, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay,
-        WeeklyArgs,
+        BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs, PricingOverride, SharedArgs,
+        SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs, normalize_date_bound,
     },
     config_schema::{
         BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
@@ -180,11 +179,11 @@ fn command_tokens(args: &[String]) -> Vec<String> {
     let mut index = 0;
     while index < args.len() {
         let arg = &args[index];
-        if let Some((flag, _)) = arg.split_once('=') {
-            if flag.starts_with('-') {
-                index += 1;
-                continue;
-            }
+        if let Some((flag, _)) = arg.split_once('=')
+            && flag.starts_with('-')
+        {
+            index += 1;
+            continue;
         }
         if arg.starts_with('-') {
             index += if option_takes_value(arg) { 2 } else { 1 };
@@ -366,15 +365,15 @@ pub(crate) fn apply_config_to_agent_args(
         if let Some(speed) = codex_options.speed {
             *codex_speed = speed.into();
         }
-        if let Some(pi_path) = pi_path.as_deref_mut() {
-            if let Some(path) = PiOptions::from_map(options).pi_path {
-                *pi_path = Some(path);
-            }
+        if let Some(pi_path) = pi_path.as_deref_mut()
+            && let Some(path) = PiOptions::from_map(options).pi_path
+        {
+            *pi_path = Some(path);
         }
-        if let Some(open_claw_path) = open_claw_path.as_deref_mut() {
-            if let Some(path) = OpenClawOptions::from_map(options).open_claw_path {
-                *open_claw_path = Some(path);
-            }
+        if let Some(open_claw_path) = open_claw_path.as_deref_mut()
+            && let Some(path) = OpenClawOptions::from_map(options).open_claw_path
+        {
+            *open_claw_path = Some(path);
         }
     }
 }
@@ -606,15 +605,15 @@ impl From<ConfigCostSource> for CostSource {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::{
+        DEFAULT_SESSION_DURATION_HOURS,
         cli::{
             BlocksArgs, CodexSpeed, CostMode, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay,
             WeeklyArgs,
         },
-        DEFAULT_SESSION_DURATION_HOURS,
     };
 
     #[test]

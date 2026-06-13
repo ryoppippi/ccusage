@@ -1,6 +1,6 @@
 use std::{collections::HashSet, env, path::PathBuf};
 
-use crate::{collect_files_with_extension, Result};
+use crate::{Result, collect_files_with_extension};
 
 pub(super) const GEMINI_DATA_DIR_ENV: &str = "GEMINI_DATA_DIR";
 
@@ -48,7 +48,6 @@ mod tests {
 
     #[test]
     fn discovers_json_and_jsonl_logs() {
-        let _guard = super::super::GEMINI_DATA_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "chats/a.json": "{}",
             "chats/b.jsonl": "{}\n",

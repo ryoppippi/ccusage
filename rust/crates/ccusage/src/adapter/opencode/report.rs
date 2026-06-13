@@ -1,9 +1,9 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
+    BucketKind, LoadedEntry, Result, SessionAccumulator,
     cli::{AgentReportKind, SortOrder, WeekDay},
-    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, totals_json, BucketKind,
-    LoadedEntry, Result, SessionAccumulator,
+    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, totals_json,
 };
 
 pub(crate) fn report_json(
@@ -48,27 +48,25 @@ pub(crate) fn agent_summary_json(
     if let (Some(obj), Some(message_count)) = (value.as_object_mut(), row.message_count) {
         obj.insert("messageCount".to_string(), json!(message_count));
     }
-    if include_session_metadata {
-        if let Some(obj) = value.as_object_mut() {
-            obj.insert(
-                "lastActivity".to_string(),
-                row.last_activity
-                    .as_ref()
-                    .map_or(Value::Null, |value| json!(value)),
-            );
-            obj.insert(
-                "firstActivity".to_string(),
-                row.first_activity
-                    .as_ref()
-                    .map_or(Value::Null, |value| json!(value)),
-            );
-            obj.insert(
-                "projectPath".to_string(),
-                row.project_path
-                    .as_ref()
-                    .map_or(Value::Null, |value| json!(value)),
-            );
-        }
+    if include_session_metadata && let Some(obj) = value.as_object_mut() {
+        obj.insert(
+            "lastActivity".to_string(),
+            row.last_activity
+                .as_ref()
+                .map_or(Value::Null, |value| json!(value)),
+        );
+        obj.insert(
+            "firstActivity".to_string(),
+            row.first_activity
+                .as_ref()
+                .map_or(Value::Null, |value| json!(value)),
+        );
+        obj.insert(
+            "projectPath".to_string(),
+            row.project_path
+                .as_ref()
+                .map_or(Value::Null, |value| json!(value)),
+        );
     }
     value
 }
@@ -170,8 +168,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        cli::AgentReportKind, format_rfc3339_millis, LoadedEntry, ModelBreakdown, TimestampMs,
-        TokenUsageRaw, UsageEntry, UsageMessage, UsageSummary,
+        LoadedEntry, ModelBreakdown, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
+        UsageSummary, cli::AgentReportKind, format_rfc3339_millis,
     };
 
     #[test]

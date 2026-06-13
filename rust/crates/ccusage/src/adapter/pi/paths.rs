@@ -8,10 +8,10 @@ pub(super) fn paths(custom_path: Option<&str>) -> Result<Vec<PathBuf>> {
     if let Some(custom_path) = custom_path.filter(|path| !path.trim().is_empty()) {
         return Ok(existing_path_list(custom_path));
     }
-    if let Ok(env_paths) = env::var(PI_AGENT_DIR_ENV) {
-        if !env_paths.trim().is_empty() {
-            return Ok(existing_path_list(&env_paths));
-        }
+    if let Ok(env_paths) = env::var(PI_AGENT_DIR_ENV)
+        && !env_paths.trim().is_empty()
+    {
+        return Ok(existing_path_list(&env_paths));
     }
 
     let home =

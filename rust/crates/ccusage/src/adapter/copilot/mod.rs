@@ -5,8 +5,8 @@ mod report;
 
 use crate::cli::AgentCommandArgs;
 use crate::{
-    filter_loaded_entries_by_date, print_json_or_jq, print_usage_table, sort_summaries, wants_json,
-    PricingMap, Result,
+    PricingMap, Result, filter_loaded_entries_by_date, print_json_or_jq, print_usage_table,
+    sort_summaries, wants_json,
 };
 
 pub(crate) use loader::load_entries;

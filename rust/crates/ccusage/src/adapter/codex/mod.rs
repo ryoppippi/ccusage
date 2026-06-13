@@ -6,7 +6,7 @@ mod report;
 mod speed;
 mod types;
 
-use crate::{cli::AgentCommandArgs, log_level, print_json_or_jq, wants_json, PricingMap, Result};
+use crate::{PricingMap, Result, cli::AgentCommandArgs, log_level, print_json_or_jq, wants_json};
 
 pub(crate) use aggregate::{aggregate_events, filter_events_by_date, load_groups};
 pub(crate) use loader::load_codex_events;
@@ -22,8 +22,8 @@ use report::{print_table_from_groups, report_from_groups};
 
 #[cfg(test)]
 use crate::{
-    cli::{AgentReportKind, CodexSpeed},
     CodexTokenUsageEvent,
+    cli::{AgentReportKind, CodexSpeed},
 };
 
 #[cfg(test)]

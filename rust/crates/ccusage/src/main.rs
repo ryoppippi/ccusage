@@ -41,16 +41,16 @@ pub(crate) use output::{
 };
 pub(crate) use project_names::{format_project_name, parse_project_aliases, short_model_name};
 pub(crate) use summary::{
-    filter_and_sort_summaries, sort_summaries, summarize_by_key, summarize_summaries_by_bucket,
-    week_start, BucketKind, SessionAccumulator,
+    BucketKind, SessionAccumulator, filter_and_sort_summaries, sort_summaries, summarize_by_key,
+    summarize_summaries_by_bucket, week_start,
 };
 pub(crate) use types::*;
 pub(crate) use utils::{
     apply_total_token_fallback, json_value_u64, non_empty_json_string, total_usage_tokens,
 };
 
-use ccusage_terminal::{terminal_width, TerminalStyle};
 pub(crate) use ccusage_terminal::{Align, Color, SimpleTable};
+use ccusage_terminal::{TerminalStyle, terminal_width};
 use cli::{AgentCommandArgs, AgentReportKind, Command};
 use pricing::PricingMap;
 
@@ -159,13 +159,9 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::HashMap,
-        env, fs,
-        sync::{Arc, Mutex},
-    };
+    use std::{collections::HashMap, fs, sync::Arc};
 
-    use ccusage_test_support::fs_fixture;
+    use ccusage_test_support::{EnvVarGuard, fs_fixture};
     use serde_json::json;
 
     use super::*;
@@ -173,8 +169,6 @@ mod tests {
         cli::{CostMode, SharedArgs, SortOrder, WeekDay},
         cost::tiered_cost,
     };
-
-    static CLAUDE_CONFIG_DIR_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn formats_numbers_with_commas() {
@@ -293,15 +287,14 @@ mod tests {
         .unwrap();
 
         assert_eq!(format_rfc3339_millis(timestamp), "2026-05-11T12:34:56.789Z");
-        assert!(adapter::claude::timestamp_from_line(
-            r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#
-        )
-        .is_none());
+        assert!(
+            adapter::claude::timestamp_from_line(r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#)
+                .is_none()
+        );
     }
 
     #[test]
     fn keeps_most_complete_duplicate_usage_entry() {
-        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project1/session1/chat.jsonl": [
                 r#"{"timestamp":"2025-01-10T10:00:00.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_456","costUSD":0.001}"#,
@@ -310,18 +303,12 @@ mod tests {
             .join("\n"),
         });
 
-        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        let _env = EnvVarGuard::set("CLAUDE_CONFIG_DIR", fixture.root());
         let shared = SharedArgs {
             mode: CostMode::Display,
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, None).unwrap();
-        if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
-        } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
-        }
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
@@ -331,7 +318,6 @@ mod tests {
 
     #[test]
     fn dedupes_usage_entries_by_message_id_without_request_id() {
-        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project1/session1/chat.jsonl": [
                 r#"{"timestamp":"2025-01-10T10:00:00.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"costUSD":0.001}"#,
@@ -340,18 +326,12 @@ mod tests {
             .join("\n"),
         });
 
-        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        let _env = EnvVarGuard::set("CLAUDE_CONFIG_DIR", fixture.root());
         let shared = SharedArgs {
             mode: CostMode::Display,
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, None).unwrap();
-        if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
-        } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
-        }
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].data.message.usage.output_tokens, 250);
@@ -360,23 +340,16 @@ mod tests {
 
     #[test]
     fn accepts_projects_directory_in_claude_config_dir() {
-        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project1/session1/chat.jsonl": r#"{"timestamp":"2025-01-10T10:00:00.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"costUSD":0.001}"#,
         });
 
-        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.path("projects"));
+        let _env = EnvVarGuard::set("CLAUDE_CONFIG_DIR", fixture.path("projects"));
         let shared = SharedArgs {
             mode: CostMode::Display,
             ..SharedArgs::default()
         };
         let entries = load_entries(&shared, None).unwrap();
-        if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
-        } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
-        }
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].project.as_ref(), "project1");
@@ -384,7 +357,6 @@ mod tests {
 
     #[test]
     fn loads_daily_summaries_like_loaded_entry_aggregation() {
-        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project-a/session-a/chat.jsonl": [
                 r#"{"timestamp":"2025-01-10T09:59:00.000Z","version":"not-semver","message":{"id":"bad","model":"claude-opus-4-6","usage":{"input_tokens":999,"output_tokens":999,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"bad","costUSD":9}"#,
@@ -396,8 +368,7 @@ mod tests {
             "projects/project-b/session-b/chat.jsonl": r#"{"timestamp":"2025-01-10T12:00:00.000Z","version":"1.2.3","sessionId":"session-b","message":{"id":"msg_b","model":"claude-sonnet-4-20250514","usage":{"input_tokens":20,"output_tokens":30,"cache_creation_input_tokens":4,"cache_read_input_tokens":2}},"requestId":"req_b","costUSD":0.04}"#,
         });
 
-        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        let _env = EnvVarGuard::set("CLAUDE_CONFIG_DIR", fixture.root());
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -406,11 +377,6 @@ mod tests {
         let entries = load_entries(&shared, None).unwrap();
         let daily = load_daily_summaries(&shared, None, false).unwrap();
         let grouped_daily = load_daily_summaries(&shared, None, true).unwrap();
-        if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
-        } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
-        }
 
         let expected_daily = summarize_by_key(
             &entries,
@@ -446,7 +412,6 @@ mod tests {
 
     #[test]
     fn keeps_nested_agent_progress_in_daily_model_order() {
-        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project-a/session-a.jsonl": [
                 r#"{"timestamp":"2026-03-10T06:00:00.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_fast","model":"claude-opus-4-6","role":"assistant","usage":{"input_tokens":10,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"speed":"fast"}},"requestId":"req_fast","costUSD":0.03}"#,
@@ -457,19 +422,13 @@ mod tests {
             "projects/project-a/session-a/subagents/agent-a.jsonl": r#"{"timestamp":"2026-03-10T06:00:01.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_haiku","model":"claude-haiku-4-5-20251001","role":"assistant","usage":{"input_tokens":20,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_haiku","costUSD":0.06}"#,
         });
 
-        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        let _env = EnvVarGuard::set("CLAUDE_CONFIG_DIR", fixture.root());
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
         let daily = load_daily_summaries(&shared, None, false).unwrap();
-        if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
-        } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
-        }
 
         assert_eq!(daily.len(), 1);
         assert_eq!(
@@ -485,14 +444,12 @@ mod tests {
 
     #[test]
     fn uses_direct_subagent_cost_for_duplicate_daily_agent_progress() {
-        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let fixture = fs_fixture!({
             "projects/project-a/session-a.jsonl": r#"{"sessionId":"session-a","version":"1.2.3","type":"progress","data":{"message":{"type":"assistant","timestamp":"2026-03-10T06:00:01.000Z","message":{"model":"claude-haiku-4-5-20251001","id":"msg_haiku","type":"message","role":"assistant","content":[],"usage":{"input_tokens":20,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_haiku","uuid":"nested"}},"timestamp":"2026-03-10T06:00:01.001Z"}"#,
             "projects/project-a/session-a/subagents/agent-a.jsonl": r#"{"timestamp":"2026-03-10T06:00:01.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_haiku","model":"claude-haiku-4-5-20251001","role":"assistant","usage":{"input_tokens":20,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_haiku","costUSD":0.06}"#,
         });
 
-        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
-        env::set_var("CLAUDE_CONFIG_DIR", fixture.root());
+        let _env = EnvVarGuard::set("CLAUDE_CONFIG_DIR", fixture.root());
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
@@ -500,11 +457,6 @@ mod tests {
         };
         let entries = load_entries(&shared, None).unwrap();
         let daily = load_daily_summaries(&shared, None, false).unwrap();
-        if let Some(previous) = previous {
-            env::set_var("CLAUDE_CONFIG_DIR", previous);
-        } else {
-            env::remove_var("CLAUDE_CONFIG_DIR");
-        }
 
         let expected_daily = summarize_by_key(
             &entries,
@@ -953,10 +905,12 @@ mod tests {
             "2025-01-10T10:00:00.000Z"
         );
         assert!(adapter::claude::usage_limit_reset_time_from_line(line, Some(false)).is_none());
-        assert!(adapter::claude::usage_limit_reset_time_from_line(
-            r#"{"message":{"content":[{"text":"Claude AI usage limit reached|0"}]}}"#,
-            Some(true)
-        )
-        .is_none());
+        assert!(
+            adapter::claude::usage_limit_reset_time_from_line(
+                r#"{"message":{"content":[{"text":"Claude AI usage limit reached|0"}]}}"#,
+                Some(true)
+            )
+            .is_none()
+        );
     }
 }

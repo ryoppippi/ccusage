@@ -1,7 +1,7 @@
 [package]
 name = "ccusage-terminal"
 version = "20.0.11"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 terminal_size = "0.4.4"

@@ -70,7 +70,7 @@ in
           nixfmt.enable = true;
           rustfmt = {
             enable = true;
-            edition = "2021";
+            edition = "2024";
             package = rustToolchain;
           };
           statix.enable = true;
