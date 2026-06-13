@@ -37,8 +37,8 @@ void it('formats duplicate pricing key warnings with the skipped source id', () 
 	);
 });
 
-it('prefers Anthropic provider pricing over duplicate aliases', () => {
-	expect(
+void it('prefers Anthropic provider pricing over duplicate aliases', () => {
+	assert.equal(
 		shouldReplaceModelsDevPricingCandidate(
 			{
 				sourceProviderId: 'github-copilot',
@@ -55,11 +55,12 @@ it('prefers Anthropic provider pricing over duplicate aliases', () => {
 				hasExplicitCacheWrite: true,
 			},
 		),
-	).toBe(true);
+		true,
+	);
 });
 
-it('uses a stable source ordering tie-break for duplicate aliases', () => {
-	expect(
+void it('uses a stable source ordering tie-break for duplicate aliases', () => {
+	assert.equal(
 		shouldReplaceModelsDevPricingCandidate(
 			{
 				sourceProviderId: 'nano-gpt',
@@ -76,5 +77,6 @@ it('uses a stable source ordering tie-break for duplicate aliases', () => {
 				hasExplicitCacheWrite: true,
 			},
 		),
-	).toBe(true);
+		true,
+	);
 });
